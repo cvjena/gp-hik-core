@@ -32,7 +32,7 @@ void TestFeatureMatrixT::testSetup()
   if (verboseStartEnd)
     std::cerr << "================== TestFeatureMatrixT::testSetup ===================== " << std::endl;
   
-	  std::vector< std::vector<double> > dataMatrix;
+  std::vector< std::vector<double> > dataMatrix;
 
   generateRandomFeatures ( d, n, dataMatrix );
 
@@ -41,10 +41,10 @@ void TestFeatureMatrixT::testSetup()
   {
     for ( uint k = 0; k < n; k++ )
       if ( drand48() < sparse_prob ) 
-		{
-			dataMatrix[i][k] = 0.0;
-			nrZeros++;
-		}
+      {
+        dataMatrix[i][k] = 0.0;
+        nrZeros++;
+      }
   }
 
   if ( verbose ) {
@@ -104,6 +104,9 @@ void TestFeatureMatrixT::testMatlabIO()
   if (verboseStartEnd)
     std::cerr << "================== TestFeatureMatrixT::testMatlabIO ===================== " << std::endl;
   
+#ifndef NICE_USELIB_MATIO
+  std::cerr << "MatIO library not included -- TestFeatureMatrixT::testMatlabIO not possible" << std::endl;
+#else //#ifdef NICE_USELIB_MATIO
   NICE::MatFileIO matfileIOA = MatFileIO("./sparse3x3matrixA.mat",MAT_ACC_RDONLY);
   sparse_t sparseA;
   matfileIOA.getSparseVariableViaName(sparseA,"A");
@@ -175,6 +178,8 @@ void TestFeatureMatrixT::testMatlabIO()
 //   
 // 	std::cerr << "fm.get_n(): " << fm.get_n() << " fm.get_d(): " << fm.get_d() << std::endl;
 // 	std::cerr << "fm.computeSparsityRatio() of Imagenet: " << fm.computeSparsityRatio() << std::endl;
+
+#endif //#ifdef NICE_USELIB_MATIO
 
   if (verboseStartEnd)
     std::cerr << "================== TestFeatureMatrixT::testMatlabIO done===================== " << std::endl;
