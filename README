@@ -1,0 +1,18 @@
+This code requires the NICE-core library (available on github) and implements the ideas presented in the following papers:
+
+Alexander Freytag and Erik Rodner and Paul Bodesheim and Joachim Denzler
+"Rapid Uncertainty Computation with Gaussian Processes and Histogram Intersection Kernels"
+Asian Conference on Computer Vision (ACCV). 2012.
+
+Erik Rodner and Alexander Freytag and Paul Bodesheim and Joachim Denzler
+"Large-Scale Gaussian Process Classification with Flexible Adaptive Histogram Kernels"
+European Conference on Computer Vision (ECCV). 2012. pages 85--98
+
+If you use this software in your research, you have to cite at least one of the two papers.
+
+Problems, questions, and general feedback should be addressed to:
+
+Alexander.Freytag <at> uni-jena.de
+Erik.Rodner <at> uni-jena.de
+
+Copyright (LGPL) Alexander Freytag and Erik Rodner

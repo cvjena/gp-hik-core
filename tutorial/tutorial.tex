@@ -1,0 +1,259 @@
+\documentclass[a4paper]{scrreprt}
+
+\usepackage[utf8x]{inputenc}
+\usepackage[OT1]{fontenc}
+\usepackage[ngerman]{babel}
+\selectlanguage{ngerman}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{top=25mm,bottom=25mm,left=30mm,right=25mm}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{color}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\usepackage[pdfpagelabels]{hyperref}
+\hypersetup{colorlinks=false,pdfborder= 0 0 0}
+
+\usepackage{booktabs}
+
+\include{notations}
+
+% define everything for a nice header
+\usepackage{scrpage2}
+\pagestyle{scrheadings}
+% header also on first page of new chapter
+\renewcommand*{\chapterpagestyle}{scrheadings} 
+% font of header
+\renewcommand{\headfont}{\normalfont}
+% header
+\ihead{\includegraphics[width=0.1\linewidth]{img/hanfried-en-blue}}
+ \chead{}
+\ohead{\includegraphics[width=0.3\linewidth]{img/fsuText-en}}
+\setlength{\headheight}{21mm} % height of header
+
+\title{Tutorial for GP-HIK-CORE}
+\author{Alexander Freytag, Erik Rodner \\ \url{firstname.lastname@uni-jena.de}}
+\setlength{\itemsep}{-0.5em}
+
+\newcommand{\confSection}[1]{\textit{Section: } #1}
+\newcommand{\variable}[1]{\textit{Variable: } #1}
+\newcommand{\variableType}[1]{\textit{Type: } #1}
+\newcommand{\default}[1]{\textit{Default: } #1}
+\newcommand{\infos}[4]{
+	\begin{itemize}
+	  \setlength{\itemsep}{-0.5em}
+	  \item \confSection{#1}
+	  \item \variable{#2}
+	  \item \variableType{#3}
+	  \item \default{#4}
+	\end{itemize}
+     }
+
+\definecolor{darkred}{rgb}{0.5,0,0}
+
+\begin{document}
+
+\maketitle
+
+\setlength{\parindent}{0pt}
+\renewcommand{\chaptername}{chapter}
+
+\chapter{Preface}
+\label{chap:Preface}
+This document shall help to quickly use the modul gp-hik-core\footnote{\url{https://github.com/cvjena/gp-hik-core}} of our library NICE\footnote{\url{https://github.com/cvjena/nice-core}}.
+It is structured as follows: 
+
+\paragraph{Chapter~\ref{chap:SetUp}: How to set-up the library} We briefly explain things to be regarded while setting up our library.
+
+\paragraph{Chapter~\ref{chap:ParamConfig}: Parameters and Configurations}
+In \chaptername~\ref{chap:ParamConfig} we give an overview of the majority of built-in parameters, explain their influence briefly and present default settings.
+
+\paragraph{Chapter~\ref{chap:DemoProgs}: Demo-Programs and how to use them}
+In \chaptername~\ref{chap:DemoProgs} we introduce some demo programs we created to show how to switch between some parameter settings.
+
+
+%--------------- setup --------------------
+\chapter{Setting up the library}
+\label{chap:SetUp}
+
+
+\textbf{Step 1: Obtain our main library}\newline
+\texttt{git clone https://github.com/cvjena/nice-core.git}
+\vspace{2em}
+
+\textbf{Step 2: configure everything}\newline
+\texttt{cd nice-core/} \newline
+\texttt{source setenv.sh}
+\vspace{2em}
+
+\textbf{Step 3: Obtain the gp-hik-core module}\newline
+\texttt{git clone https://github.com/cvjena/gp-hik-core.git}
+\vspace{2em}
+
+\textbf{Step 4: Build everything}\newline
+\texttt{cd cd gp-hik-core/} \newline
+\texttt{make}
+\vspace{2em}
+
+\textbf{Step 5: Verify that everything works properly}\newline
+\texttt{make check}
+
+
+
+%--------------- parameter configs -------------------- 
+\chapter{Parameter Configurations}
+\label{chap:ParamConfig}
+
+\section{Classification in general}
+  \paragraph{Specify the interative linear solver}
+    \infos{GPHIKClassifier}{ils\_method}{string}{CG}
+    \begin{tabular}{ll}
+      \textbf{Setting} & \textbf{Explanation} \\
+	CG     &  the conjugate gradients method\\
+	CGL    &  the conjugate gradients method using Lanczos process \\
+	SYMMLQ &  the symmetric LQ (SYMMLQ) method using Lanczos process\\
+	MINRES &  the minimum residual method using Lanczos process \\
+    \end{tabular}
+
+  \paragraph{Specify the optimization method}
+    \infos{GPHIKClassifier}{optimization\_method}{string}{greedy}
+    \begin{tabular}{ll}
+      \textbf{Setting} & \textbf{Explanation} \\
+	greedy            &  greedy 1D search in a pre-defined range\\
+	downhillsimplex   &  DHS in multiple dimensions \\
+	none              &  no optimization at all\\
+    \end{tabular}
+
+\section{Classification with Quantization}
+  \paragraph{(De-)Activate the Quantization}
+    \infos{GPHIKClassifier}{use\_quantization}{bool}{false}
+  \paragraph{Specify precision of quantization}
+    \infos{GPHIKClassifier}{num\_bins}{integer}{$100$}
+
+\section{Uncertainty Prediction}
+\paragraph{Activate or de-active the computation of predictive uncertainties}
+  \infos{GPHIKClassifier}{uncertaintyPredictionForClassification}{bool}{false}
+
+\paragraph{Specify how to compute predictive uncertainties}
+  \infos{GPHIKClassifier}{varianceApproximation}{string}{approximate\_fine}
+
+  \begin{tabular}{ll}
+    \textbf{Setting} & \textbf{Explanation} \\
+      approximate\_rough &  use the RAPU method (perhaps with quantization, see our ACCV'12 paper)\\
+      approximate\_fine &  use the FAPU method \\
+      exact &  use the PUP method\\
+      none &  deactivate the computation \\
+  \end{tabular}
+
+
+\section{Various}
+% 
+  \paragraph{Generalizations of HIK}
+    \infos{GPHIKClassifier}{transform}{string}{absexp}
+
+    \begin{tabular}{ll}
+      \textbf{Setting} & \textbf{Explanation} \\
+	absexp &  absolute value and exponential operation -- pow(fabs(x), exponent)\\
+	exp &  exponential operation -- exp(fabs(x), exponent)\\
+	MKL &  weights for Multiple Kernel Learning approach\\
+	WeightedDim &  weights for each dimension\\
+    \end{tabular}
+
+  \paragraph{Useful Output}
+    \infos{GPHIKClassifier}{verbose}{bool}{false}
+
+  \paragraph{Computation Time Output}
+    \infos{GPHIKClassifier}{verboseTime}{bool}{false}
+
+  \paragraph{Useful Debug Output}
+    \infos{GPHIKClassifier}{debug}{bool}{false}
+
+\section{GP related settings}
+  \paragraph{Set the GP noise for model regularization}
+    \infos{GPHIKClassifier}{noise}{double}{$0.01$}
+  \paragraph{(De-)Activate balanced learning}
+    \infos{GPHIKClassifier}{learn\_balanced}{bool}{false}
+  \paragraph{(De-)Activate aumatic determination of noise}
+    \infos{GPHIKClassifier}{optimize\_noise}{bool}{false}
+
+
+% \chapter{Class Structure}
+
+
+\chapter{Demo Programs}
+\label{chap:DemoProgs}
+
+\section{Toy Example for Classification}
+
+A simple toy example with synthetic data can be run with the program  \texttt{toyExample}. You may call the program with a default configuration via 
+
+  \texttt{../BUILD\_x86\_64/gp-hik-core/progs/toyExample -config ./configs/toyExample.conf}.
+
+\paragraph{Usage and Accuracies}
+This program uses synthetic data of $3$ classes with $49$ dimensions. For training, $20$ examples per class are used, whereas we provide $50$ examples per class for testing. 
+
+Without any changes, you should obtain an accuracy of $99.33\%$. If you activate the quantization approach (either in the config file or via 
+\texttt{-GPHIKClassifier:use\_quantization true}) the accuracy drops to $89.33\%$ since the sampled features cover small ranges in the input space. However, 
+when increasing the number of quantization steps to $1,000$, the resulting accuracy is again $99.33\%$.
+
+\paragraph{Quantization: Runtimes and Memory}
+When switching between with and without quantization, you should notice the differences in resulting runtimes. On our computer (single core, $3.4$GHz), 
+we obtain the following results:
+
+\begin{center}
+ \begin{tabular}{ccccc}
+    \textbf{Quantization} & \textbf{Training [s]} & \textbf{Testing [s]} & \textbf{Memory [kB]} & \textbf{Accuracy [\%]}\\
+     \hline
+    no                    & $5.06$                & $0.19$               & $26,228$             &  $99.33$\\
+    yes, $100$            & $5.09$                & $0.01$               & $26,488$             &  $89.33$ \\
+    yes, $1,000$          & $5.13$                & $0.01$               & $27,540$             &  $99.33$ \\
+  \end{tabular}
+\end{center}
+
+\section{Evaluation of Fast Min Kernel}
+\begin{itemize}
+ \item Name of Program
+    \begin{itemize}
+      \item[ ] \texttt{completeEvaluationFastMinkernel}
+    \end{itemize}
+ \item Input:
+    \begin{itemize}
+      \item[\texttt{-n}] number of examples
+      \item[\texttt{-d}] number of dimensions
+      \item[\texttt{-v}] additional output
+    \end{itemize}
+ \item Usage: three main parts
+    \begin{enumerate}
+      \item initialization (FMK vs. computation of $\kernelMatrix$)
+      \item kernel multiplication $\kernelMatrix \cdot \alpha $
+      \item kernel sum $\kernelVector^T \cdot \alpha $
+    \end{enumerate}
+\end{itemize}
+
+\chapter{Closing words}
+This library was built to provide a fast and memory efficient possibility for bayesian inference in large-scale scenarios. 
+The algorithms are published in the following papers.
+\vspace{1em}
+
+Large-scale classification (training, optimization, testing):
+\begin{itemize}
+  \item \textbf{Large-Scale Gaussian Process Classification with Flexible Adaptive Histogram Kernels} by \textit{Erik Rodner and Alexander Freytag and Paul Bodesheim and Joachim Denzler} (ECCV 2012. 85--98) and
+\end{itemize}
+Rapid uncertainty computation, incremental and active learning:
+\begin{itemize}
+  \item \textbf{Rapid Uncertainty Computation with Gaussian Processes and Histogram Intersection Kernels} by \textit{Alexander Freytag and Erik Rodner and Paul Bodesheim and Joachim Denzler} (ACCV 2012. ), which was awarded with the \textcolor{darkred}{\bf ``Best paper honorable mention''}.
+\end{itemize}
+
+
+In case of any problems or suggestions for improvement, don't hesitate to contact us.
+
+\vspace{10em}
+\begin{center}
+  \includegraphics[width=0.5\linewidth]{img/logoV2blue}
+\end{center}
+
+
+\end{document}
