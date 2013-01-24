@@ -3,3 +3,5 @@
 - tutorials, numbers, demo-programs, ...
 
 - consistency checks (dimensions etc.)
+
+- more documentation (e.g., train von GPHIKClassifierNice train methods - what is binLabels)
