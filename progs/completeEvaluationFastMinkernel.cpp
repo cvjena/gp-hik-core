@@ -9,6 +9,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
+#include <unistd.h>
 
 #include "core/vector/MatrixT.h"
 #include "core/vector/VectorT.h"
