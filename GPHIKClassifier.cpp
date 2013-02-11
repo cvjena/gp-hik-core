@@ -91,15 +91,15 @@ void GPHIKClassifier::init(const Config *conf, const string & confSection)
    
   //how do we approximate the predictive variance for classification uncertainty?
   string varianceApproximationString = conf->gS(confSection, "varianceApproximation", "approximate_fine"); //default: fine approximative uncertainty prediction
-  if (varianceApproximationString.compare("approximate_rough") == 0)
+  if ( (varianceApproximationString.compare("approximate_rough") == 0) || ((varianceApproximationString.compare("1") == 0)) )
   {
     this->varianceApproximation = APPROXIMATE_ROUGH;
   }
-  else if (varianceApproximationString.compare("approximate_fine") == 0)
+  else if ( (varianceApproximationString.compare("approximate_fine") == 0) || ((varianceApproximationString.compare("2") == 0)) )
   {
     this->varianceApproximation = APPROXIMATE_FINE;
   }
-  else if (varianceApproximationString.compare("exact") == 0)
+  else if ( (varianceApproximationString.compare("exact") == 0)  || ((varianceApproximationString.compare("3") == 0)) )
   {
     this->varianceApproximation = EXACT;
   }
