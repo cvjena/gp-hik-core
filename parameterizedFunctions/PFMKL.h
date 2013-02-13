@@ -52,6 +52,8 @@ class PFMKL : public ParameterizedFunction
       if ( index < *it)
         return x * m_parameters[dummyCnt];
     }
+    //default value, should never be reached
+    return 0.0;
   }
 
   bool isOrderPreserving() const { return true; };

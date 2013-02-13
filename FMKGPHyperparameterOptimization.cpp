@@ -42,6 +42,10 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization()
   verbose = false;
   verboseTime = false;
   debug = false;
+  
+  //stupid unneeded default values
+  binaryLabelPositive = -1;
+  binaryLabelNegative = -2;
 }
 
 FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config *_conf, ParameterizedFunction *_pf, FastMinKernel *_fmk, const string & _confSection )
@@ -53,6 +57,10 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config 
   fmk = NULL;
   q = NULL;
   precomputedTForVarEst = NULL;
+  
+  //stupid unneeded default values
+  binaryLabelPositive = -1;
+  binaryLabelNegative = -2;  
 
   if ( _fmk == NULL )
     this->initialize ( _conf, _pf ); //then the confSection is also the default value
@@ -588,7 +596,9 @@ int FMKGPHyperparameterOptimization::prepareBinaryLabels ( map<int, NICE::Vector
   myClasses.clear();
   for ( NICE::Vector::const_iterator it = y.begin(); it != y.end(); it++ )
     if ( myClasses.find ( *it ) == myClasses.end() )
+    {
       myClasses.insert ( *it );
+    }
 
   //count how many different classes appear in our data
   int nrOfClasses = myClasses.size();
@@ -611,18 +621,19 @@ int FMKGPHyperparameterOptimization::prepareBinaryLabels ( map<int, NICE::Vector
   }
   else if ( nrOfClasses == 2 )
   {
-    std::cerr << "binary setting -- prepare two binary label vectors with opposite signs" << std::endl;
+//     std::cerr << "binary setting -- prepare two binary label vectors with opposite signs" << std::endl;
     Vector yb ( y );
 
-    int negativeClass = *(myClasses.begin());
+    binaryLabelNegative = *(myClasses.begin());
     std::set<int>::const_iterator classIt = myClasses.begin(); classIt++;
-    int positiveClass = *classIt;
+    binaryLabelPositive = *classIt;
     
-    std::cerr << "positiveClass : " << positiveClass << " negativeClass: " << negativeClass << std::endl;
+//     std::cerr << "positiveClass : " << binaryLabelPositive << " negativeClass: " << binaryLabelNegative << std::endl;
+
     for ( uint i = 0 ; i < yb.size() ; i++ )
-      yb[i] = ( y[i] == negativeClass ) ? -1.0 : 1.0;
+      yb[i] = ( y[i] == binaryLabelNegative ) ? -1.0 : 1.0;
     
-    binaryLabels[ positiveClass ] = yb;
+    binaryLabels[ binaryLabelPositive ] = yb;
 	  //binaryLabels[ 1 ] = yb;
     
     //uncomment the following, if you want to perform real binary computations with 2 classes
@@ -630,7 +641,7 @@ int FMKGPHyperparameterOptimization::prepareBinaryLabels ( map<int, NICE::Vector
 //     binaryLabels[ negativeClass ] = yb;
 //     binaryLabels[ negativeClass ] *= -1.0;  
     
-    std::cerr << "binaryLabels.size(): " << binaryLabels.size() << std::endl;
+//     std::cerr << "binaryLabels.size(): " << binaryLabels.size() << std::endl;
     
 //     binaryLabels[ 0 ] = yb;
 //     binaryLabels[ 0 ] *= -1.0;
@@ -646,6 +657,7 @@ int FMKGPHyperparameterOptimization::prepareBinaryLabels ( map<int, NICE::Vector
   else //OCC setting
   {
     //we set the labels to 1, independent of the previously given class number
+    //however, the original class numbers are stored and returned in classification
     Vector yNew ( y.size(), 1 );
     myClasses.clear();
     myClasses.insert ( 1 );
@@ -681,6 +693,7 @@ void FMKGPHyperparameterOptimization::optimize ( std::map<int, NICE::Vector> & b
   int nrOfClasses = binaryLabels.size();
   std::set<int> classesToUse;
   classesToUse.clear();
+  
   for (std::map<int, NICE::Vector>::const_iterator clIt = binaryLabels.begin(); clIt != binaryLabels.end(); clIt++)
   {
     classesToUse.insert(clIt->first);
@@ -1246,17 +1259,16 @@ int FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & xstar
     scores[ classno ] = beta;
   }
   scores.setDim ( maxClassNo + 1 );
-
+  
   if ( precomputedA.size() > 1 ) {
     // multi-class classification
     return scores.maxElement();
   } else {
     // binary setting
     // FIXME: not really flexible for every situation
-    scores[1] = -scores[0];
-    scores[0] = scores[0];
-    scores.setDim ( 2 );
-    return scores[ 0 ] <= 0.0 ? 0 : 1;
+    scores[binaryLabelNegative] = -scores[binaryLabelPositive];
+    
+    return scores[ binaryLabelPositive ] <= 0.0 ? binaryLabelNegative : binaryLabelPositive;
   }
 }
 
@@ -1625,6 +1637,12 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
 
       //the last one is the GHIK - which we do not have to restore, but simple reset it lateron
     }
+    
+    //restore the class numbers for binary settings (if mc-settings, these values will be negative by default)
+    is >> tmp; // "binaryLabelPositive: " 
+    is >> binaryLabelPositive;
+    is >> tmp; // " binaryLabelNegative: "
+    is >> binaryLabelNegative;          
   }
   else
   {
@@ -1743,6 +1761,9 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) co
       }
       ikmSumIt++;
     }
+    
+    //store the class numbers for binary settings (if mc-settings, these values will be negative by default)
+    os << "binaryLabelPositive: " << binaryLabelPositive << " binaryLabelNegative: " << binaryLabelNegative << std::endl;
   }
   else
   {

@@ -165,6 +165,7 @@ void GPHIKClassifier::train ( const std::vector< NICE::SparseVector *> & example
 
   if (verbose)
     cerr << "Learning ..." << endl;
+
   // go go go
   gphyper->optimize ( labels );
   if (verbose)

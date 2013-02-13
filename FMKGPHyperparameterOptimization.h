@@ -148,6 +148,11 @@ class FMKGPHyperparameterOptimization : NICE::Persistent
     //! use the alphas from the last iteration as initial guess for the ILS?
     bool usePreviousAlphas;
     
+    //! store the class number of the positive class (i.e., larger class no), only used in binary settings
+    int binaryLabelPositive;
+    //! store the class number of the negative class (i.e., smaller class no), only used in binary settings
+    int binaryLabelNegative;
+    
   public:  
     
 
