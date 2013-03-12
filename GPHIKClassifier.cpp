@@ -107,6 +107,7 @@ void GPHIKClassifier::init(const Config *conf, const string & confSection)
   {
     this->varianceApproximation = NONE;
   } 
+  std::cerr << "varianceApproximationStrategy: " << varianceApproximationString  << std::endl;
 }
 
 void GPHIKClassifier::classify ( const SparseVector * example,  int & result, SparseVector & scores )
