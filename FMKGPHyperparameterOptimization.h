@@ -140,10 +140,10 @@ class FMKGPHyperparameterOptimization : NICE::Persistent
     //! build the resulting matrices A and B as well as lookup tables T for fast evaluations using the optimized parameter settings
     inline void computeMatricesAndLUTs(const std::map<int,GPLikelihoodApprox * > & gplikes);
     
-    //! Update optimal parameters after adding a new example.  
-    void optimizeAfterSingleIncrement (const NICE::SparseVector & x, const bool & performOptimizationAfterIncrement = false);    
-    //! Update optimal parameters after adding multiple examples.  
-    void optimizeAfterMultipleIncrements (const std::vector<const NICE::SparseVector*> & x, const bool & performOptimizationAfterIncrement = false);   
+    //! Update matrices (A, B, LUTs) and optionally find optimal parameters after adding a new example.  
+    void updateAfterSingleIncrement (const NICE::SparseVector & x, const bool & performOptimizationAfterIncrement = false);    
+    //! Update matrices (A, B, LUTs) and optionally find optimal parameters after adding multiple examples.  
+    void updateAfterMultipleIncrements (const std::vector<const NICE::SparseVector*> & x, const bool & performOptimizationAfterIncrement = false);   
     
     //! use the alphas from the last iteration as initial guess for the ILS?
     bool usePreviousAlphas;
@@ -152,6 +152,11 @@ class FMKGPHyperparameterOptimization : NICE::Persistent
     int binaryLabelPositive;
     //! store the class number of the negative class (i.e., smaller class no), only used in binary settings
     int binaryLabelNegative;
+    
+    //! contains all class numbers of the currently known classes
+    std::set<int> knownClasses;
+    //! contains the class numbers of new classes - only needed within the increment step
+    std::set<int> newClasses;
     
   public:  
     

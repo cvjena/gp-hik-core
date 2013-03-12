@@ -547,6 +547,8 @@ void FMKGPHyperparameterOptimization::computeMatricesAndLUTs ( const std::map<in
         
         precomputedT[ i->first ] = T;
       }
+      
+      //TODO update the variance-related matrices as well!!!
     }
   }
 }
@@ -831,15 +833,15 @@ void FMKGPHyperparameterOptimization::optimize ( std::map<int, NICE::Vector> & b
   }
 }
 
-void FMKGPHyperparameterOptimization::optimizeAfterSingleIncrement ( const NICE::SparseVector & x, const bool & performOptimizationAfterIncrement )
+void FMKGPHyperparameterOptimization::updateAfterSingleIncrement ( const NICE::SparseVector & x, const bool & performOptimizationAfterIncrement )
 {
   Timer t;
   t.start();
   if ( fmk == NULL )
     fthrow ( Exception, "FastMinKernel object was not initialized!" );
 
-  map<int, NICE::Vector> binaryLabels;
-  set<int> classesToUse;
+  std::map<int, NICE::Vector> binaryLabels;
+  std::set<int> classesToUse;
   prepareBinaryLabels ( binaryLabels, labels , classesToUse );
   if ( verbose )
     std::cerr << "labels.size() after increment: " << labels.size() << std::endl;
@@ -1010,44 +1012,117 @@ void FMKGPHyperparameterOptimization::optimizeAfterSingleIncrement ( const NICE:
   }
 }
 
-void FMKGPHyperparameterOptimization::optimizeAfterMultipleIncrements ( const std::vector<const NICE::SparseVector*> & x, const bool & performOptimizationAfterIncrement )
+void FMKGPHyperparameterOptimization::updateAfterMultipleIncrements ( const std::vector<const NICE::SparseVector*> & x, const bool & performOptimizationAfterIncrement )
 {
   Timer t;
   t.start();
   if ( fmk == NULL )
     fthrow ( Exception, "FastMinKernel object was not initialized!" );
 
-  map<int, NICE::Vector> binaryLabels;
-  set<int> classesToUse;
-  prepareBinaryLabels ( binaryLabels, labels , classesToUse );
+  std::map<int, NICE::Vector> binaryLabels;
+  std::set<int> classesToUse;
+  this->prepareBinaryLabels ( binaryLabels, labels , classesToUse );
+  //actually, this is not needed, since we have the global set knownClasses
+  classesToUse.clear();
+  
+  std::map<int, NICE::Vector> newBinaryLabels;
+  if ( newClasses.size() > 0)
+  {
+    for (std::set<int>::const_iterator newClIt = newClasses.begin(); newClIt != newClasses.end(); newClIt++)
+    {
+      std::map<int, NICE::Vector>::iterator binLabelIt = binaryLabels.find(*newClIt);
+      newBinaryLabels.insert(*binLabelIt);
+    }
+  }
+  
   if ( verbose )
     std::cerr << "labels.size() after increment: " << labels.size() << std::endl;
 
+ 
+  
+  // ************************************************************
+  //   include the information for classes we know so far    
+  // ************************************************************
+  
   Timer t1;
   t1.start();
   //update the kernel combinations
   std::map<int, NICE::Vector>::const_iterator labelIt = binaryLabels.begin();
   // note, that if we only have a single ikmsum-object, than the labelvector will not be used at all in the internal objects (only relevant in ikmnoise)
 
-  //TODO
   for ( std::map<int, IKMLinearCombination * >::iterator it = ikmsums.begin(); it != ikmsums.end(); it++ )
   {
+    //make sure that we only work on currently known classes in this loop
+    while ( newClasses.find( labelIt->first ) != newClasses.end())
+    {
+      labelIt++;
+    }
     for ( std::vector<const NICE::SparseVector*>::const_iterator exampleIt = x.begin(); exampleIt != x.end(); exampleIt++ )
     {
       it->second->addExample ( **exampleIt, labelIt->second );
     }
     labelIt++;
   }
-
+  
   //we have to reset the fmk explicitely
   for ( std::map<int, IKMLinearCombination * >::iterator it = ikmsums.begin(); it != ikmsums.end(); it++ )
   {
-    ( ( GMHIKernel* ) it->second->getModel ( it->second->getNumberOfModels() - 1 ) )->setFastMinKernel ( this->fmk );
+    if ( newClasses.find( it->first ) != newClasses.end() )
+      continue;
+    else
+      ( ( GMHIKernel* ) it->second->getModel ( it->second->getNumberOfModels() - 1 ) )->setFastMinKernel ( this->fmk );
   }
 
   t1.stop();
   if (verboseTime)
-    std::cerr << "Time used for setting up the ikm-objects: " << t1.getLast() << std::endl;
+    std::cerr << "Time used for setting up the ikm-objects for known classes: " << t1.getLast() << std::endl;
+  
+  // *********************************************
+  //          work on the new classes
+  // *********************************************
+  
+  double tmpNoise;  
+  (ikmsums.begin()->second->getModel( 0 ))->getFirstDiagonalElement(tmpNoise);
+    
+  if ( newClasses.size() > 0)
+  {
+    //setup the new kernel combinations
+    if ( learnBalanced )
+    {
+      for ( std::set<int>::const_iterator clIt = newClasses.begin(); clIt != newClasses.end(); clIt++ )
+      {
+        IKMLinearCombination *ikmsum = new IKMLinearCombination ();
+        ikmsums.insert ( std::pair<int, IKMLinearCombination*> ( *clIt, ikmsum ) );
+      }
+    }
+    else
+    {
+      //nothing to do, we already have the single ikmsum-object
+    } 
+    
+  //   First model: noise
+    if ( learnBalanced )
+    {
+      for ( std::set<int>::const_iterator clIt = newClasses.begin(); clIt != newClasses.end(); clIt++ )
+      {
+        ikmsums.find ( *clIt )->second->addModel ( new IKMNoise ( newBinaryLabels[*clIt], tmpNoise, optimizeNoise ) );
+      }
+    }
+    else
+    {
+      //nothing to do, we already have the single ikmsum-object
+    }
+    
+    //NOTE The GMHIKernel is always the last model which is added (this is necessary for easy store and restore functionality)
+    for ( std::set<int>::const_iterator clIt = newClasses.begin(); clIt != newClasses.end(); clIt++ )
+    {
+      ikmsums.find ( *clIt )->second->addModel ( new GMHIKernel ( this->fmk, pf, NULL /* no quantization */ ) );
+    }  
+  } // if ( newClasses.size() > 0)  
+  
+  // ******************************************************************************************
+  //       now do everything which is independent of the number of new classes
+  // ******************************************************************************************  
 
   std::map<int, GPLikelihoodApprox * > gplikes;
   std::map<int, uint> parameterVectorSizes;
@@ -1069,6 +1144,12 @@ void FMKGPHyperparameterOptimization::optimizeAfterMultipleIncrements ( const st
   }
 
   t1.start();
+  this->updateEigenVectors();
+  t1.stop();
+  if (verboseTime)
+    std::cerr << "Time used for setting up the eigenvectors-objects: " << t1.getLast() << std::endl;
+
+  t1.start();
   if ( usePreviousAlphas )
   {
     std::map<int, NICE::Vector>::const_iterator binaryLabelsIt = binaryLabels.begin();
@@ -1076,6 +1157,16 @@ void FMKGPHyperparameterOptimization::optimizeAfterMultipleIncrements ( const st
     
     for ( std::map<int, NICE::Vector>::iterator lastAlphaIt = lastAlphas.begin() ;lastAlphaIt != lastAlphas.end(); lastAlphaIt++ )
     {
+      //make sure that we only work on currently known classes in this loop
+      while ( newClasses.find( labelIt->first ) != newClasses.end())
+      {
+        labelIt++;
+        //since we already updated the eigenvalues, they contain the eigenvalues for the new classes as well.
+        if (learnBalanced)
+        {
+          eigenMaxIt++;
+        }
+      }      
       int oldSize ( lastAlphaIt->second.size() );
       lastAlphaIt->second.resize ( oldSize + x.size() );
 
@@ -1104,6 +1195,26 @@ void FMKGPHyperparameterOptimization::optimizeAfterMultipleIncrements ( const st
         eigenMaxIt++;
       }
     }
+       
+    //compute unaffected alpha-vectors for the new classes
+    eigenMaxIt = eigenMax.begin();
+    std::map<int, GPLikelihoodApprox * >::const_iterator gplikesIt = gplikes.begin();
+    for (std::set<int>::const_iterator newClIt =  newClasses.begin(); newClIt != newClasses.end(); newClIt++)
+    {
+      //go to the position of the new class
+      while (gplikesIt->first < *newClIt)
+      {
+        eigenMaxIt++;
+        gplikesIt++;
+      }
+      
+      double maxEigenValue ( 1.0 );
+      if ( (*eigenMaxIt).size() > 0 )
+        maxEigenValue = (*eigenMaxIt)[0];
+      
+      NICE::Vector alphaVec = (binaryLabels[*newClIt] * (1.0 / maxEigenValue) ); //see GPLikelihoodApprox for an explanation
+      lastAlphas.insert( std::pair<int, NICE::Vector>(*newClIt, alphaVec) );
+    }      
 
     for ( std::map<int, GPLikelihoodApprox * >::iterator gpLikeIt = gplikes.begin(); gpLikeIt != gplikes.end(); gpLikeIt++ )
     {
@@ -1113,13 +1224,13 @@ void FMKGPHyperparameterOptimization::optimizeAfterMultipleIncrements ( const st
   //if we do not use previous alphas, we do not have to set up anything here  
   t1.stop();
   if (verboseTime)
-    std::cerr << "Time used for setting up the alpha-objects: " << t1.getLast() << std::endl;
+    std::cerr << "Time used for setting up the alpha-objects: " << t1.getLast() << std::endl;  
+  
+/*
 
   t1.start();
-  this->updateEigenVectors();
-  t1.stop();
-  if (verboseTime)
-    std::cerr << "Time used for setting up the eigenvectors-objects: " << t1.getLast() << std::endl;
+  this->setupGPLikelihoodApprox ( gplikes,binaryLabels, parameterVectorSizes );
+  t1.stop();  */
 
   if ( verbose )
     std::cerr << "resulting eigenvalues of first class: " << eigenMax[0] << std::endl;
@@ -1134,7 +1245,7 @@ void FMKGPHyperparameterOptimization::optimizeAfterMultipleIncrements ( const st
   // as initialization
   // OPT_NONE
   // nothing to do, obviously
-  //NOTE we could skip this, if we do not want to change our parameters given new examples
+  //NOTE we can skip this, if we do not want to change our parameters given new examples
   if ( performOptimizationAfterIncrement )
   {
     t1.start();
@@ -1153,17 +1264,13 @@ void FMKGPHyperparameterOptimization::optimizeAfterMultipleIncrements ( const st
   {
     t1.start();
     t1.stop();
-    std::cerr << "skip optimization" << std::endl;
+    std::cerr << "skip optimization after increment" << std::endl;
     if (verboseTime)
       std::cerr << "Time used for performing the optimization: " << t1.getLast() << std::endl;
 
     std::cerr << "skip feature transformation" << std::endl;
     if (verboseTime)
       std::cerr << "Time used for transforming features with optimal parameters: " << t1.getLast() << std::endl;
-
-    std::cerr << "skip computation of A, B and LUTs" << std::endl;
-    if (verboseTime)
-      std::cerr << "Time used for setting up the A'nB -objects: " << t1.getLast() << std::endl;
   }
 
   if ( verbose )
@@ -1200,6 +1307,7 @@ void FMKGPHyperparameterOptimization::optimizeAfterMultipleIncrements ( const st
   {
     delete gplikes.begin()->second;
   }
+  gplikes.clear();//TODO check whether this is useful or not
 }
 
 void FMKGPHyperparameterOptimization::prepareVarianceApproximation()
@@ -1776,6 +1884,12 @@ void FMKGPHyperparameterOptimization::clear ( ) {};
 void FMKGPHyperparameterOptimization::addExample ( const NICE::SparseVector & x, const double & label, const bool & performOptimizationAfterIncrement )
 {
   this->labels.append ( label );
+  //have we seen this class already?
+  if (knownClasses.find( label ) == knownClasses.end() )
+  {
+    knownClasses.insert( label );
+    newClasses.insert( label );
+  }    
 
   // add the new example to our data structure
   // It is necessary to do this already here and not lateron for internal reasons (see GMHIKernel for more details)
@@ -1786,9 +1900,14 @@ void FMKGPHyperparameterOptimization::addExample ( const NICE::SparseVector & x,
   if (verboseTime)
     std::cerr << "Time used for adding the data to the fmk object: " << t.getLast() << std::endl;
 
-  // do the optimization again using the previously known solutions as initialization
-  // update the corresponding matrices A, B and lookup tables T
-  optimizeAfterSingleIncrement ( x, performOptimizationAfterIncrement );
+  //TODO update the matrix for variance computations as well!!!
+  
+  // update the corresponding matrices A, B and lookup tables T  
+  // optional: do the optimization again using the previously known solutions as initialization
+  updateAfterSingleIncrement ( x, performOptimizationAfterIncrement );
+  
+  //clean up
+  newClasses.clear();
 }
 
 void FMKGPHyperparameterOptimization::addMultipleExamples ( const std::vector<const NICE::SparseVector*> & newExamples, const NICE::Vector & _labels, const bool & performOptimizationAfterIncrement )
@@ -1798,6 +1917,12 @@ void FMKGPHyperparameterOptimization::addMultipleExamples ( const std::vector<co
   for ( uint i = 0; i < _labels.size(); i++ )
   {
     this->labels[i+oldSize] = _labels[i];
+    //have we seen this class already?
+    if (knownClasses.find( _labels[i] ) == knownClasses.end() )
+    {
+      knownClasses.insert( _labels[i] );
+      newClasses.insert( _labels[i] );
+    }
   }
 
   // add the new example to our data structure
@@ -1842,7 +1967,10 @@ void FMKGPHyperparameterOptimization::addMultipleExamples ( const std::vector<co
   
 
 
-  // do the optimization again using the previously known solutions as initialization
   // update the corresponding matrices A, B and lookup tables T
-  optimizeAfterMultipleIncrements ( newExamples, performOptimizationAfterIncrement );
+  // optional: do the optimization again using the previously known solutions as initialization
+  updateAfterMultipleIncrements ( newExamples, performOptimizationAfterIncrement );
+  
+  //clean up
+  newClasses.clear();
 }
