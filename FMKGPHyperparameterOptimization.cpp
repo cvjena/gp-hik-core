@@ -26,6 +26,7 @@
 #include "FastMinKernel.h"
 #include "GMHIKernel.h"
 #include "IKMNoise.h"
+#include "../core/basics/Exception.h"
 
 
 using namespace NICE;
@@ -1038,7 +1039,6 @@ void FMKGPHyperparameterOptimization::updateAfterMultipleIncrements ( const std:
   
   if ( verbose )
     std::cerr << "labels.size() after increment: " << labels.size() << std::endl;
-
  
   
   // ************************************************************
@@ -1053,10 +1053,25 @@ void FMKGPHyperparameterOptimization::updateAfterMultipleIncrements ( const std:
   std::map<int, NICE::Vector>::const_iterator labelIt = binaryLabels.begin();
   // note, that if we only have a single ikmsum-object, than the labelvector will not be used at all in the internal objects (only relevant in ikmnoise)
 
+  if ( verbose )
+  {
+    if ( newClasses.size() > 0)
+    {
+      std::cerr << "new classes: ";
+      for (std::set<int>::const_iterator newClIt = newClasses.begin(); newClIt != newClasses.end(); newClIt++)
+      {
+        std::cerr << *newClIt << " ";
+      }
+      std::cerr << std::endl;
+    }
+    else
+      std::cerr << "no new classes" << std::endl;
+  }
+    
   for ( std::map<int, IKMLinearCombination * >::iterator it = ikmsums.begin(); it != ikmsums.end(); it++ )
   {
     //make sure that we only work on currently known classes in this loop
-    while ( newClasses.find( labelIt->first ) != newClasses.end())
+    while ( ( newClasses.size() > 0) && (newClasses.find( labelIt->first ) != newClasses.end()) )
     {
       labelIt++;
     }
@@ -1284,6 +1299,9 @@ void FMKGPHyperparameterOptimization::updateAfterMultipleIncrements ( const std:
     //deactivate the optimization method;
     int originalOptimizationMethod = optimizationMethod;
     this->optimizationMethod = OPT_NONE;
+    //and deactive the noise-optimization as well
+    if (optimizeNoise) this->optimizeNoise = false;
+    
     t1.start();
     //this is needed to compute the alpha vectors for the standard parameter settings
     this->performOptimization ( gplikes, parameterVectorSizes, false /* initialize not with default values but using the last solution */ );
@@ -1401,7 +1419,7 @@ int FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & xstar
   } else {
     // binary setting
     // FIXME: not really flexible for every situation
-    scores[binaryLabelNegative] = -scores[binaryLabelPositive];
+    scores[binaryLabelNegative] = -scores[binaryLabelPositive]; 
     
     return scores[ binaryLabelPositive ] <= 0.0 ? binaryLabelNegative : binaryLabelPositive;
   }
@@ -1939,18 +1957,39 @@ void FMKGPHyperparameterOptimization::addExample ( const NICE::SparseVector & x,
 
 void FMKGPHyperparameterOptimization::addMultipleExamples ( const std::vector<const NICE::SparseVector*> & newExamples, const NICE::Vector & _labels, const bool & performOptimizationAfterIncrement )
 {
-  int oldSize ( this->labels.size() );
-  this->labels.resize ( this->labels.size() + _labels.size() );
-  for ( uint i = 0; i < _labels.size(); i++ )
+  if (this->knownClasses.size() == 1) //binary setting
   {
-    this->labels[i+oldSize] = _labels[i];
-    //have we seen this class already?
-    if (knownClasses.find( _labels[i] ) == knownClasses.end() )
+    int oldSize ( this->labels.size() );
+    this->labels.resize ( this->labels.size() + _labels.size() );
+    for ( uint i = 0; i < _labels.size(); i++ )
     {
-      knownClasses.insert( _labels[i] );
-      newClasses.insert( _labels[i] );
-    }
+      this->labels[i+oldSize] = _labels[i];
+      //have we seen this class already?
+      if ( (_labels[i]  != this->binaryLabelPositive) && (_labels[i]  != this->binaryLabelNegative) )
+      {
+        fthrow(Exception, "Binary setting does not allow adding new classes so far");
+//         knownClasses.insert( _labels[i] );
+//         newClasses.insert( _labels[i] );
+      }
+    }      
   }
+  else //multi-class setting
+  {
+    int oldSize ( this->labels.size() );
+    this->labels.resize ( this->labels.size() + _labels.size() );
+    for ( uint i = 0; i < _labels.size(); i++ )
+    {
+      this->labels[i+oldSize] = _labels[i];
+      //have we seen this class already?
+      if (knownClasses.find( _labels[i] ) == knownClasses.end() )
+      {
+        knownClasses.insert( _labels[i] );
+        newClasses.insert( _labels[i] );
+      }
+    }    
+  }
+  
+
 
   // add the new example to our data structure
   // It is necessary to do this already here and not lateron for internal reasons (see GMHIKernel for more details)
