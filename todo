@@ -1,7 +1,15 @@
+[current crashs / bugs]
+- fix crash if labels +1 and -1 (instead of +1 and 0 ) are given
+- fix crash when balanced learning is activated in a binary scenario
+- fix crash when optimize noise is activated in binary scenario without DHS
+- allow to add a new class when current setting is binary (i.e., we need to add two alpha vecs instead of one)
+
+[nice to have]
+
 - separate verbose-flags (optimization, training, classification, ...) needed?
 
 - tutorials, numbers, demo-programs, ...
 
 - consistency checks (dimensions etc.)
 
-- more documentation (e.g., train von GPHIKClassifierNice train methods - what is binLabels)
+- more documentation (e.g., train of GPHIKClassifierNice train methods - what is binLabels)
