@@ -116,6 +116,12 @@ void GPHIKClassifier::classify ( const SparseVector * example,  int & result, Sp
   this->classify( example, result, scores, tmpUncertainty );
 }
 
+void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, SparseVector & scores )
+{
+  double tmpUncertainty;
+  this->classify( example, result, scores, tmpUncertainty );
+}
+
 void GPHIKClassifier::classify ( const SparseVector * example,  int & result, SparseVector & scores, double & uncertainty )
 {
   scores.clear();
@@ -135,6 +141,38 @@ void GPHIKClassifier::classify ( const SparseVector * example,  int & result, Sp
       NICE::Vector uncertainties;
       this->predictUncertainty( example, uncertainties );
       uncertainty = uncertainties.Max();
+    }  
+    else
+    {
+      //do nothing
+      uncertainty = std::numeric_limits<double>::max();
+    }
+  }
+  else
+  {
+    //do nothing
+    uncertainty = std::numeric_limits<double>::max();
+  }    
+}
+
+void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, SparseVector & scores, double & uncertainty )
+{
+  scores.clear();
+  
+  int classno = gphyper->classify ( *example, scores );
+
+  if ( scores.size() == 0 ) {
+    fthrow(Exception, "Zero scores, something is likely to be wrong here: svec.size() = " << example->size() );
+  }
+  
+  result = scores.maxElement();
+   
+  if (uncertaintyPredictionForClassification)
+  {
+    if (varianceApproximation != NONE)
+    {
+      std::cerr << "ERROR: Uncertainty computation is currently not supported for NICE::Vector - use SparseVector instead" << std::endl;
+      uncertainty = std::numeric_limits<double>::max();
     }  
     else
     {

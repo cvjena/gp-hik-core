@@ -228,12 +228,26 @@ class FMKGPHyperparameterOptimization : NICE::Persistent
     /**
     * @brief classify an example 
     *
-    * @param x input example
+    * @param x input example (sparse vector)
     * @param scores scores for each class number
     *
     * @return class number achieving the best score
     */
     int classify ( const NICE::SparseVector & x, SparseVector & scores ) const;
+    
+    /**
+    * @brief classify an example that is given as non-sparse vector
+    * NOTE: whenever possible, you should sparse vectors to obtain significantly smaller computation times
+    * 
+    * @date 18-06-2013 (dd-mm-yyyy)
+    * @author Alexander Freytag
+    *
+    * @param x input example (non-sparse vector)
+    * @param scores scores for each class number
+    *
+    * @return class number achieving the best score
+    */
+    int classify ( const NICE::Vector & x, SparseVector & scores ) const;    
 
     /**
     * @brief compute predictive variance for a given test example using a rough approximation: k_{**} -  k_*^T (K+\sigma I)^{-1} k_* <= k_{**} - |k_*|^2 * 1 / \lambda_max(K + \sigma I), where we approximate |k_*|^2 by neglecting the mixed terms

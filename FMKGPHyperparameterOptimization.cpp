@@ -1425,6 +1425,56 @@ int FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & xstar
   }
 }
 
+int FMKGPHyperparameterOptimization::classify ( const NICE::Vector & xstar, NICE::SparseVector & scores ) const
+{
+  // loop through all classes
+  if ( precomputedA.size() == 0 )
+  {
+    fthrow ( Exception, "The precomputation vector is zero...have you trained this classifier?" );
+  }
+
+  uint maxClassNo = 0;
+  for ( map<int, PrecomputedType>::const_iterator i = precomputedA.begin() ; i != precomputedA.end(); i++ )
+  {
+    uint classno = i->first;
+    maxClassNo = std::max ( maxClassNo, classno );
+    double beta;
+
+    if ( q != NULL ) {
+      map<int, double *>::const_iterator j = precomputedT.find ( classno );
+      double *T = j->second;
+      fmk->hik_kernel_sum_fast ( T, *q, xstar, beta );
+    } else {
+      const PrecomputedType & A = i->second;
+      map<int, PrecomputedType>::const_iterator j = precomputedB.find ( classno );
+      const PrecomputedType & B = j->second;
+
+      // fmk->hik_kernel_sum ( A, B, xstar, beta ); if A, B are of type Matrix
+      // Giving the transformation pf as an additional
+      // argument is necessary due to the following reason:
+      // FeatureMatrixT is sorted according to the original values, therefore,
+      // searching for upper and lower bounds ( findFirst... functions ) require original feature
+      // values as inputs. However, for calculation we need the transformed features values.
+
+      fmk->hik_kernel_sum ( A, B, xstar, beta, pf );
+    }
+
+    scores[ classno ] = beta;
+  }
+  scores.setDim ( maxClassNo + 1 );
+  
+  if ( precomputedA.size() > 1 ) {
+    // multi-class classification
+    return scores.maxElement();
+  } else {
+    // binary setting
+    // FIXME: not really flexible for every situation
+    scores[binaryLabelNegative] = -scores[binaryLabelPositive]; 
+    
+    return scores[ binaryLabelPositive ] <= 0.0 ? binaryLabelNegative : binaryLabelPositive;
+  }
+}
+
 void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateRough ( const NICE::SparseVector & x, NICE::Vector & predVariances ) const
 {
   double kSelf ( 0.0 );

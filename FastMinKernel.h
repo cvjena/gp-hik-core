@@ -205,8 +205,24 @@ namespace NICE {
       void hik_kernel_sum(const NICE::VVector & A, const NICE::VVector & B, const NICE::SparseVector & xstar, double & beta, const ParameterizedFunction *pf = NULL ) const;
       
       /**
+      * @brief Computing k_{*}*alpha using the minimum kernel trick and exploiting sparsity of the feature vector given
+      * NOTE: Whenever possible, you should use sparse features to obtain significantly smaller computation times!
+      *
+      * @author Alexander Freytag
+      * @date 18-06-2013 (dd-mm-yyyy)
+      * @param A pre-computation matrix (VVector) (use the prepare method) 
+      * @param B pre-computation matrix (VVector)
+      * @param xstar new feature vector (non-sparse Vector)
+      * @param beta result of the scalar product
+      * @param pf optional feature transformation
+      */
+      void hik_kernel_sum(const NICE::VVector & A, const NICE::VVector & B, const NICE::Vector & xstar, double & beta, const ParameterizedFunction *pf = NULL ) const;      
+      
+      /**
       * @brief compute beta = k_*^T * alpha by using a large lookup table created by hik_prepare_alpha_multiplications_fast
-      * @author Erik Rodner
+      * NOTE: Whenever possible, you should use sparse features to obtain significantly smaller computation times!
+      * @author Alexander Freytag
+      * @date 18-06-2013 (dd-mm-yyyy)
       *
       * @param Tlookup large lookup table calculated by hik_prepare_alpha_multiplications_fast
       * @param q Quantization object
@@ -214,11 +230,22 @@ namespace NICE {
       * @param beta result of the calculation
       */
       void hik_kernel_sum_fast(const double* Tlookup, const Quantization & q, const NICE::Vector & xstar, double & beta) const;
+      /**
+      * @brief compute beta = k_*^T * alpha by using a large lookup table created by hik_prepare_alpha_multiplications_fast
+      * NOTE: Whenever possible, you should use sparse features to obtain significantly smaller computation times!
+      * @author Alexander Frytag
+      *
+      * @param Tlookup large lookup table calculated by hik_prepare_alpha_multiplications_fast
+      * @param q Quantization object
+      * @param xstar feature vector (indirect k_*)
+      * @param beta result of the calculation
+      */      
+
       void hik_kernel_sum_fast(const double *Tlookup, const Quantization & q, const NICE::SparseVector & xstar, double & beta) const;
 
       /**
       * @brief compute lookup table for HIK calculation using quantized signals and prepare for K*alpha or k_*^T * alpha computations
-      * @author Erik Rodner
+      * @author Erik Rodner, Alexander Freytag
       *
       * @param alpha coefficient vector
       * @param A pre-calculation array computed by hik_prepare_alpha_multiplications
