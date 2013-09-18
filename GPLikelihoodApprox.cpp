@@ -125,6 +125,83 @@ void GPLikelihoodApprox::calculateLikelihood ( double mypara, const FeatureMatri
   cerr << "OPTGT: " << mypara << " " << gt_nlikelihood << " " << gt_logdet << " " << gt_dataterm << endl;
 }
 
+void GPLikelihoodApprox::computeAlphaDirect(const OPTIMIZATION::matrix_type & x)
+{
+  Timer t;
+//   NICE::Vector diagonalElements;
+  
+//   ikm->getDiagonalElements ( diagonalElements );
+
+  // set simple jacobi pre-conditioning
+  ILSConjugateGradients *linsolver_cg = dynamic_cast<ILSConjugateGradients *> ( linsolver );
+
+//   //TODO why do we need this?  
+//   if ( linsolver_cg != NULL )
+//     linsolver_cg->setJacobiPreconditioner ( diagonalElements );
+  
+
+  // all alpha vectors will be stored!
+  std::map<int, NICE::Vector> alphas;
+
+  // This has to be done m times for the multi-class case
+  if (verbose)
+    std::cerr << "run ILS for every bin label. binaryLabels.size(): " << binaryLabels.size() << std::endl;
+  for ( std::map<int, NICE::Vector>::const_iterator j = binaryLabels.begin(); j != binaryLabels.end() ; j++)
+  {
+    // (b) y^T (K+sI)^{-1} y
+    int classCnt = j->first;
+    if (verbose)
+    {
+      std::cerr << "Solving linear equation system for class " << classCnt << " ..." << std::endl;
+      std::cerr << "Size of the kernel matrix " << ikm->rows() << std::endl;
+      std::cerr << "binary label: " << j->second << std::endl;
+    }
+
+    /** About finding a good initial solution
+     * K~ = K + sigma^2 I
+     *
+     * (0) we have already estimated alpha for a previous hyperparameter, then
+     *     we should use this as an initial estimate. According to my quick
+     *     tests this really helps!
+     * (1) K~ \approx lambda_max v v^T
+     * \lambda_max v v^T * alpha = y     | multiply with v^T from left
+     * => \lambda_max v^T alpha = v^T y
+     * => alpha = y / lambda_max could be a good initial start
+     * If we put everything in the first equation this gives us
+     * v = y ....which is somehow a weird assumption (cf Kernel PCA)
+     *  This reduces the number of iterations by 5 or 8
+     */
+    Vector alpha;
+    
+    if ( (usePreviousAlphas) && (lastAlphas != NULL) )
+    {
+      std::map<int, NICE::Vector>::iterator alphaIt = lastAlphas->begin();
+      alpha = (*lastAlphas)[classCnt];
+    }
+    else  
+    {
+      //TODO hand over the eigenmax
+      alpha = (binaryLabels[classCnt] ); //* (1.0 / eigenmax[0]) );
+    }
+    
+    NICE::Vector initialAlpha;
+    if ( verbose )
+     initialAlpha = alpha;
+
+    if ( verbose )
+      std::cerr << "Using the standard solver ..." << std::endl;
+
+    t.start();
+    linsolver->solveLin ( *ikm, binaryLabels[classCnt], alpha );
+    t.stop();
+   
+    alphas.insert( std::pair<int, NICE::Vector> ( classCnt, alpha) );
+  }  
+  
+  // save the parameter value and alpha vectors
+  ikm->getParameters ( min_parameter );
+  this->min_alphas = alphas;
+}
 
 double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
 {

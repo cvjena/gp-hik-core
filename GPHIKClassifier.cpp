@@ -196,6 +196,7 @@ void GPHIKClassifier::train ( const std::vector< NICE::SparseVector *> & example
   Timer t;
   t.start();
   FastMinKernel *fmk = new FastMinKernel ( examples, noise, this->debug );
+  
   t.stop();
   if (verbose)
     std::cerr << "Time used for setting up the fmk object: " << t.getLast() << std::endl;  

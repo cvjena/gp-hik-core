@@ -261,7 +261,6 @@ void FMKGPHyperparameterOptimization::updateEigenVectors()
   if ( verbose )
   {
     std::cerr << "FMKGPHyperparameterOptimization::updateEigenVectors -- size of ikmsums: " << ikmsums.size() << std::endl;
-    std::cerr << "class of first object: " << ikmsums.begin()->first << std::endl;
   }
   
   if ( learnBalanced )
@@ -280,15 +279,12 @@ void FMKGPHyperparameterOptimization::updateEigenVectors()
   }
   else
   {
-    std::cerr << "not balanced, considere for VarApprox: " << nrOfEigenvaluesToConsiderForVarApprox << " eigenvalues" << std::endl;
-    std::cerr << "and for simple: " << nrOfEigenvaluesToConsider << std::endl;
-    if (nrOfEigenvaluesToConsiderForVarApprox > 1)
-      nrOfEigenvaluesToConsiderForVarApprox = 1;
     //compute the largest eigenvalue of K + noise
     eigenMax.resize(1);
     eigenMaxVectors.resize(1);    
     
-    eig->getEigenvalues ( * ( ikmsums.begin()->second ),  eigenMax[0], eigenMaxVectors[0], nrOfEigenvaluesToConsiderForVarApprox );
+    //TODO check why we are only interested in the largest EW!
+    eig->getEigenvalues ( * ( ikmsums.begin()->second ),  eigenMax[0], eigenMaxVectors[0], 1 /* we are only interested in the largest eigenvalue here*/ );
   }
 }
 
@@ -430,7 +426,8 @@ void FMKGPHyperparameterOptimization::performOptimization ( std::map<int, GPLike
       OPTIMIZATION::matrix_type hyperp ( 1, 1, value );
       gplikes.begin()->second->setParameterLowerBound ( value );
       gplikes.begin()->second->setParameterUpperBound ( value );
-      gplikes.begin()->second->evaluate ( hyperp );
+      //we do not need to compute the likelihood here - we are only interested in directly obtaining alpha vectors
+      gplikes.begin()->second->computeAlphaDirect( hyperp );
     }
   }
 
@@ -538,6 +535,7 @@ void FMKGPHyperparameterOptimization::computeMatricesAndLUTs ( const std::map<in
       fmk->hik_prepare_alpha_multiplications ( i->second, A, B );
       A.setIoUntilEndOfFile ( false );
       B.setIoUntilEndOfFile ( false );
+
       precomputedA[ i->first ] = A;
       precomputedB[ i->first ] = B;
 
