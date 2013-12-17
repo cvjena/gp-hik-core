@@ -273,7 +273,7 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
     is.precision (numeric_limits<double>::digits10 + 1);
     
     string tmp;
-    is >> tmp;    
+    is >> tmp;
     is >> confSection;
     
     if (pf != NULL)

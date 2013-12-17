@@ -1796,6 +1796,19 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
     is >> binaryLabelPositive;
     is >> tmp; // " binaryLabelNegative: "
     is >> binaryLabelNegative;          
+
+    is >> tmp; // "labels: "
+    is >> this->labels;
+
+    // first inefficient solution
+//    std::map<int, NICE::Vector> binaryLabels;
+  //  prepareBinaryLabels ( binaryLabels, this->labels , knownClasses );
+    knownClasses.clear();
+
+    for ( std::map<int, PrecomputedType>::const_iterator itA = precomputedA.begin(); itA != precomputedA.end(); itA++)
+    {
+        knownClasses.insert ( itA->first );
+    }
   }
   else
   {
@@ -1917,6 +1930,8 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) co
     
     //store the class numbers for binary settings (if mc-settings, these values will be negative by default)
     os << "binaryLabelPositive: " << binaryLabelPositive << " binaryLabelNegative: " << binaryLabelNegative << std::endl;
+
+    os << "labels: " << this->labels << std::endl;
   }
   else
   {
