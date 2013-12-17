@@ -80,9 +80,9 @@ double LogDetApproxBaiAndGolub::getLogDetApproximationUpperBound(const double & 
   if (  (lambdaUpperBound*n-mu1) != 0)
     tUpper = (lambdaUpperBound*mu1 - mu2) / (lambdaUpperBound*n-mu1);
 
-  if ( tUpper < 1e-10 ) {
-    fthrow(Exception, "LogDetApproxBaiAndGolub::getLogDetApproximationLowerBound: tUpper < 0.0 !! " << mu1 << " " << mu2 << " " << n << " " << lambdaUpperBound );
-  }
+//  if ( tUpper < 1e-10 ) {
+//    fthrow(Exception, "LogDetApproxBaiAndGolub::getLogDetApproximationLowerBound: tUpper < 0.0 !! " << mu1 << " " << mu2 << " " << n << " " << lambdaUpperBound );
+//  }
 
   // boundUpper = [log(beta) , log(tUpper)] * ([beta , tUpper; power(beta,2), power(tUpper,2)]^-1 * [mu1;mu2]);
   //inversion of a 2x2-matrix can be done explicitely: A^{-1} = \frac{1}{ad-bc} \bmatrix{ d & -b \\ -c & a}
