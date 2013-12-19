@@ -230,17 +230,3 @@ void IKMNoise::store ( std::ostream & os, int format ) const
   os << "nn: " << nn << std::endl;
   os << "labels: " << labels << std::endl;
 }
-
-// ----------------- INCREMENTAL LEARNING METHODS -----------------------
-void IKMNoise::addExample(const NICE::SparseVector & x, const NICE::Vector & binLabels)
-{
-  ++size;
-  if ( (np != 0) && (nn != 0) )
-  {
-    labels = binLabels;
-    if (binLabels[binLabels.size()-1] == 1)
-      ++np;
-    else
-      ++nn;
-  }
-}

@@ -109,7 +109,7 @@ class GPHIKClassifier
      * @param example (non-sparse Vector) to be classified given in a non-sparse representation
      * @param result (int) class number of most likely class
      * @param scores (SparseVector) classification scores for known classes
-     * @param uncertainty (double*) predictive variance of the classification result, if computed
+     * @param uncertainty (double) predictive variance of the classification result, if computed
      */    
     void classify ( const NICE::Vector * example,  int & result, NICE::SparseVector & scores, double & uncertainty );    
 
@@ -143,12 +143,21 @@ class GPHIKClassifier
      * @date 19-06-2012 (dd-mm-yyyy)
      * @author Alexander Freytag
      * @param examples example for which the classification uncertainty shall be predicted, given in a sparse representation
-     * @param uncertainties contains the resulting classification uncertainties (1 entry for standard setting, m entries for binary-balanced setting)
+     * @param uncertainty contains the resulting classification uncertainty
      */       
-    void predictUncertainty( const NICE::SparseVector * example, NICE::Vector & uncertainties );
+    void predictUncertainty( const NICE::SparseVector * example, double & uncertainty );
     
-    void addExample( const NICE::SparseVector * example, const double & label, const bool & performOptimizationAfterIncrement = true);
-    void addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples, const NICE::Vector & newLabels, const bool & performOptimizationAfterIncrement = true);
+    /** 
+     * @brief prediction of classification uncertainty
+     * @date 19-12-2013 (dd-mm-yyyy)
+     * @author Alexander Freytag
+     * @param examples example for which the classification uncertainty shall be predicted, given in a non-sparse representation
+     * @param uncertainty contains the resulting classification uncertainty
+     */       
+    void predictUncertainty( const NICE::Vector * example, double & uncertainty );    
+    
+    std::set<int> getKnownClassNumbers ( ) const;
+
 };
 
 }

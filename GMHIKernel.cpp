@@ -198,12 +198,3 @@ void GMHIKernel::setApproximationScheme(const int & _approxScheme)
 {
   this->fmk->setApproximationScheme(_approxScheme);
 }
-
-// ----------------- INCREMENTAL LEARNING METHODS -----------------------
-void GMHIKernel::addExample(const NICE::SparseVector & x, const NICE::Vector & binLabels)
-{
-  // we could add the example to the fmk, but we won't do it here
-  // reason: if we have a balanced learning, we have multiple identical GMHI-objects
-  // if we would add the example here, it would be added as often as we have those objects
-  // therefor we add the example already in the FMKGPHypOpt class
-}

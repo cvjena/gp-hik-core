@@ -78,8 +78,6 @@ class GMHIKernel : public ImplicitKernelMatrix
     virtual void store ( std::ostream & os, int format = 0 ) const {};//fmk->store( os, format );};
     virtual void clear () {};
     
-    virtual void addExample(const NICE::SparseVector & x, const NICE::Vector & binLabels);
-    
     void setFastMinKernel(NICE::FastMinKernel * _fmk){fmk = _fmk;};
      
 };

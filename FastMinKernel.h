@@ -352,6 +352,10 @@ namespace NICE {
       */
       double* hikPrepareLookupTableForKVNApproximation(const Quantization & q, const ParameterizedFunction *pf = NULL) const;
       
+    //////////////////////////////////////////
+    // variance computation: sparse inputs
+    //////////////////////////////////////////      
+      
       /**
       * @brief Approximate norm = |k_*|^2 using the minimum kernel trick and exploiting sparsity of the given feature vector. Approximation does not considere mixed terms between dimensions.
       * @author Alexander Freytag
@@ -386,76 +390,50 @@ namespace NICE {
       */      
       void hikComputeKernelVector( const NICE::SparseVector & xstar, NICE::Vector & kstar) const;
       
+    //////////////////////////////////////////
+    // variance computation: non-sparse inputs
+    //////////////////////////////////////////     
+      
+      /**
+      * @brief Approximate norm = |k_*|^2 using the minimum kernel trick and exploiting sparsity of the given feature vector. Approximation does not considere mixed terms between dimensions.
+      * @author Alexander Freytag
+      * @date 19-12-2013 (dd-mm-yyyy)
+      * 
+      * @param A pre-computation matrix (VVector) (use the prepare method) 
+      * @param xstar new feature vector (Vector)
+      * @param norm result of the squared norm approximation
+      * @param pf optional feature transformation
+      */
+      void hikComputeKVNApproximation(const NICE::VVector & A, const NICE::Vector & xstar, double & norm, const ParameterizedFunction *pf = NULL ) ;
+      
+      /**
+      * @brief Approximate norm = |k_*|^2 using a large lookup table created by hikPrepareSquaredKernelVector and hikPrepareSquaredKernelVectorFast or directly using hikPrepareLookupTableForSquaredKernelVector. Approximation does not considere mixed terms between dimensions.
+      * @author Alexander Freytag
+      * @date 19-12-2013 (dd-mm-yyyy)
+      *
+      * @param Tlookup large lookup table
+      * @param q Quantization object
+      * @param xstar feature vector (indirect k_*)
+      * @param norm result of the calculation
+      */
+      void hikComputeKVNApproximationFast(const double *Tlookup, const Quantization & q, const NICE::Vector & xstar, double & norm ) const;      
+      
+      /**
+      * @brief Compute the kernel vector k_* between training examples and test example. Runtime. O(n \times D). Does not exploit sparsity - deprecated!
+      * @author Alexander Freytag
+      * @date 19-12-2013 (dd-mm-yyyy)
+      *
+      * @param xstar feature vector
+      * @param kstar kernel vector
+      */      
+      void hikComputeKernelVector( const NICE::Vector & xstar, NICE::Vector & kstar) const;      
+      
       /** Persistent interface */
       virtual void restore ( std::istream & is, int format = 0 );
       virtual void store ( std::ostream & os, int format = 0 ) const; 
       virtual void clear ();
       
-      // ----------------- INCREMENTAL LEARNING METHODS -----------------------
-      
-      /**
-      * @brief Add a new example to the feature-storage. You have to update the corresponding variables explicitely after that.
-      * @author Alexander Freytag
-      * @date 25-04-2012 (dd-mm-yyyy)
-      *
-      * @param _v new feature vector
-      */       
-      void addExample(const NICE::SparseVector & _v, const ParameterizedFunction *pf = NULL);
-      /**
-      * @brief Add a new example to the feature-storage. You have to update the corresponding variables explicitely after that.
-      * @author Alexander Freytag
-      * @date 25-04-2012 (dd-mm-yyyy)
-      *
-      * @param _v new feature vector
-      */       
-      void addExample(const std::vector<double> & _v, const ParameterizedFunction *pf = NULL);
-      
-      /**
-      * @brief Updates A and B matrices for fast kernel multiplications and kernel sums. You need to compute the new alpha value and run addExample first!
-      * @author Alexander Freytag
-      * @date 25-04-2012 (dd-mm-yyyy)
-      *
-      * @param _v new feature vector
-      * @param alpha new alpha value for the corresponding feature
-      * @param A precomputed matrix A which will be updated accordingly
-      * @param B precomputed matrix B which will be updated accordingly
-      * @param pf optional feature transformation
-      */       
-      void updatePreparationForAlphaMultiplications(const NICE::SparseVector & _v, const double & alpha, NICE::VVector & A, NICE::VVector & B, const ParameterizedFunction *pf = NULL) const;
-      /**
-      * @brief Updates LUT T for very fast kernel multiplications and kernel sums. You need to compute the new alpha value and run addExample first!
-      * @author Alexander Freytag
-      * @date 26-04-2012 (dd-mm-yyyy)
-      *
-      * @param _v new feature vector
-      * @param alpha new alpha value for the corresponding feature
-      * @param T precomputed lookup table, which will be updated
-      * @param q quantization object to quantize possible test samples
-      * @param pf optional feature transformation
-      */       
-      void updateLookupTableForAlphaMultiplications(const NICE::SparseVector & _v, const double & alpha, double * T, const Quantization & q, const ParameterizedFunction *pf = NULL) const;
-      
-      /**
-      * @brief Updates matrix A for approximations of the kernel vector norm. You need to run addExample first!
-      * @author Alexander Freytag
-      * @date 26-04-2012 (dd-mm-yyyy)
-      *
-      * @param _v new feature vector
-      * @param A precomputed matrix A which will be updated accordingly
-      * @param pf optional feature transformation
-      */       
-      void updatePreparationForKVNApproximation(const NICE::SparseVector & _v, NICE::VVector & A, const ParameterizedFunction *pf = NULL) const;
-      /**
-      * @brief Updates LUT T for fast approximations of the kernel vector norm. You need to run addExample first!
-      * @author Alexander Freytag
-      * @date 26-04-2012 (dd-mm-yyyy)
-      *
-      * @param _v new feature vector
-      * @param T precomputed lookup table, which will be updated
-      * @param q quantization object to quantize possible test samples
-      * @param pf optional feature transformation
-      */       
-      void updateLookupTableForKVNApproximation(const NICE::SparseVector & _v, double * T, const Quantization & q, const ParameterizedFunction *pf = NULL) const;
+     
 
   };
 

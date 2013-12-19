@@ -30,7 +30,7 @@ GPHIKClassifier::GPHIKClassifier( const Config *conf, const string & confSection
   
   if ( conf == NULL )
   {
-     fthrow(Exception, "GPHIKClassifier: the config is NULL -- use a default config and the restore-function instaed!");
+     fthrow(Exception, "GPHIKClassifier: the config is NULL -- use a default config or the restore-function instaed!");
   }
   else
     this->init(conf, confSection);
@@ -53,8 +53,6 @@ void GPHIKClassifier::init(const Config *conf, const string & confSection)
   double parameterLowerBound = conf->gD(confSection, "parameter_lower_bound", 1.0 );
   double parameterUpperBound = conf->gD(confSection, "parameter_upper_bound", 5.0 );
 
-  if (gphyper == NULL)
-    this->gphyper = new FMKGPHyperparameterOptimization;
   this->noise = conf->gD(confSection, "noise", 0.01);
 
   string transform = conf->gS(confSection, "transform", "absexp" );
@@ -90,16 +88,16 @@ void GPHIKClassifier::init(const Config *conf, const string & confSection)
   }
    
   //how do we approximate the predictive variance for classification uncertainty?
-  string varianceApproximationString = conf->gS(confSection, "varianceApproximation", "approximate_fine"); //default: fine approximative uncertainty prediction
-  if ( (varianceApproximationString.compare("approximate_rough") == 0) || ((varianceApproximationString.compare("1") == 0)) )
+  string s_varianceApproximation = conf->gS(confSection, "varianceApproximation", "approximate_fine"); //default: fine approximative uncertainty prediction
+  if ( (s_varianceApproximation.compare("approximate_rough") == 0) || ((s_varianceApproximation.compare("1") == 0)) )
   {
     this->varianceApproximation = APPROXIMATE_ROUGH;
   }
-  else if ( (varianceApproximationString.compare("approximate_fine") == 0) || ((varianceApproximationString.compare("2") == 0)) )
+  else if ( (s_varianceApproximation.compare("approximate_fine") == 0) || ((s_varianceApproximation.compare("2") == 0)) )
   {
     this->varianceApproximation = APPROXIMATE_FINE;
   }
-  else if ( (varianceApproximationString.compare("exact") == 0)  || ((varianceApproximationString.compare("3") == 0)) )
+  else if ( (s_varianceApproximation.compare("exact") == 0)  || ((s_varianceApproximation.compare("3") == 0)) )
   {
     this->varianceApproximation = EXACT;
   }
@@ -107,7 +105,7 @@ void GPHIKClassifier::init(const Config *conf, const string & confSection)
   {
     this->varianceApproximation = NONE;
   } 
-  std::cerr << "varianceApproximationStrategy: " << varianceApproximationString  << std::endl;
+  std::cerr << "varianceApproximationStrategy: " << s_varianceApproximation  << std::endl;
 }
 
 void GPHIKClassifier::classify ( const SparseVector * example,  int & result, SparseVector & scores )
@@ -124,6 +122,9 @@ void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, Sp
 
 void GPHIKClassifier::classify ( const SparseVector * example,  int & result, SparseVector & scores, double & uncertainty )
 {
+  if (gphyper == NULL)
+     fthrow(Exception, "Classifier not trained yet -- aborting!" );
+  
   scores.clear();
   
   int classno = gphyper->classify ( *example, scores );
@@ -138,9 +139,7 @@ void GPHIKClassifier::classify ( const SparseVector * example,  int & result, Sp
   {
     if (varianceApproximation != NONE)
     {
-      NICE::Vector uncertainties;
-      this->predictUncertainty( example, uncertainties );
-      uncertainty = uncertainties.Max();
+      this->predictUncertainty( example, uncertainty );
     }  
     else
     {
@@ -157,6 +156,9 @@ void GPHIKClassifier::classify ( const SparseVector * example,  int & result, Sp
 
 void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, SparseVector & scores, double & uncertainty )
 {
+  if (gphyper == NULL)
+     fthrow(Exception, "Classifier not trained yet -- aborting!" );  
+  
   scores.clear();
   
   int classno = gphyper->classify ( *example, scores );
@@ -166,13 +168,12 @@ void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, Sp
   }
   
   result = scores.maxElement();
-   
+  
   if (uncertaintyPredictionForClassification)
   {
     if (varianceApproximation != NONE)
     {
-      std::cerr << "ERROR: Uncertainty computation is currently not supported for NICE::Vector - use SparseVector instead" << std::endl;
-      uncertainty = std::numeric_limits<double>::max();
+      this->predictUncertainty( example, uncertainty );
     }  
     else
     {
@@ -184,7 +185,7 @@ void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, Sp
   {
     //do nothing
     uncertainty = std::numeric_limits<double>::max();
-  }    
+  }  
 }
 
 /** training process */
@@ -201,6 +202,8 @@ void GPHIKClassifier::train ( const std::vector< NICE::SparseVector *> & example
   if (verbose)
     std::cerr << "Time used for setting up the fmk object: " << t.getLast() << std::endl;  
   
+  if (gphyper != NULL)
+     delete gphyper;
   gphyper = new FMKGPHyperparameterOptimization ( confCopy, pf, fmk, confSection ); 
 
   if (verbose)
@@ -209,14 +212,36 @@ void GPHIKClassifier::train ( const std::vector< NICE::SparseVector *> & example
   // go go go
   gphyper->optimize ( labels );
   if (verbose)
-    std::cerr << "optimization done, now prepare for the uncertainty prediction" << std::endl;
+    std::cerr << "optimization done" << std::endl;
   
-  if ( (varianceApproximation == APPROXIMATE_ROUGH) )
+  if ( ( varianceApproximation != NONE ) )
   {
-    //prepare for variance computation (approximative)
-    gphyper->prepareVarianceApproximation();
+    std::cerr << "now prepare for the uncertainty prediction" << std::endl;
+    
+    switch (varianceApproximation)    
+    {
+      case APPROXIMATE_ROUGH:
+      {
+        gphyper->prepareVarianceApproximationRough();
+        break;
+      }
+      case APPROXIMATE_FINE:
+      {
+        gphyper->prepareVarianceApproximationFine();
+        break;
+      }    
+      case EXACT:
+      {
+       //nothing to prepare
+        break;
+      }
+      default:
+      {
+       //nothing to prepare
+      }
+    }
   }
-  //for exact variance computation, we do not have to prepare anything
+
 
   // clean up all examples ??
   if (verbose)
@@ -236,6 +261,8 @@ void GPHIKClassifier::train ( const std::vector< SparseVector *> & examples, std
   if (verbose)
     std::cerr << "Time used for setting up the fmk object: " << t.getLast() << std::endl;  
   
+  if (gphyper != NULL)
+     delete gphyper;
   gphyper = new FMKGPHyperparameterOptimization ( confCopy, pf, fmk, confSection ); 
 
   if (verbose)
@@ -245,12 +272,33 @@ void GPHIKClassifier::train ( const std::vector< SparseVector *> & examples, std
   if (verbose)
     std::cerr << "optimization done, now prepare for the uncertainty prediction" << std::endl;
   
-  if ( (varianceApproximation == APPROXIMATE_ROUGH) )
+  if ( ( varianceApproximation != NONE ) )
   {
-    //prepare for variance computation (approximative)
-    gphyper->prepareVarianceApproximation();
+    std::cerr << "now prepare for the uncertainty prediction" << std::endl;
+    
+    switch (varianceApproximation)    
+    {
+      case APPROXIMATE_ROUGH:
+      {
+        gphyper->prepareVarianceApproximationRough();
+        break;
+      }
+      case APPROXIMATE_FINE:
+      {
+        gphyper->prepareVarianceApproximationFine();
+        break;
+      }    
+      case EXACT:
+      {
+       //nothing to prepare
+        break;
+      }
+      default:
+      {
+       //nothing to prepare
+      }
+    }
   }
-  //for exact variance computation, we do not have to prepare anything
 
   // clean up all examples ??
   if (verbose)
@@ -271,32 +319,67 @@ GPHIKClassifier *GPHIKClassifier::clone () const
   return NULL;
 }
   
-void GPHIKClassifier::predictUncertainty( const NICE::SparseVector * example, NICE::Vector & uncertainties )
+void GPHIKClassifier::predictUncertainty( const NICE::SparseVector * example, double & uncertainty )
 {  
+  if (gphyper == NULL)
+     fthrow(Exception, "Classifier not trained yet -- aborting!" );  
+  
   //we directly store the predictive variances in the vector, that contains the classification uncertainties lateron to save storage
   switch (varianceApproximation)    
   {
     case APPROXIMATE_ROUGH:
     {
-      gphyper->computePredictiveVarianceApproximateRough( *example, uncertainties );
+      gphyper->computePredictiveVarianceApproximateRough( *example, uncertainty );
       break;
     }
     case APPROXIMATE_FINE:
     {
-      gphyper->computePredictiveVarianceApproximateFine( *example, uncertainties );
+        std::cerr << "predict uncertainty fine" << std::endl;
+      gphyper->computePredictiveVarianceApproximateFine( *example, uncertainty );
       break;
     }    
     case EXACT:
     {
-      gphyper->computePredictiveVarianceExact( *example, uncertainties );
+      gphyper->computePredictiveVarianceExact( *example, uncertainty );
       break;
     }
     default:
     {
-//       std::cerr << "No Uncertainty Prediction at all" << std::endl;
       fthrow(Exception, "GPHIKClassifier - your settings disabled the variance approximation needed for uncertainty prediction.");
-//       uncertainties.resize( 1 );
-//       uncertainties.set( numeric_limits<double>::max() );
+//       uncertainty = numeric_limits<double>::max();
+//       break;
+    }
+  }
+}
+
+void GPHIKClassifier::predictUncertainty( const NICE::Vector * example, double & uncertainty )
+{  
+  if (gphyper == NULL)
+     fthrow(Exception, "Classifier not trained yet -- aborting!" );  
+  
+  //we directly store the predictive variances in the vector, that contains the classification uncertainties lateron to save storage
+  switch (varianceApproximation)    
+  {
+    case APPROXIMATE_ROUGH:
+    {
+      gphyper->computePredictiveVarianceApproximateRough( *example, uncertainty );
+      break;
+    }
+    case APPROXIMATE_FINE:
+    {
+        std::cerr << "predict uncertainty fine" << std::endl;
+      gphyper->computePredictiveVarianceApproximateFine( *example, uncertainty );
+      break;
+    }    
+    case EXACT:
+    {
+      gphyper->computePredictiveVarianceExact( *example, uncertainty );
+      break;
+    }
+    default:
+    {
+      fthrow(Exception, "GPHIKClassifier - your settings disabled the variance approximation needed for uncertainty prediction.");
+//       uncertainty = numeric_limits<double>::max();
 //       break;
     }
   }
@@ -355,6 +438,9 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
 
 void GPHIKClassifier::store ( std::ostream & os, int format ) const
 {
+  if (gphyper == NULL)
+     fthrow(Exception, "Classifier not trained yet -- aborting!" );  
+  
   if (os.good())
   {
     os.precision (numeric_limits<double>::digits10 + 1);
@@ -379,16 +465,10 @@ void GPHIKClassifier::store ( std::ostream & os, int format ) const
   }
 }
 
-void GPHIKClassifier::addExample( const NICE::SparseVector * example, const double & label, const bool & performOptimizationAfterIncrement)
+std::set<int> GPHIKClassifier::getKnownClassNumbers ( ) const
 {
-  gphyper->addExample( *example, label, performOptimizationAfterIncrement );
-}
-
-void GPHIKClassifier::addMultipleExamples( const std::vector< const NICE::SparseVector *> & newExamples, const NICE::Vector & newLabels, const bool & performOptimizationAfterIncrement)
-{
-  //are new examples available? If not, nothing has to be done
-  if ( newExamples.size() < 1)
-    return;
+  if (gphyper == NULL)
+     fthrow(Exception, "Classifier not trained yet -- aborting!" );  
   
-  gphyper->addMultipleExamples( newExamples, newLabels, performOptimizationAfterIncrement );
+  return gphyper->getKnownClassNumbers();
 }

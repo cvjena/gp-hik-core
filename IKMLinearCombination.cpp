@@ -218,13 +218,3 @@ ImplicitKernelMatrix * IKMLinearCombination::getModel(const uint & idx) const
   else
     return NULL;
 }
-
-// ----------------- INCREMENTAL LEARNING METHODS -----------------------
-void IKMLinearCombination::addExample(const NICE::SparseVector & x, const NICE::Vector & binLabels)
-{
-  for ( vector<ImplicitKernelMatrix *>::iterator i = matrices.begin(); i != matrices.end(); i++ )
-  {
-    ImplicitKernelMatrix *ikm = *i;
-    ikm->addExample(x, binLabels);
-  }
-}

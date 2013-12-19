@@ -75,7 +75,6 @@ class IKMNoise : public ImplicitKernelMatrix
     virtual void store ( std::ostream & os, int format = 0 ) const; 
     virtual void clear () {};
     
-    void addExample(const NICE::SparseVector & x, const NICE::Vector & binLabels);
 
 };
 

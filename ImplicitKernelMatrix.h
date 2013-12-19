@@ -57,7 +57,6 @@ class ImplicitKernelMatrix : public GenericMatrix, NICE::Persistent
     virtual void clear () = 0;
     
     //high order methods
-    virtual void addExample(const NICE::SparseVector & x, const NICE::Vector & binLabels) = 0;
     virtual void  multiply (NICE::Vector &y, const NICE::Vector &x) const = 0;
 };
 

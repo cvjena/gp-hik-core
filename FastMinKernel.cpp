@@ -1142,6 +1142,10 @@ double* FastMinKernel::hikPrepareLookupTableForKVNApproximation(const Quantizati
   return Tlookup;  
 }
 
+    //////////////////////////////////////////
+    // variance computation: sparse inputs
+    //////////////////////////////////////////    
+
 void FastMinKernel::hikComputeKVNApproximation(const NICE::VVector & A, const NICE::SparseVector & xstar, double & norm, const ParameterizedFunction *pf ) 
 {
   norm = 0.0;
@@ -1252,6 +1256,121 @@ void FastMinKernel::hikComputeKernelVector ( const NICE::SparseVector& xstar, NI
   }  
 }
 
+    //////////////////////////////////////////
+    // variance computation: non-sparse inputs
+    //////////////////////////////////////////  
+
+void FastMinKernel::hikComputeKVNApproximation(const NICE::VVector & A, const NICE::Vector & xstar, double & norm, const ParameterizedFunction *pf ) 
+{
+  norm = 0.0;
+  int dim ( 0 );
+  for (Vector::const_iterator i = xstar.begin(); i != xstar.end(); i++, dim++)
+  {
+  
+    double fval = *i;
+    
+    int nrZeroIndices = X_sorted.getNumberOfZeroElementsPerDimension(dim);
+    if ( nrZeroIndices == n ) {
+      // all features are zero so let us ignore them completely
+      continue;
+    }
+
+    int position;
+
+    //where is the example x^z_i located in
+    //the sorted array? -> perform binary search, runtime O(log(n))
+    // search using the original value
+    X_sorted.findFirstLargerInDimension(dim, fval, position);
+    position--;
+  
+    //NOTE again - pay attention! This is only valid if all entries are NOT negative! - if not, ask wether the current feature is greater than zero. If so, subtract the nrZeroIndices, if not do not
+    double firstPart(0.0);
+    //TODO in the "overnext" line there occurs the following error
+    // Invalid read of size 8    
+    if (position >= 0) 
+      firstPart = (A[dim][position-nrZeroIndices]);
+    else
+      firstPart = 0.0;
+    
+    double secondPart( 0.0);
+      
+    if ( pf != NULL )
+      fval = pf->f ( dim, fval );
+    
+    fval = fval * fval;
+    
+    if (position >= 0) 
+      secondPart = fval * (n-nrZeroIndices-(position+1));
+    else //if x_d^* is smaller than every non-zero training example
+      secondPart = fval * (n-nrZeroIndices);
+    
+    // but apply using the transformed one
+    norm += firstPart + secondPart;
+  }  
+}
+
+void FastMinKernel::hikComputeKVNApproximationFast(const double *Tlookup, const Quantization & q, const NICE::Vector & xstar, double & norm) const
+{
+  norm = 0.0;
+  // runtime is O(d) if the quantizer is O(1)
+  int dim ( 0 );
+  for (Vector::const_iterator i = xstar.begin(); i != xstar.end(); i++, dim++ )
+  {
+    double v = *i;
+    // we do not need a parameterized function here, since the quantizer works on the original feature values. 
+    // nonetheless, the lookup table was created using the parameterized function    
+    uint qBin = q.quantize(v);
+    
+    norm += Tlookup[dim*q.size() + qBin];
+  }  
+}
+
+
+void FastMinKernel::hikComputeKernelVector( const NICE::Vector & xstar, NICE::Vector & kstar) const
+{
+  //init
+  kstar.resize(this->n);
+  kstar.set(0.0);
+  
+  //let's start :)
+  int dim ( 0 );
+  for (NICE::Vector::const_iterator i = xstar.begin(); i != xstar.end(); i++, dim++)
+  {
+  
+    double fval = *i;
+    
+    int nrZeroIndices = X_sorted.getNumberOfZeroElementsPerDimension(dim);
+    if ( nrZeroIndices == n ) {
+      // all features are zero so let us ignore them completely
+      continue;
+    }
+    
+
+    int position;
+
+    //where is the example x^z_i located in
+    //the sorted array? -> perform binary search, runtime O(log(n))
+    // search using the original value
+    X_sorted.findFirstLargerInDimension(dim, fval, position);
+    position--;
+    
+    //get the non-zero elements for this dimension  
+    const multimap< double, SortedVectorSparse<double>::dataelement> & nonzeroElements = X_sorted.getFeatureValues(dim).nonzeroElements();
+    
+    //run over the non-zero elements and add the corresponding entries to our kernel vector
+
+    int count(nrZeroIndices);
+    for ( SortedVectorSparse<double>::const_elementpointer i = nonzeroElements.begin(); i != nonzeroElements.end(); i++, count++ )
+    {
+      int origIndex(i->second.first); //orig index (i->second.second would be the transformed feature value)
+      if (count <= position)
+        kstar[origIndex] += i->first; //orig feature value
+      else
+        kstar[origIndex] += fval;
+    }
+  }  
+}
+
 // ---------------------- STORE AND RESTORE FUNCTIONS ----------------------
 
 void FastMinKernel::restore ( std::istream & is, int format )
@@ -1326,215 +1445,4 @@ void FastMinKernel::setDebug( const bool & _debug)
 bool FastMinKernel::getDebug( )   const
 {
   return debug;
-}
-
-// ----------------- INCREMENTAL LEARNING METHODS -----------------------
-void FastMinKernel::addExample(const NICE::SparseVector & _v, const ParameterizedFunction *pf )
-{
-  X_sorted.add_feature(_v, pf );
-  n++;
-}
-void FastMinKernel::addExample(const std::vector<double> & _v, const ParameterizedFunction *pf )
-{
-  X_sorted.add_feature(_v, pf );
-  n++;
-}
-
-void FastMinKernel::updatePreparationForAlphaMultiplications(const NICE::SparseVector & _v, const double & alpha, NICE::VVector & A, NICE::VVector & B, const ParameterizedFunction *pf) const
-{ 
-  NICE::SparseVector::const_iterator it = _v.begin();
-  for (int dim = 0; dim < this->d; dim++)
-  {
-    if (it->first == dim)
-    {
-      //increase both datastructures by one
-      A[dim].append(0.0);
-      B[dim].append(0.0);
-      
-      //this is the index of the new example in this dimension, which was already added
-      int idx;
-      X_sorted.findLastInDimension(dim, it->second, idx);
-      //actually we do not want to have the next position, but the current one
-      idx--;
-      
-      // and we do not care about zero elements since we store matrices A and B only for non-zero elements in the training data
-      idx -= X_sorted.getNumberOfZeroElementsPerDimension(dim);
-      
-      // we start using the last old element, which is located at size-2
-      for( int i = A[dim].size()-2; i >= (idx-1); i--)
-      {
-        if (pf != NULL)
-          A[dim][i+1] = A[dim][i] + alpha * pf->f ( 1, it->second );
-        else
-        {
-          A[dim][i+1] = A[dim][i] + alpha * it->second;
-        }
-      }    
-          
-      // remember: in contrast to the explanations in our ECCV-paper, we store the alpha-values of the INCREASINGLY ordered features
-      // in the matrix B, not in decreasing order
-      for (int i = B[dim].size()-1; i >= std::max(1,idx); i--)
-      {
-        B[dim][i] = B[dim][i-1] + alpha;
-      }
-      
-      //special case
-      if (idx == 0)
-      {
-        if (pf != NULL)
-          A[dim][0] = alpha * pf->f ( 1, it->second );
-        else
-          A[dim][0] = alpha * it->second;
-        
-        B[dim][0] = alpha;
-      }      
-      
-      it++;
-    }
-    else //_v is zero for that dimension
-    {
-      //nothing to do, since we do not store any information about zero elements
-    }
-  }
-}
-
-void FastMinKernel::updateLookupTableForAlphaMultiplications(const NICE::SparseVector & _v, const double & alpha, double * T, const Quantization & q, const ParameterizedFunction *pf) const
-{
-  //be aware, index n-1 is only valid, if we do not explicitely changed the indices while inserting elements
-  //actually, the code written below works equally to the following line, but is more efficient since we do not have to call the feature matrix several times
-//   this->hikUpdateLookupTable(T, alpha, 0.0, n-1, q, pf );
-  if (T == NULL)
-  {
-    fthrow(Exception, "FastMinKernel::updateLookupTableForAlphaMultiplications LUT not initialized, run FastMinKernel::hikPrepareLookupTable first!");
-    return;
-  }
-  
-  // number of quantization bins
-  uint hmax = q.size();
-
-  // store (transformed) prototypes
-  double *prototypes = new double [ hmax ];
-  for ( uint i = 0 ; i < hmax ; i++ )
-    if ( pf != NULL ) {
-      // FIXME: the transformed prototypes could change from dimension to another dimension
-      // We skip this flexibility ...but it should be changed in the future
-      prototypes[i] = pf->f ( 1, q.getPrototype(i) );
-    } else {
-      prototypes[i] = q.getPrototype(i);
-    }
-  
-  // loop through all dimensions
-  for (NICE::SparseVector::const_iterator it = _v.begin(); it != _v.end(); it++)
-  {
-
-    int dim(it->first);
-
-    double x_i = it->second;
-    //as usually, we quantize the original features, but use the quantized transformed features lateron
-    int q_bin = q.quantize(x_i);      
-
-    //TODO we could speed up this with first do a binary search for the position where the min changes, and then do two separate for-loops
-    for (uint j = 0; j < hmax; j++)
-    {
-      double fval;
-      
-      if (q_bin > j)
-        fval = prototypes[j]; //the prototypes are already transformed
-      else
-      {
-        if (pf != NULL)
-          fval = pf->f( 1, x_i );
-        else
-          fval = x_i;
-      }
-      
-      // pay attention: we use either the quantized prototypes or the REAL feature values, not the quantized ones!
-      T[ dim*hmax + j ] += alpha*fval;
-    }
-  }
-
-  delete [] prototypes;
-}
-
-void FastMinKernel::updatePreparationForKVNApproximation(const NICE::SparseVector & _v, NICE::VVector & A, const ParameterizedFunction *pf) const
-{
-  for (NICE::SparseVector::const_iterator it = _v.begin(); it != _v.end(); it++)
-  {
-    int dim(it->first);  
-    int idx;
-    
-    // we use the original feature value for this search, not the transformed one (see FeatureMatrixT)
-    // we assume that the nex example was already inserted to the FeatureMatrix
-    X_sorted.findLastInDimension(dim, it->second, idx);  
-    //we do not want to considere zero elements, since we store it in a sparse way
-    idx -= X_sorted.getNumberOfZeroElementsPerDimension(dim);
-    // not the next one, but the current (position vs index)
-    idx--;
-    
-    // perform a resize operations, since we have a new element
-    A[dim].resize(A[dim].size()+1);
-    
-    // update :)
-    for( int i = A[dim].size()-1; i >= idx; i--)
-    {
-      if (pf != NULL)
-        A[dim][i] = A[dim][i-1] + pow(pf->f ( 1, it->second ), 2);
-      else
-        A[dim][i] = A[dim][i-1] + pow(it->second, 2);
-    }   
-  }
-}
-
-void FastMinKernel::updateLookupTableForKVNApproximation(const NICE::SparseVector & _v, double * T, const Quantization & q, const ParameterizedFunction *pf) const
-{
-  if (T == NULL)
-  {
-    fthrow(Exception, "FastMinKernel::updateLookupTableForKernelVectorNorm LUT not initialized, run FastMinKernel::hikPrepareLookupTableForKernelVectorNorm first!");
-    return;
-  }
-  
-  // number of quantization bins
-  uint hmax = q.size();
-
-  // store (transformed) prototypes
-  double *prototypes = new double [ hmax ];
-  for ( uint i = 0 ; i < hmax ; i++ )
-    if ( pf != NULL ) {
-      // FIXME: the transformed prototypes could change from dimension to another dimension
-      // We skip this flexibility ...but it should be changed in the future
-      prototypes[i] = pf->f ( 1, q.getPrototype(i) );
-    } else {
-      prototypes[i] = q.getPrototype(i);
-    }
-   
-  // loop through all dimensions
-  for (NICE::SparseVector::const_iterator it = _v.begin(); it != _v.end(); it++)
-  {
-    int dim(it->first);
-
-    double x_i = it->second;
-    //as usually, we quantize the original features, but use the quantized transformed features lateron
-    int q_bin = q.quantize(x_i);      
-
-    //TODO we could speed up this with first do a binary search for the position where the min changes, and then do two separate for-loops
-    for (uint j = 0; j < hmax; j++)
-    {
-      double fval;
-      
-      if (q_bin > j)
-        fval = prototypes[j]; //the prototypes are already transformed
-      else
-      {
-        if (pf != NULL)
-          fval = pf->f( 1, x_i );
-        else
-          fval = x_i;
-      }
-      
-      // pay attention: we use either the quantized prototypes or the REAL feature values, not the quantized ones!
-      T[ dim*hmax + j ] += pow( fval, 2 );
-    }
-  }
-  
-  delete [] prototypes;  
 }

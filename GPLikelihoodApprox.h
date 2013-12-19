@@ -111,7 +111,7 @@ class GPLikelihoodApprox : public OPTIMIZATION::CostFunction
     *
     * @return void
     */    
-    void computeAlphaDirect(const OPTIMIZATION::matrix_type & x);
+    void computeAlphaDirect(const OPTIMIZATION::matrix_type & x, const NICE::Vector & eigenValues);
     
     /**
     * @brief Evaluate the likelihood for given hyperparameters
@@ -124,18 +124,19 @@ class GPLikelihoodApprox : public OPTIMIZATION::CostFunction
      
     
     // ------ get and set methods ------
-    const Vector & getBestParameters () const { return min_parameter; };
+    const NICE::Vector & getBestParameters () const { return min_parameter; };
     const std::map<int, Vector> & getBestAlphas () const { return min_alphas; };
     
     void setParameterLowerBound(const double & _parameterLowerBound);
     void setParameterUpperBound(const double & _parameterUpperBound);
     
-    void setLastAlphas(std::map<int, NICE::Vector> * _lastAlphas);
     void setBinaryLabels(const std::map<int, Vector> & _binaryLabels);
     
-    void setUsePreviousAlphas( const bool & _usePreviousAlphas );
     void setVerbose( const bool & _verbose );
     void setDebug( const bool & _debug );
+    
+    bool getVerbose ( ) { return verbose; } ;
+    bool getDebug ( ) { return debug; } ;
 };
 
 }

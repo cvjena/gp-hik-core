@@ -71,8 +71,6 @@ class IKMLinearCombination : public ImplicitKernelMatrix
     virtual void restore ( std::istream & is, int format = 0 ) {};
     virtual void store ( std::ostream & os, int format = 0 ) const {};  
     virtual void clear () {};
-    
-    void addExample(const NICE::SparseVector & x, const NICE::Vector & binLabels);
 
 };
 
