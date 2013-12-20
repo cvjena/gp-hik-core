@@ -50,6 +50,7 @@ GPHIKClassifier::~GPHIKClassifier()
 
 void GPHIKClassifier::init(const Config *conf, const string & confSection)
 {
+  std::cerr << " init  method " << std::endl;
   double parameterLowerBound = conf->gD(confSection, "parameter_lower_bound", 1.0 );
   double parameterUpperBound = conf->gD(confSection, "parameter_upper_bound", 5.0 );
 
@@ -59,6 +60,7 @@ void GPHIKClassifier::init(const Config *conf, const string & confSection)
   
   if (pf == NULL)
   {
+    std::cerr << " pf is currently NULL  " << std::endl;
     if ( transform == "absexp" )
     {
       this->pf = new PFAbsExp( 1.0, parameterLowerBound, parameterUpperBound );
@@ -74,6 +76,7 @@ void GPHIKClassifier::init(const Config *conf, const string & confSection)
   }
   else{
     //we already know the pf from the restore-function
+    std::cerr << " pf is already loaded" << std::endl;
   }
   this->confSection = confSection;
   this->verbose = conf->gB(confSection, "verbose", false);
@@ -82,6 +85,7 @@ void GPHIKClassifier::init(const Config *conf, const string & confSection)
   
   if (confCopy != conf)
   {  
+    std::cerr << " copy config" << std::endl;
     this->confCopy = new Config ( *conf );
     //we do not want to read until end of file for restoring    
     confCopy->setIoUntilEndOfFile(false);    
@@ -192,7 +196,9 @@ void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, Sp
 void GPHIKClassifier::train ( const std::vector< NICE::SparseVector *> & examples, const NICE::Vector & labels )
 {
   if (verbose)
+  {
     std::cerr << "GPHIKClassifier::train" << std::endl;
+  }
 
   Timer t;
   t.start();
@@ -392,6 +398,7 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
 {
   if (is.good())
   {
+    std::cerr << "restore GPHIKClassifier" << std::endl;
     is.precision (numeric_limits<double>::digits10 + 1);
     
     string tmp;
@@ -413,22 +420,35 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
       fthrow(Exception, "Transformation type is unknown " << transform);
     }    
     pf->restore(is, format);
+    
+    std::cerr << "pf restored" << std::endl;
             
     //load every options we determined explicitely
     confCopy->clear();
     //we do not want to read until the end of the file
     confCopy->setIoUntilEndOfFile( false );
     confCopy->restore(is, format);
+    
+    std::cerr << "conf restored" << std::endl;
 
     //load every settings as well as default options
     this->init(confCopy, confSection); 
+    
+    std::cerr << "GPHIK initialized" << std::endl;
   
     //first read things from the config
-    gphyper->initialize ( confCopy, pf );
+    if ( gphyper == NULL )
+      gphyper = new NICE::FMKGPHyperparameterOptimization();
+    
+    gphyper->initialize ( confCopy, pf, NULL, confSection );
+    
+    std::cerr << "gphyper initialized" << std::endl;
     
     //then, load everything that we stored explicitely,
     // including precomputed matrices, LUTs, eigenvalues, ... and all that stuff
-    gphyper->restore(is, format);      
+    gphyper->restore(is, format);    
+    
+    std::cerr << "gphyper restored" << std::endl;
   }
   else
   {

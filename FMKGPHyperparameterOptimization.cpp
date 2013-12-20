@@ -41,12 +41,16 @@ using namespace std;
 
 FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization()
 {
+  // initialize pointer variables
   pf = NULL;
   eig = NULL;
   linsolver = NULL;
   fmk = NULL;
   q = NULL;
   precomputedTForVarEst = NULL;
+  ikmsum  = NULL;
+  
+  // initialize boolean flags
   verbose = false;
   verboseTime = false;
   debug = false;
@@ -58,13 +62,14 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization()
 
 FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config *_conf, ParameterizedFunction *_pf, FastMinKernel *_fmk, const string & _confSection )
 {
-  //default settings, may become overwritten lateron
+   // initialize pointer variables
   pf = NULL;
   eig = NULL;
   linsolver = NULL;
   fmk = NULL;
   q = NULL;
   precomputedTForVarEst = NULL;
+  ikmsum = NULL;
   
   //stupid unneeded default values
   binaryLabelPositive = -1;
@@ -106,10 +111,18 @@ FMKGPHyperparameterOptimization::~FMKGPHyperparameterOptimization()
 void FMKGPHyperparameterOptimization::initialize ( const Config *_conf, ParameterizedFunction *_pf, FastMinKernel *_fmk, const std::string & _confSection )
 {
   if ( this->fmk != NULL )
+  {
+    std::cerr << "fmk deleted" << std::endl;
     delete this->fmk;
+  }
   if ( _fmk != NULL )
+  {
+    std::cerr << "fmk copied" << std::endl;    
     this->fmk = _fmk;
+  }
+  
   this->pf = _pf;
+  std::cerr << "pf copied" << std::endl;
   
   
   std::cerr << "------------" << std::endl;
@@ -1151,23 +1164,27 @@ t.start();*/
 
 void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
 {
+  bool b_restoreVerbose ( false );
   if ( is.good() )
   {
+    if ( b_restoreVerbose ) 
+      std::cerr << " in FMKGP restore" << std::endl;
     //load the underlying data
     if (fmk != NULL)
       delete fmk;
+    if ( b_restoreVerbose ) 
+      std::cerr << " create FMK" << std::endl;
     fmk = new FastMinKernel;
-    fmk->restore(is,format);    
-    
-    //now set up the GHIK-things in ikmsums
-    ikmsum->addModel ( new GMHIKernel ( fmk, this->pf, this->q ) );
+    if ( b_restoreVerbose ) 
+      std::cerr << " restore FMK" << std::endl;
+    fmk->restore(is,format); 
+    if ( b_restoreVerbose ) 
+      std::cerr << "fmk->restore done " << std::endl;
     
     is.precision ( numeric_limits<double>::digits10 + 1 );
 
     string tmp;
     is >> tmp; //class name
-
-    is >> tmp;
     
     is >> tmp; //precomputedA:
     is >> tmp; //size:
@@ -1176,6 +1193,8 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
     is >> preCompSize;
     precomputedA.clear();
 
+    if ( b_restoreVerbose ) 
+      std::cerr << "restore precomputedA with size: " << preCompSize << std::endl;
     for ( int i = 0; i < preCompSize; i++ )
     {
       int nr;
@@ -1192,6 +1211,8 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
     is >> preCompSize;
     precomputedB.clear();
 
+    if ( b_restoreVerbose ) 
+      std::cerr << "restore precomputedB with size: " << preCompSize << std::endl;
     for ( int i = 0; i < preCompSize; i++ )
     {
       int nr;
@@ -1202,14 +1223,21 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
       precomputedB.insert ( std::pair<int, PrecomputedType> ( nr, pct ) );
     }    
     
-    is >> tmp;
-    int precomputedTSize;
+    is >> tmp; //precomputedT: std::cerr << " content of tmp: " << tmp << std::endl; 
+    is >> tmp; //size: std::cerr << " content of tmp: " << tmp << std::endl;
+    
+    int precomputedTSize ( 0 );
     is >> precomputedTSize;
 
     precomputedT.clear();
+    
+    if ( b_restoreVerbose ) 
+      std::cerr << "restore precomputedT with size: " << precomputedTSize << std::endl;
 
     if ( precomputedTSize > 0 )
     {
+      if ( b_restoreVerbose ) 
+        std::cerr << " restore precomputedT" << std::endl;
       is >> tmp;
       int sizeOfLUT;
       is >> sizeOfLUT;    
@@ -1226,24 +1254,43 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
         }
         precomputedT.insert ( std::pair<int, double*> ( index, array ) );
       }
-    }    
+    } 
+    else
+    {
+      if ( b_restoreVerbose ) 
+        std::cerr << " skip restoring precomputedT" << std::endl;
+    }
 
     //now restore the things we need for the variance computation
     is >> tmp;
+    if ( b_restoreVerbose ) 
+      std::cerr << " content of tmp: " << tmp << std::endl;
     int sizeOfAForVarEst;
     is >> sizeOfAForVarEst;
-    if ( sizeOfAForVarEst > 0 )
     
-    if (precomputedAForVarEst.size() > 0)
+    if ( b_restoreVerbose ) 
+      std::cerr << "restore precomputedAForVarEst with size: " << sizeOfAForVarEst << std::endl;
+    
+    if (sizeOfAForVarEst > 0)
     {
+      precomputedAForVarEst.clear();
+      
       precomputedAForVarEst.setIoUntilEndOfFile ( false );
+      std::cerr << "restore precomputedAForVarEst" << std::endl;
       precomputedAForVarEst.restore ( is, format );
     }    
 
     is >> tmp; //precomputedTForVarEst
+      if ( b_restoreVerbose ) 
+    std::cerr << "content of tmp: " << tmp << std::endl;
     is >> tmp; // NOTNULL or NULL
+    if ( b_restoreVerbose ) 
+      std::cerr << "content of tmp: " << tmp << std::endl;    
     if (tmp.compare("NOTNULL") == 0)
     {
+      if ( b_restoreVerbose ) 
+        std::cerr << "restore precomputedTForVarEst" << std::endl;
+      
       int sizeOfLUT;
       is >> sizeOfLUT;      
       precomputedTForVarEst = new double [ sizeOfLUT ];
@@ -1254,37 +1301,118 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
     }
     else
     {
+      if ( b_restoreVerbose ) 
+        std::cerr << "skip restoring of precomputedTForVarEst" << std::endl;
       if (precomputedTForVarEst != NULL)
         delete precomputedTForVarEst;
     }
     
+    if ( b_restoreVerbose ) 
+      std::cerr << "restore eigenMax and eigenMaxVectors " << std::endl;
+    
     //restore eigenvalues and eigenvectors
+    is >> tmp; //"eigenmax:"
+    if ( b_restoreVerbose ) 
+      std::cerr << "content of tmp: " << tmp << std::endl;
     is >> eigenMax;
+    if ( b_restoreVerbose ) 
+      std::cerr << "loaded the following eigenMax: " << eigenMax << std::endl;
+    is >> tmp; //"eigenMaxVectors:"
+    if ( b_restoreVerbose ) 
+      std::cerr << "content of tmp: " << tmp << std::endl;
     is >> eigenMaxVectors;
+    if ( b_restoreVerbose ) 
+      std::cerr << "loaded the following eigenMaxVectors: " << eigenMaxVectors << std::endl;
+    
+    if ( b_restoreVerbose ) 
+      std::cerr << " create ikmsum object" << std::endl;
+    
+    if ( ikmsum == NULL )
+    {
+        ikmsum = new IKMLinearCombination (); 
+        if ( b_restoreVerbose ) 
+          std::cerr << "ikmsum object created" << std::endl;
+    }
+    else
+    {
+      if ( b_restoreVerbose ) 
+        std::cerr << "ikmsum object already existing" << std::endl;
+    }
+      
 
-    IKMLinearCombination *ikmsum = new IKMLinearCombination ();
-
+    is >> tmp; //"numberOfModels:"
+    if ( b_restoreVerbose ) 
+      std::cerr << "content of tmp: " << tmp << std::endl;
     int nrOfModels ( 0 );
     is >> nrOfModels;
+    if ( b_restoreVerbose ) 
+      std::cerr << "number of models to add in total: " << nrOfModels << std::endl;
+    
+    if ( b_restoreVerbose ) 
+      std::cerr << " restore IKMNoise " << std::endl;
     
     //the first one is always our noise-model
     IKMNoise * ikmnoise = new IKMNoise ();
     ikmnoise->restore ( is, format );
 
+    
+    if ( b_restoreVerbose ) 
+      std::cerr << " add ikmnoise to ikmsum object " << std::endl;
     ikmsum->addModel ( ikmnoise );
 
     //NOTE are there any more models you added? then add them here respectively in the correct order
     //.....  
 
 
-    //the last one is the GHIK - which we do not have to restore, but simply reset it lateron
+    //the last one is the GHIK - which we do not have to restore, but simply reset it
+    if ( b_restoreVerbose ) 
+      std::cerr << " add GMHIKernel" << std::endl;
+    ikmsum->addModel ( new GMHIKernel ( fmk, this->pf, this->q ) );    
+    
+    if ( b_restoreVerbose ) 
+      std::cerr << " restore positive and negative label" << std::endl;
 
       
     //restore the class numbers for binary settings (if mc-settings, these values will be negative by default)
     is >> tmp; // "binaryLabelPositive: " 
+    if ( b_restoreVerbose ) 
+      std::cerr << " content of tmp: " << tmp << std::endl; 
     is >> binaryLabelPositive;
+    if ( b_restoreVerbose ) 
+      std::cerr << " content of binaryLabelPositive: " << binaryLabelPositive << std::endl; 
     is >> tmp; // " binaryLabelNegative: "
-    is >> binaryLabelNegative;          
+    if ( b_restoreVerbose ) 
+      std::cerr << " content of tmp: " << tmp << std::endl; 
+    is >> binaryLabelNegative;
+    if ( b_restoreVerbose ) 
+      std::cerr << " content of binaryLabelNegative: " << binaryLabelNegative << std::endl; 
+    
+    is >> tmp; // "labels: "
+    if ( b_restoreVerbose ) 
+      std::cerr << " content of tmp: " << tmp << std::endl;
+    is >> this->labels;    
+    if ( b_restoreVerbose ) 
+      std::cerr << " restored labels: " << labels << std::endl;
+
+    knownClasses.clear();
+    
+    if ( b_restoreVerbose ) 
+      std::cerr << " fill known classes object " << std::endl;
+    
+    if ( precomputedA.size() == 1)
+    {
+      knownClasses.insert( binaryLabelPositive );
+      knownClasses.insert( binaryLabelNegative );
+      if ( b_restoreVerbose ) 
+        std::cerr << " binary setting - added corresp. two class numbers" << std::endl;
+    }
+    else
+    {
+      for ( std::map<int, PrecomputedType>::const_iterator itA = precomputedA.begin(); itA != precomputedA.end(); itA++)
+          knownClasses.insert ( itA->first );
+      if ( b_restoreVerbose ) 
+        std::cerr << " multi class setting - added corresp. multiple class numbers" << std::endl;
+    }
   }
   else
   {
@@ -1313,6 +1441,7 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) co
       ( preCompIt->second ).store ( os, format );
       preCompIt++;
     }
+    
     os << "precomputedB: size: " << precomputedB.size() << std::endl;
     preCompIt = precomputedB.begin();
     for ( uint i = 0; i < precomputedB.size(); i++ )
@@ -1323,7 +1452,7 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) co
     }    
     
     
-    os << "precomputedT.size(): " << precomputedT.size() << std::endl;
+    os << "precomputedT: size: " << precomputedT.size() << std::endl;
     if ( precomputedT.size() > 0 )
     {
       int sizeOfLUT ( 0 );
@@ -1371,7 +1500,9 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) co
     }
     
     //store the eigenvalues and eigenvectors
+    os << "eigenMax" << std::endl;
     os << eigenMax << std::endl;
+    os << "eigenMaxVectors" << std::endl;
     os << eigenMaxVectors << std::endl;
 
     //store the ikmsum object
@@ -1385,6 +1516,8 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) co
     
     //store the class numbers for binary settings (if mc-settings, these values will be negative by default)
     os << "binaryLabelPositive: " << binaryLabelPositive << " binaryLabelNegative: " << binaryLabelNegative << std::endl;
+    
+    os << "labels: " << this->labels << std::endl;    
   }
   else
   {

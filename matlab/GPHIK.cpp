@@ -283,12 +283,26 @@ double convertMatlabToDouble(const mxArray *matlabDouble)
   return ptr[0];
 }
 
-Config parseParameters(const mxArray *prhs[], int nrhs)
+NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
 {
-  Config conf;
-  for(int i=0;i<nrhs;i+=2)
+  NICE::Config conf;
+  
+  // if first argument is the filename of an existing config file,
+  // read the config accordingly
+  
+  int i_start ( 0 );
+  std::string variable = convertMatlabToString(prhs[i_start]);
+  if(variable == "conf")
   {
-    string variable = convertMatlabToString(prhs[i]);
+      conf = NICE::Config ( convertMatlabToString( prhs[i_start+1] )  );
+      i_start = i_start+2;
+  }
+  
+  // now run over all given parameter specifications
+  // and add them to the config
+  for( int i=i_start; i < nrhs; i+=2 )
+  {
+    std::string variable = convertMatlabToString(prhs[i]);
     if(variable == "ils_verbose")
     {
       string value = convertMatlabToString(prhs[i+1]);
@@ -398,16 +412,6 @@ Config parseParameters(const mxArray *prhs[], int nrhs)
       conf.sD("GPHIKClassifier", variable, value);
     }
 
-    if(variable == "learn_balanced")
-    {
-      string value = convertMatlabToString(prhs[i+1]);
-      if(value != "true" && value != "false")
-        mexErrMsgIdAndTxt("mexnice:error","Unexpected parameter value for \'learn_balanced\'. \'true\' or \'false\' expected.");
-      if(value == "true")
-        conf.sB("GPHIKClassifier", variable, true);
-      else
-        conf.sB("GPHIKClassifier", variable, false);
-    }
 
     if(variable == "optimize_noise")
     {
@@ -826,6 +830,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgTxt("restore: no destination given.");        
                
         std::string s_destination = convertMatlabToString( prhs[2] );
+        
+        std::cerr << " aim at restoring the classifier from " << s_destination << std::endl;
           
         std::filebuf fbIn;
         fbIn.open ( s_destination.c_str(), ios::in );

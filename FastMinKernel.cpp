@@ -1377,6 +1377,7 @@ void FastMinKernel::restore ( std::istream & is, int format )
 {
   if (is.good())
   {
+    std::cerr << "FastMinKernel::restore  " << std::endl;
     is.precision (numeric_limits<double>::digits10 + 1);  
     
     string tmp;
@@ -1396,12 +1397,15 @@ void FastMinKernel::restore ( std::istream & is, int format )
     is >> approxSchemeInt;
     setApproximationScheme(approxSchemeInt);
    
+    std::cerr << "start restoring X_sorted  " << std::endl;
     X_sorted.restore(is,format);
+    std::cerr << " done :) " << std::endl;
    }
   else
   {
     std::cerr << "FastMinKernel::restore -- InStream not initialized - restoring not possible!" << std::endl;
   }  
+  std::cerr << " FMK restore ended " << std::endl;
 }
 void FastMinKernel::store ( std::ostream & os, int format ) const
 {

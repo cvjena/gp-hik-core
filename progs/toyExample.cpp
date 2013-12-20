@@ -46,7 +46,7 @@ int main (int argc, char* argv[])
     yMultiTrain.resize(6);
     yMultiTrain[0] = 1; yMultiTrain[1] = 1;
     yMultiTrain[2] = 2; yMultiTrain[3] = 2;
-    yMultiTrain[2] = 3; yMultiTrain[3] = 3;
+    yMultiTrain[4] = 3; yMultiTrain[5] = 3;
   }
   else 
   {
@@ -79,8 +79,9 @@ int main (int argc, char* argv[])
   std::cerr << "Number of training examples: " << examplesTrain.size() << std::endl;
   
   //----------------- train our classifier -------------
-  conf.sB("GPHIKClassifier", "verbose", false);
+//   conf.sB("GPHIKClassifier", "verbose", false);
   GPHIKClassifier * classifier  = new GPHIKClassifier ( &conf );  
+    
   classifier->train ( examplesTrain , yMultiTrain );
   
   // ------------------------------------------
@@ -101,8 +102,8 @@ int main (int argc, char* argv[])
     dataTest.set(0);
     dataTest(0,0) = 0.3; dataTest(0,1) = 0.4; dataTest(0,2) = 0.3;
     
-    yMultiTrain.resize(1);
-    yMultiTrain[0] = 1;
+    yMultiTest.resize(1);
+    yMultiTest[0] = 1;
   }
   else 
   {  
@@ -122,8 +123,44 @@ int main (int argc, char* argv[])
     }
   }
   
-  //TODO adapt this to the actual number of classes
-  NICE::Matrix confusionMatrix(3, 3, 0.0);
+  // ------------------------------------------
+  // ------------- PREPARATION --------------
+  // ------------------------------------------   
+  
+  // determine classes known during training and corresponding mapping
+  // thereby allow for non-continous class labels
+  std::set<int> classesKnownTraining = classifier->getKnownClassNumbers();
+  
+  int noClassesKnownTraining ( classesKnownTraining.size() );
+  std::map<int,int> mapClNoToIdxTrain;
+  std::set<int>::const_iterator clTrIt = classesKnownTraining.begin();
+  for ( int i=0; i < noClassesKnownTraining; i++, clTrIt++ )
+      mapClNoToIdxTrain.insert ( std::pair<int,int> ( *clTrIt, i )  );
+  
+  // determine classes known during testing and corresponding mapping
+  // thereby allow for non-continous class labels
+  std::set<int> classesKnownTest;
+  classesKnownTest.clear();
+  
+
+  // determine which classes we have in our label vector
+  // -> MATLAB: myClasses = unique(y);
+  for ( NICE::Vector::const_iterator it = yMultiTest.begin(); it != yMultiTest.end(); it++ )
+  {
+    if ( classesKnownTest.find ( *it ) == classesKnownTest.end() )
+    {
+      classesKnownTest.insert ( *it );
+    }
+  }          
+  
+  int noClassesKnownTest ( classesKnownTest.size() );  
+  std::map<int,int> mapClNoToIdxTest;
+  std::set<int>::const_iterator clTestIt = classesKnownTest.begin();
+  for ( int i=0; i < noClassesKnownTest; i++, clTestIt++ )
+      mapClNoToIdxTest.insert ( std::pair<int,int> ( *clTestIt, i )  ); 
+          
+  
+  NICE::Matrix confusionMatrix( noClassesKnownTraining, noClassesKnownTest, 0.0);
   
   NICE::Timer t;
   double testTime (0.0);
@@ -132,22 +169,16 @@ int main (int argc, char* argv[])
   
   int i_loopEnd  ( (int)dataTest.rows() );
   
-  if ( b_debug )
-  {
-    i_loopEnd = 1;
-  }
   
   for (int i = 0; i < i_loopEnd ; i++)
   {
-    //----------------- convert data to sparse data structures ---------
-    NICE::SparseVector * example =  new NICE::SparseVector( dataTest.getRow(i) );
-       
-    int result;
+    NICE::Vector example ( dataTest.getRow(i) );
     NICE::SparseVector scores;
-   
+    int result;
+    
     // and classify
     t.start();
-    classifier->classify( example, result, scores );
+    classifier->classify( &example, result, scores );
     t.stop();
     testTime += t.getLast();
     
@@ -156,24 +187,20 @@ int main (int argc, char* argv[])
     
     if ( b_debug )
     {    
-      classifier->predictUncertainty( example, uncertainty );
+      classifier->predictUncertainty( &example, uncertainty );
       std::cerr << " uncertainty: " << uncertainty << std::endl;
     }
-    else
-    {
-      confusionMatrix(result, yMultiTest[i]) += 1.0;
-    }
+    
+    confusionMatrix( mapClNoToIdxTrain.find(result)->second, mapClNoToIdxTest.find(yMultiTest[i])->second ) += 1.0;
   }
   
-  if ( !b_debug )
-  {
-    std::cerr << "Time for testing: " << testTime << std::endl;
-    
-    confusionMatrix.normalizeColumnsL1();
-    std::cerr << confusionMatrix << std::endl;
 
-    std::cerr << "average recognition rate: " << confusionMatrix.trace()/confusionMatrix.rows() << std::endl;
-  }
+  std::cerr << "Time for testing: " << testTime << std::endl;
+  
+  confusionMatrix.normalizeColumnsL1();
+  std::cerr << confusionMatrix << std::endl;
+
+  std::cerr << "average recognition rate: " << confusionMatrix.trace()/confusionMatrix.cols() << std::endl;
   
   
   return 0;
