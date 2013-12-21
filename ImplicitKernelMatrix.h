@@ -22,7 +22,7 @@ namespace NICE {
  * @date 02/14/2012
  */
 
-class ImplicitKernelMatrix : public GenericMatrix, NICE::Persistent
+class ImplicitKernelMatrix : public GenericMatrix, public NICE::Persistent
 {
 
   protected:

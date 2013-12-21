@@ -1172,160 +1172,6 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
     //load the underlying data
     if (fmk != NULL)
       delete fmk;
-    if ( b_restoreVerbose ) 
-      std::cerr << " create FMK" << std::endl;
-    fmk = new FastMinKernel;
-    if ( b_restoreVerbose ) 
-      std::cerr << " restore FMK" << std::endl;
-    fmk->restore(is,format); 
-    if ( b_restoreVerbose ) 
-      std::cerr << "fmk->restore done " << std::endl;
-    
-    is.precision ( numeric_limits<double>::digits10 + 1 );
-
-    string tmp;
-    is >> tmp; //class name
-    
-    is >> tmp; //precomputedA:
-    is >> tmp; //size:
-
-    int preCompSize ( 0 );
-    is >> preCompSize;
-    precomputedA.clear();
-
-    if ( b_restoreVerbose ) 
-      std::cerr << "restore precomputedA with size: " << preCompSize << std::endl;
-    for ( int i = 0; i < preCompSize; i++ )
-    {
-      int nr;
-      is >> nr;
-      PrecomputedType pct;
-      pct.setIoUntilEndOfFile ( false );
-      pct.restore ( is, format );
-      precomputedA.insert ( std::pair<int, PrecomputedType> ( nr, pct ) );
-    }
-    
-    is >> tmp; //precomputedB:
-    is >> tmp; //size:
-
-    is >> preCompSize;
-    precomputedB.clear();
-
-    if ( b_restoreVerbose ) 
-      std::cerr << "restore precomputedB with size: " << preCompSize << std::endl;
-    for ( int i = 0; i < preCompSize; i++ )
-    {
-      int nr;
-      is >> nr;
-      PrecomputedType pct;
-      pct.setIoUntilEndOfFile ( false );
-      pct.restore ( is, format );
-      precomputedB.insert ( std::pair<int, PrecomputedType> ( nr, pct ) );
-    }    
-    
-    is >> tmp; //precomputedT: std::cerr << " content of tmp: " << tmp << std::endl; 
-    is >> tmp; //size: std::cerr << " content of tmp: " << tmp << std::endl;
-    
-    int precomputedTSize ( 0 );
-    is >> precomputedTSize;
-
-    precomputedT.clear();
-    
-    if ( b_restoreVerbose ) 
-      std::cerr << "restore precomputedT with size: " << precomputedTSize << std::endl;
-
-    if ( precomputedTSize > 0 )
-    {
-      if ( b_restoreVerbose ) 
-        std::cerr << " restore precomputedT" << std::endl;
-      is >> tmp;
-      int sizeOfLUT;
-      is >> sizeOfLUT;    
-      
-      for (int i = 0; i < precomputedTSize; i++)
-      {
-        is >> tmp;
-        int index;
-        is >> index;        
-        double * array = new double [ sizeOfLUT];
-        for ( int i = 0; i < sizeOfLUT; i++ )
-        {
-          is >> array[i];
-        }
-        precomputedT.insert ( std::pair<int, double*> ( index, array ) );
-      }
-    } 
-    else
-    {
-      if ( b_restoreVerbose ) 
-        std::cerr << " skip restoring precomputedT" << std::endl;
-    }
-
-    //now restore the things we need for the variance computation
-    is >> tmp;
-    if ( b_restoreVerbose ) 
-      std::cerr << " content of tmp: " << tmp << std::endl;
-    int sizeOfAForVarEst;
-    is >> sizeOfAForVarEst;
-    
-    if ( b_restoreVerbose ) 
-      std::cerr << "restore precomputedAForVarEst with size: " << sizeOfAForVarEst << std::endl;
-    
-    if (sizeOfAForVarEst > 0)
-    {
-      precomputedAForVarEst.clear();
-      
-      precomputedAForVarEst.setIoUntilEndOfFile ( false );
-      std::cerr << "restore precomputedAForVarEst" << std::endl;
-      precomputedAForVarEst.restore ( is, format );
-    }    
-
-    is >> tmp; //precomputedTForVarEst
-      if ( b_restoreVerbose ) 
-    std::cerr << "content of tmp: " << tmp << std::endl;
-    is >> tmp; // NOTNULL or NULL
-    if ( b_restoreVerbose ) 
-      std::cerr << "content of tmp: " << tmp << std::endl;    
-    if (tmp.compare("NOTNULL") == 0)
-    {
-      if ( b_restoreVerbose ) 
-        std::cerr << "restore precomputedTForVarEst" << std::endl;
-      
-      int sizeOfLUT;
-      is >> sizeOfLUT;      
-      precomputedTForVarEst = new double [ sizeOfLUT ];
-      for ( int i = 0; i < sizeOfLUT; i++ )
-      {
-        is >> precomputedTForVarEst[i];
-      }      
-    }
-    else
-    {
-      if ( b_restoreVerbose ) 
-        std::cerr << "skip restoring of precomputedTForVarEst" << std::endl;
-      if (precomputedTForVarEst != NULL)
-        delete precomputedTForVarEst;
-    }
-    
-    if ( b_restoreVerbose ) 
-      std::cerr << "restore eigenMax and eigenMaxVectors " << std::endl;
-    
-    //restore eigenvalues and eigenvectors
-    is >> tmp; //"eigenmax:"
-    if ( b_restoreVerbose ) 
-      std::cerr << "content of tmp: " << tmp << std::endl;
-    is >> eigenMax;
-    if ( b_restoreVerbose ) 
-      std::cerr << "loaded the following eigenMax: " << eigenMax << std::endl;
-    is >> tmp; //"eigenMaxVectors:"
-    if ( b_restoreVerbose ) 
-      std::cerr << "content of tmp: " << tmp << std::endl;
-    is >> eigenMaxVectors;
-    if ( b_restoreVerbose ) 
-      std::cerr << "loaded the following eigenMaxVectors: " << eigenMaxVectors << std::endl;
-    
-    if ( b_restoreVerbose ) 
-      std::cerr << " create ikmsum object" << std::endl;
     
     if ( ikmsum == NULL )
     {
@@ -1337,28 +1183,367 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
     {
       if ( b_restoreVerbose ) 
         std::cerr << "ikmsum object already existing" << std::endl;
-    }
+    }    
+    
+    std::string tmp;
+    is >> tmp; //class name    
+    
+    if ( b_restoreVerbose ) 
+      std::cerr << " create FMK" << std::endl;
+    fmk = new FastMinKernel;
+    if ( b_restoreVerbose ) 
+      std::cerr << " restore FMK" << std::endl;
+    fmk->restore(is,format); 
+    if ( b_restoreVerbose ) 
+      std::cerr << "fmk->restore done " << std::endl;
+    
+    is.precision ( numeric_limits<double>::digits10 + 1 );
+    
+    
+
+
+    
+//     is >> tmp; //precomputedA:
+//     is >> tmp; //size:
+// 
+//     int preCompSize ( 0 );
+//     is >> preCompSize;
+//     precomputedA.clear();
+// 
+//     if ( b_restoreVerbose ) 
+//       std::cerr << "restore precomputedA with size: " << preCompSize << std::endl;
+//     for ( int i = 0; i < preCompSize; i++ )
+//     {
+//       int nr;
+//       is >> nr;
+//       PrecomputedType pct;
+//       pct.setIoUntilEndOfFile ( false );
+//       pct.restore ( is, format );
+//       precomputedA.insert ( std::pair<int, PrecomputedType> ( nr, pct ) );
+//     }
+//     
+//     is >> tmp; //precomputedB:
+//     is >> tmp; //size:
+// 
+//     is >> preCompSize;
+//     precomputedB.clear();
+// 
+//     if ( b_restoreVerbose ) 
+//       std::cerr << "restore precomputedB with size: " << preCompSize << std::endl;
+//     for ( int i = 0; i < preCompSize; i++ )
+//     {
+//       int nr;
+//       is >> nr;
+//       PrecomputedType pct;
+//       pct.setIoUntilEndOfFile ( false );
+//       pct.restore ( is, format );
+//       precomputedB.insert ( std::pair<int, PrecomputedType> ( nr, pct ) );
+//     }    
+//     
+//     is >> tmp; //precomputedT: std::cerr << " content of tmp: " << tmp << std::endl; 
+//     is >> tmp; //size: std::cerr << " content of tmp: " << tmp << std::endl;
+//     
+//     int precomputedTSize ( 0 );
+//     is >> precomputedTSize;
+// 
+//     precomputedT.clear();
+//     
+//     if ( b_restoreVerbose ) 
+//       std::cerr << "restore precomputedT with size: " << precomputedTSize << std::endl;
+// 
+//     if ( precomputedTSize > 0 )
+//     {
+//       if ( b_restoreVerbose ) 
+//         std::cerr << " restore precomputedT" << std::endl;
+//       is >> tmp;
+//       int sizeOfLUT;
+//       is >> sizeOfLUT;    
+//       
+//       for (int i = 0; i < precomputedTSize; i++)
+//       {
+//         is >> tmp;
+//         int index;
+//         is >> index;        
+//         double * array = new double [ sizeOfLUT];
+//         for ( int i = 0; i < sizeOfLUT; i++ )
+//         {
+//           is >> array[i];
+//         }
+//         precomputedT.insert ( std::pair<int, double*> ( index, array ) );
+//       }
+//     } 
+//     else
+//     {
+//       if ( b_restoreVerbose ) 
+//         std::cerr << " skip restoring precomputedT" << std::endl;
+//     }
+// 
+//     //now restore the things we need for the variance computation
+//     is >> tmp;
+//     if ( b_restoreVerbose ) 
+//       std::cerr << " content of tmp: " << tmp << std::endl;
+//     int sizeOfAForVarEst;
+//     is >> sizeOfAForVarEst;
+//     
+//     if ( b_restoreVerbose ) 
+//       std::cerr << "restore precomputedAForVarEst with size: " << sizeOfAForVarEst << std::endl;
+//     
+//     if (sizeOfAForVarEst > 0)
+//     {
+//       precomputedAForVarEst.clear();
+//       
+//       precomputedAForVarEst.setIoUntilEndOfFile ( false );
+//       std::cerr << "restore precomputedAForVarEst" << std::endl;
+//       precomputedAForVarEst.restore ( is, format );
+//     }    
+// 
+//     is >> tmp; //precomputedTForVarEst
+//       if ( b_restoreVerbose ) 
+//     std::cerr << "content of tmp: " << tmp << std::endl;
+//     is >> tmp; // NOTNULL or NULL
+//     if ( b_restoreVerbose ) 
+//       std::cerr << "content of tmp: " << tmp << std::endl;    
+//     if (tmp.compare("NOTNULL") == 0)
+//     {
+//       if ( b_restoreVerbose ) 
+//         std::cerr << "restore precomputedTForVarEst" << std::endl;
+//       
+//       int sizeOfLUT;
+//       is >> sizeOfLUT;      
+//       precomputedTForVarEst = new double [ sizeOfLUT ];
+//       for ( int i = 0; i < sizeOfLUT; i++ )
+//       {
+//         is >> precomputedTForVarEst[i];
+//       }      
+//     }
+//     else
+//     {
+//       if ( b_restoreVerbose ) 
+//         std::cerr << "skip restoring of precomputedTForVarEst" << std::endl;
+//       if (precomputedTForVarEst != NULL)
+//         delete precomputedTForVarEst;
+//     }
+//     
+//     if ( b_restoreVerbose ) 
+//       std::cerr << "restore eigenMax and eigenMaxVectors " << std::endl;
+//     
+//     
+//     if ( b_restoreVerbose ) 
+//       std::cerr << " create ikmsum object" << std::endl;
+//     
+// 
+//       
+// 
+//     is >> tmp; //"numberOfModels:"
+//     if ( b_restoreVerbose ) 
+//       std::cerr << "content of tmp: " << tmp << std::endl;
+//     int nrOfModels ( 0 );
+//     is >> nrOfModels;
+//     if ( b_restoreVerbose ) 
+//       std::cerr << "number of models to add in total: " << nrOfModels << std::endl;
+//     
+//     if ( b_restoreVerbose ) 
+//       std::cerr << " restore IKMNoise " << std::endl;
+//     
+    
+//     //the first one is always our noise-model
+    
+    
+    bool b_endOfBlock ( false ) ;
+    
+    while ( !b_endOfBlock )
+    {
+      is >> tmp; // start of block 
       
+      if ( this->isEndTag( tmp, "FMKGPHyperparameterOptimization" ) )
+      {
+        b_endOfBlock = true;
+        continue;
+      }      
+      
+      tmp = this->removeStartTag ( tmp );
+      
+      std::cerr << " currently restore setcion " << tmp << " in FMKGPHyperparameterOptimization" << std::endl;
+      
+      if ( tmp.compare("precomputedA") == 0 )
+      {
+        is >> tmp; // size
+        int preCompSize ( 0 );
+        is >> preCompSize;
+        precomputedA.clear();
 
-    is >> tmp; //"numberOfModels:"
-    if ( b_restoreVerbose ) 
-      std::cerr << "content of tmp: " << tmp << std::endl;
-    int nrOfModels ( 0 );
-    is >> nrOfModels;
-    if ( b_restoreVerbose ) 
-      std::cerr << "number of models to add in total: " << nrOfModels << std::endl;
-    
-    if ( b_restoreVerbose ) 
-      std::cerr << " restore IKMNoise " << std::endl;
-    
-    //the first one is always our noise-model
-    IKMNoise * ikmnoise = new IKMNoise ();
-    ikmnoise->restore ( is, format );
+        if ( b_restoreVerbose ) 
+          std::cerr << "restore precomputedA with size: " << preCompSize << std::endl;
+        for ( int i = 0; i < preCompSize; i++ )
+        {
+          int nr;
+          is >> nr;
+          PrecomputedType pct;
+          pct.setIoUntilEndOfFile ( false );
+          pct.restore ( is, format );
+          precomputedA.insert ( std::pair<int, PrecomputedType> ( nr, pct ) );
+        }
+      }        
+      else if ( tmp.compare("precomputedB") == 0 )
+      {
+        is >> tmp; // size
+        int preCompSize ( 0 );
+        is >> preCompSize;
+        precomputedB.clear();
+
+        if ( b_restoreVerbose ) 
+          std::cerr << "restore precomputedB with size: " << preCompSize << std::endl;
+        for ( int i = 0; i < preCompSize; i++ )
+        {
+          int nr;
+          is >> nr;
+          PrecomputedType pct;
+          pct.setIoUntilEndOfFile ( false );
+          pct.restore ( is, format );
+          precomputedB.insert ( std::pair<int, PrecomputedType> ( nr, pct ) );
+        }    
+      }       
+      else if ( tmp.compare("precomputedT") == 0 )
+      {
+        is >> tmp; // size
+        int precomputedTSize ( 0 );
+        is >> precomputedTSize;
+
+        precomputedT.clear();
+        
+        if ( b_restoreVerbose ) 
+          std::cerr << "restore precomputedT with size: " << precomputedTSize << std::endl;
+
+        if ( precomputedTSize > 0 )
+        {
+          if ( b_restoreVerbose ) 
+            std::cerr << " restore precomputedT" << std::endl;
+          is >> tmp;
+          int sizeOfLUT;
+          is >> sizeOfLUT;    
+          
+          for (int i = 0; i < precomputedTSize; i++)
+          {
+            is >> tmp;
+            int index;
+            is >> index;        
+            double * array = new double [ sizeOfLUT];
+            for ( int i = 0; i < sizeOfLUT; i++ )
+            {
+              is >> array[i];
+            }
+            precomputedT.insert ( std::pair<int, double*> ( index, array ) );
+          }
+        } 
+        else
+        {
+          if ( b_restoreVerbose ) 
+            std::cerr << " skip restoring precomputedT" << std::endl;
+        }   
+      }      
+      else if ( tmp.compare("precomputedAForVarEst") == 0 )
+      {
+        int sizeOfAForVarEst;
+        is >> sizeOfAForVarEst;
+        
+        if ( b_restoreVerbose ) 
+          std::cerr << "restore precomputedAForVarEst with size: " << sizeOfAForVarEst << std::endl;
+        
+        if (sizeOfAForVarEst > 0)
+        {
+          precomputedAForVarEst.clear();
+          
+          precomputedAForVarEst.setIoUntilEndOfFile ( false );
+          std::cerr << "restore precomputedAForVarEst" << std::endl;
+          precomputedAForVarEst.restore ( is, format );
+        }     
+      }        
+      else if ( tmp.compare("precomputedTForVarEst") == 0 )
+      {
+        std::string isNull;
+        is >> isNull; // NOTNULL or NULL
+        if ( b_restoreVerbose ) 
+          std::cerr << "content of isNull: " << isNull << std::endl;    
+        if (isNull.compare("NOTNULL") == 0)
+        {
+          if ( b_restoreVerbose ) 
+            std::cerr << "restore precomputedTForVarEst" << std::endl;
+          
+          int sizeOfLUT;
+          is >> sizeOfLUT;      
+          precomputedTForVarEst = new double [ sizeOfLUT ];
+          for ( int i = 0; i < sizeOfLUT; i++ )
+          {
+            is >> precomputedTForVarEst[i];
+          }      
+        }
+        else
+        {
+          if ( b_restoreVerbose ) 
+            std::cerr << "skip restoring of precomputedTForVarEst" << std::endl;
+          if (precomputedTForVarEst != NULL)
+            delete precomputedTForVarEst;
+        } 
+      }       
+      else if ( tmp.compare("eigenMax") == 0 )
+      {
+        is >> eigenMax;     
+      }    
+      else if ( tmp.compare("eigenMaxVectors") == 0 )
+      {
+        is >> eigenMaxVectors;     
+      }    
+      else if ( tmp.compare("ikmsum") == 0 )
+      {
+        bool b_endOfBlock ( false ) ;
+        
+        while ( !b_endOfBlock )
+        {
+          is >> tmp; // start of block 
+          
+          if ( this->isEndTag( tmp, "ikmsum" ) )
+          {
+            b_endOfBlock = true;
+            continue;
+          }      
+          
+          tmp = this->removeStartTag ( tmp );        
+          if ( tmp.compare("IKMNoise") == 0 )
+          {
+            IKMNoise * ikmnoise = new IKMNoise ();
+            ikmnoise->restore ( is, format );
+            
+            if ( b_restoreVerbose ) 
+              std::cerr << " add ikmnoise to ikmsum object " << std::endl;
+            ikmsum->addModel ( ikmnoise );        
+          }
+          else
+          {}
+          is >> tmp; // end of block 
+          tmp = this->removeEndTag ( tmp );           
+        }
+        std::cerr  << " ended restoring ikmsum " << std::endl;
+      }
+      else if ( tmp.compare("binaryLabelPositive") == 0 )
+      {
+        is >> binaryLabelPositive;     
+      }
+      else if  ( tmp.compare("binaryLabelNegative") == 0 )
+      {
+        is >> binaryLabelNegative;        
+      }
+      else if  ( tmp.compare("labels") == 0 )
+      {
+        is >> labels;        
+      }       
+      else{ }
+      
+      is >> tmp; // end of block 
+      tmp = this->removeEndTag ( tmp );  
+    }
 
     
-    if ( b_restoreVerbose ) 
-      std::cerr << " add ikmnoise to ikmsum object " << std::endl;
-    ikmsum->addModel ( ikmnoise );
+
 
     //NOTE are there any more models you added? then add them here respectively in the correct order
     //.....  
@@ -1373,26 +1558,7 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
       std::cerr << " restore positive and negative label" << std::endl;
 
       
-    //restore the class numbers for binary settings (if mc-settings, these values will be negative by default)
-    is >> tmp; // "binaryLabelPositive: " 
-    if ( b_restoreVerbose ) 
-      std::cerr << " content of tmp: " << tmp << std::endl; 
-    is >> binaryLabelPositive;
-    if ( b_restoreVerbose ) 
-      std::cerr << " content of binaryLabelPositive: " << binaryLabelPositive << std::endl; 
-    is >> tmp; // " binaryLabelNegative: "
-    if ( b_restoreVerbose ) 
-      std::cerr << " content of tmp: " << tmp << std::endl; 
-    is >> binaryLabelNegative;
-    if ( b_restoreVerbose ) 
-      std::cerr << " content of binaryLabelNegative: " << binaryLabelNegative << std::endl; 
-    
-    is >> tmp; // "labels: "
-    if ( b_restoreVerbose ) 
-      std::cerr << " content of tmp: " << tmp << std::endl;
-    is >> this->labels;    
-    if ( b_restoreVerbose ) 
-      std::cerr << " restored labels: " << labels << std::endl;
+
 
     knownClasses.clear();
     
@@ -1424,25 +1590,31 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) co
 {
   if ( os.good() )
   {
+    // show starting point
+    os << this->createStartTag( "FMKGPHyperparameterOptimization" ) << std::endl;
+    
     fmk->store ( os, format );
 
     os.precision ( numeric_limits<double>::digits10 + 1 );
 
-    os << "FMKGPHyperparameterOptimization" << std::endl;
 
 
     //we only have to store the things we computed, since the remaining settings come with the config file afterwards
     
-    os << "precomputedA: size: " << precomputedA.size() << std::endl;
+    os << this->createStartTag( "precomputedA" ) << std::endl;
+    os << "size: " << precomputedA.size() << std::endl;
     std::map< int, PrecomputedType >::const_iterator preCompIt = precomputedA.begin();
     for ( uint i = 0; i < precomputedA.size(); i++ )
     {
       os << preCompIt->first << std::endl;
       ( preCompIt->second ).store ( os, format );
       preCompIt++;
-    }
+    }    
+    os << this->createEndTag( "precomputedA" ) << std::endl;  
     
-    os << "precomputedB: size: " << precomputedB.size() << std::endl;
+    
+    os << this->createStartTag( "precomputedB" ) << std::endl;
+    os << "size: " << precomputedB.size() << std::endl;
     preCompIt = precomputedB.begin();
     for ( uint i = 0; i < precomputedB.size(); i++ )
     {
@@ -1450,9 +1622,12 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) co
       ( preCompIt->second ).store ( os, format );
       preCompIt++;
     }    
+    os << this->createEndTag( "precomputedB" ) << std::endl; 
+      
     
     
-    os << "precomputedT: size: " << precomputedT.size() << std::endl;
+    os << this->createStartTag( "precomputedT" ) << std::endl;
+    os << "size: " << precomputedT.size() << std::endl;
     if ( precomputedT.size() > 0 )
     {
       int sizeOfLUT ( 0 );
@@ -1468,21 +1643,26 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) co
         }
         os << std::endl;
       }
-    }    
+    } 
+    os << this->createEndTag( "precomputedT" ) << std::endl; 
 
     //now store the things needed for the variance estimation
     
-    os << "precomputedAForVarEst.size(): "<< precomputedAForVarEst.size() << std::endl;
+    os << this->createStartTag( "precomputedAForVarEst" ) << std::endl;
+    os << precomputedAForVarEst.size() << std::endl;
     
     if (precomputedAForVarEst.size() > 0)
     {
       precomputedAForVarEst.store ( os, format );
       os << std::endl; 
     }
+    os << this->createEndTag( "precomputedAForVarEst" ) << std::endl;
     
+    
+    os << this->createStartTag( "precomputedTForVarEst" ) << std::endl;
     if ( precomputedTForVarEst != NULL )
     {
-      os << "precomputedTForVarEst NOTNULL" << std::endl;
+      os << "NOTNULL" << std::endl;
       int sizeOfLUT ( 0 );
       if ( q != NULL )
         sizeOfLUT = q->size() * this->fmk->get_d();
@@ -1496,28 +1676,47 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) co
     }
     else
     {
-      os << "precomputedTForVarEst NULL" << std::endl;
+      os << "NULL" << std::endl;
     }
+    os << this->createEndTag( "precomputedTForVarEst" ) << std::endl;
     
     //store the eigenvalues and eigenvectors
-    os << "eigenMax" << std::endl;
+    os << this->createStartTag( "eigenMax" ) << std::endl;
     os << eigenMax << std::endl;
-    os << "eigenMaxVectors" << std::endl;
+    os << this->createEndTag( "eigenMax" ) << std::endl;   
+
+    os << this->createStartTag( "eigenMaxVectors" ) << std::endl;
     os << eigenMaxVectors << std::endl;
+    os << this->createEndTag( "eigenMaxVectors" ) << std::endl;       
 
     //store the ikmsum object
-    os << "numberOfModels: " << ikmsum->getNumberOfModels() << std::endl;
+//     os << "numberOfModels: " << ikmsum->getNumberOfModels() << std::endl;
 
+    os << this->createStartTag( "ikmsum" ) << std::endl;
     for ( int j = 0; j < ikmsum->getNumberOfModels() - 1; j++ )
     {
       ( ikmsum->getModel ( j ) )->store ( os, format );
     }
+    os << this->createEndTag( "ikmsum" ) << std::endl;
 
     
     //store the class numbers for binary settings (if mc-settings, these values will be negative by default)
-    os << "binaryLabelPositive: " << binaryLabelPositive << " binaryLabelNegative: " << binaryLabelNegative << std::endl;
+    os << this->createStartTag( "binaryLabelPositive" ) << std::endl;
+    os << binaryLabelPositive << std::endl;
+    os << this->createEndTag( "binaryLabelPositive" ) << std::endl; 
     
-    os << "labels: " << this->labels << std::endl;    
+    os << this->createStartTag( "binaryLabelNegative" ) << std::endl;
+    os << binaryLabelNegative << std::endl;
+    os << this->createEndTag( "binaryLabelNegative" ) << std::endl; 
+    
+    
+    os << this->createStartTag( "labels" ) << std::endl;
+    os << labels << std::endl;
+    os << this->createEndTag( "labels" ) << std::endl;     
+
+    
+    // done
+    os << this->createEndTag( "FMKGPHyperparameterOptimization" ) << std::endl;    
   }
   else
   {

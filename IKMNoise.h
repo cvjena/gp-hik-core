@@ -23,7 +23,7 @@ class IKMNoise : public ImplicitKernelMatrix
 {
 
   protected:
-    Vector labels;
+    NICE::Vector labels;
 
     uint size;
 
@@ -43,20 +43,20 @@ class IKMNoise : public ImplicitKernelMatrix
     
     IKMNoise( uint size, double noise, bool optimizeNoise );
     
-    IKMNoise( const Vector & labels, double noise, bool optimizeNoise );
+    IKMNoise( const NICE::Vector & labels, double noise, bool optimizeNoise );
       
     virtual ~IKMNoise();
 
-    virtual void getDiagonalElements ( Vector & diagonalElements ) const;
+    virtual void getDiagonalElements ( NICE::Vector & diagonalElements ) const;
     virtual void getFirstDiagonalElement ( double & diagonalElement ) const;
     virtual uint getNumParameters() const;
     
-    virtual void getParameters(Vector & parameters) const;
-    virtual void setParameters(const Vector & parameters);
-    virtual bool outOfBounds(const Vector & parameters) const;
+    virtual void getParameters( NICE::Vector & parameters) const;
+    virtual void setParameters(const NICE::Vector & parameters);
+    virtual bool outOfBounds(const NICE::Vector & parameters) const;
 
-    virtual Vector getParameterLowerBounds() const;
-    virtual Vector getParameterUpperBounds() const;
+    virtual NICE::Vector getParameterLowerBounds() const;
+    virtual NICE::Vector getParameterUpperBounds() const;
 
     /** multiply with a vector: A*x = y */
     virtual void multiply (NICE::Vector & y, const NICE::Vector & x) const;

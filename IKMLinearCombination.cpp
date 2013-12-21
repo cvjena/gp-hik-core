@@ -218,3 +218,49 @@ ImplicitKernelMatrix * IKMLinearCombination::getModel(const uint & idx) const
   else
     return NULL;
 }
+
+// ---------------------- STORE AND RESTORE FUNCTIONS ----------------------
+
+void IKMLinearCombination::restore ( std::istream & is, int format )
+{
+  if (is.good())
+  {
+    is.precision (std::numeric_limits<double>::digits10 + 1); 
+    
+    std::string tmp;    
+
+    bool b_endOfBlock ( false ) ;
+    
+    while ( !b_endOfBlock )
+    {
+      is >> tmp; // start of block 
+      
+      if ( this->isEndTag( tmp, "IKMLinearCombination" ) )
+      {
+        b_endOfBlock = true;
+        continue;
+      }                  
+      
+      tmp = this->removeStartTag ( tmp );
+            
+      is >> tmp; // end of block 
+      tmp = this->removeEndTag ( tmp );
+    }
+  }
+}      
+
+void IKMLinearCombination::store ( std::ostream & os, int format ) const
+{
+  if ( os.good() )
+  {
+    // show starting point
+    os << this->createStartTag( "IKMLinearCombination" ) << std::endl;
+      
+    // done
+    os << this->createEndTag( "IKMLinearCombination" ) << std::endl;    
+  }
+  else
+  {
+    std::cerr << "OutStream not initialized - storing not possible!" << std::endl;
+  }  
+}

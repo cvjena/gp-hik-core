@@ -197,36 +197,86 @@ void IKMNoise::restore ( std::istream & is, int format )
   {
     is.precision (std::numeric_limits<double>::digits10 + 1); 
     
-    std::string tmp;
-    is >> tmp; //class name
+    std::string tmp;    
+
+    bool b_endOfBlock ( false ) ;
     
-    is >> tmp;
-    is >> size;
-    
-    is >> tmp;
-    is >> noise;
-    
-    is >> tmp;
-    is >> optimizeNoise;
-    
-    is >> tmp;
-    is >> np;
-    
-    is >> tmp;
-    is >> nn;
-    
-    is >> tmp;
-    is >> labels;
+    while ( !b_endOfBlock )
+    {
+      is >> tmp; // start of block 
+      
+      if ( this->isEndTag( tmp, "IKMNoise" ) )
+      {
+        b_endOfBlock = true;
+        continue;
+      }
+                  
+      
+      tmp = this->removeStartTag ( tmp );
+      
+      if ( tmp.compare("size") == 0 )
+      {
+          is >> size;
+      }
+      else if ( tmp.compare("noise") == 0 )
+      {
+          is >> noise;
+      }
+      else if ( tmp.compare("optimizeNoise") == 0 )
+      {
+          is >> optimizeNoise;
+      }
+      else if ( tmp.compare("np") == 0 )
+      {
+          is >> np;
+      }
+      else if ( tmp.compare("nn") == 0 )
+      {
+          is >> nn;
+      }
+      else if ( tmp.compare("labels") == 0 )
+      {
+          is >> labels;
+      }
+      else{ }
+      
+      is >> tmp; // end of block 
+      tmp = this->removeEndTag ( tmp );
+    }
   }
 }
 
 void IKMNoise::store ( std::ostream & os, int format ) const
 {
-  os << "IKMNoise" << std::endl;
-  os << "size: " << size << std::endl;
-  os << "noise: " << noise << std::endl;
-  os << "optimizeNoise: " <<  optimizeNoise << std::endl;
-  os << "np: " << np  << std::endl;
-  os << "nn: " << nn << std::endl;
-  os << "labels: " << labels << std::endl;
+  // show starting point
+  os << this->createStartTag( "IKMNoise" ) << std::endl;
+  
+  
+  
+  os << this->createStartTag( "size" ) << std::endl;
+  os << size << std::endl;
+  os << this->createEndTag( "size" ) << std::endl;
+  
+  os << this->createStartTag( "noise" ) << std::endl;
+  os << noise << std::endl;
+  os << this->createEndTag( "noise" ) << std::endl;
+  
+  os << this->createStartTag( "optimizeNoise" ) << std::endl;
+  os << optimizeNoise << std::endl;
+  os << this->createEndTag( "optimizeNoise" ) << std::endl;
+  
+  os << this->createStartTag( "np" ) << std::endl;
+  os << np << std::endl;
+  os << this->createEndTag( "np" ) << std::endl;
+  
+  os << this->createStartTag( "nn" ) << std::endl;
+  os << nn << std::endl;
+  os << this->createEndTag( "nn" ) << std::endl;
+  
+  os << this->createStartTag( "labels" ) << std::endl;
+  os << labels << std::endl;
+  os << this->createEndTag( "labels" ) << std::endl;   
+  
+  // done
+  os << this->createEndTag( "IKMNoise" ) << std::endl;
 }

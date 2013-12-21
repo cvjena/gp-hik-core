@@ -51,8 +51,8 @@ GPHIKClassifier::~GPHIKClassifier()
 void GPHIKClassifier::init(const Config *conf, const string & confSection)
 {
   std::cerr << " init  method " << std::endl;
-  double parameterLowerBound = conf->gD(confSection, "parameter_lower_bound", 1.0 );
   double parameterUpperBound = conf->gD(confSection, "parameter_upper_bound", 5.0 );
+  double parameterLowerBound = conf->gD(confSection, "parameter_lower_bound", 1.0 );  
 
   this->noise = conf->gD(confSection, "noise", 0.01);
 

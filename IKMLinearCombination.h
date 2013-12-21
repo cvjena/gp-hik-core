@@ -68,8 +68,8 @@ class IKMLinearCombination : public ImplicitKernelMatrix
     inline int getNumberOfModels(){return matrices.size();};
     
     /** Persistent interface */
-    virtual void restore ( std::istream & is, int format = 0 ) {};
-    virtual void store ( std::ostream & os, int format = 0 ) const {};  
+    virtual void restore ( std::istream & is, int format = 0 ) ;
+    virtual void store ( std::ostream & os, int format = 0 ) const;  
     virtual void clear () {};
 
 };
