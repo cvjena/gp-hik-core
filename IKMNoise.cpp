@@ -3,11 +3,13 @@
 * @author Erik Rodner, Alexander Freytag
 * @brief Noise matrix (for model regularization) as an implicit kernel matrix (Implementation)
 * @date 02/14/2012
-
 */
+
+// STL includes
 #include <iostream>
 #include <limits>
 
+// NICE-core includes
 #include "IKMNoise.h"
 
 using namespace NICE;
@@ -238,11 +240,19 @@ void IKMNoise::restore ( std::istream & is, int format )
       {
           is >> labels;
       }
-      else{ }
+      else
+      {
+	std::cerr << "WARNING -- unexpected IKMNoise object -- " << tmp << " -- for restoration... aborting" << std::endl;
+	throw;	
+      }
       
       is >> tmp; // end of block 
-      tmp = this->removeEndTag ( tmp );
+      tmp = this->removeEndTag ( tmp );      
     }
+   }
+  else
+  {
+    std::cerr << "IKMNoise::restore -- InStream not initialized - restoring not possible!" << std::endl;
   }
 }
 

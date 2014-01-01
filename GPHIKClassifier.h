@@ -8,12 +8,17 @@
 #ifndef _NICE_GPHIKCLASSIFIERINCLUDE
 #define _NICE_GPHIKCLASSIFIERINCLUDE
 
+// STL includes
 #include <string>
 #include <limits>
 
+// NICE-core includes
 #include <core/basics/Config.h>
+#include <core/basics/Persistent.h>
+// 
 #include <core/vector/SparseVectorT.h>
 
+// gp-hik-core includes
 #include "FMKGPHyperparameterOptimization.h"
 #include "gp-hik-core/parameterizedFunctions/ParameterizedFunction.h"
 
@@ -25,7 +30,7 @@ namespace NICE {
  * @author Erik Rodner, Alexander Freytag
  */
  
-class GPHIKClassifier
+class GPHIKClassifier : NICE::Persistent
 {
 
   protected:
@@ -57,13 +62,13 @@ class GPHIKClassifier
     * @brief classify a given example with the previously learnt model
     * @param pe example to be classified given in a sparse representation
     */    
-    void init(const NICE::Config *conf, const std::string & confSection);
+    void init(const NICE::Config *conf, const std::string & s_confSection);
        
 
   public:
 
     /** simple constructor */
-    GPHIKClassifier( const NICE::Config *conf, const std::string & confSection = "GPHIKClassifier" );
+    GPHIKClassifier( const NICE::Config *conf = NULL, const std::string & s_confSection = "GPHIKClassifier" );
       
     /** simple destructor */
     ~GPHIKClassifier();

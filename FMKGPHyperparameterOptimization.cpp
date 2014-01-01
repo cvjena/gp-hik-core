@@ -79,9 +79,6 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config 
   //TODO 
   if ( _fmk == NULL )
     this->initialize ( _conf, _pf ); //then the confSection is also the default value
-  //TODO not needed anymore, only for backword compatibility
-//   else if ( _confSection.compare ( "HIKGP" ) == 0 )
-//     this->initialize ( _conf, _pf, _fmk );
   else
     this->initialize ( _conf, _pf, _fmk, _confSection );
 }
@@ -110,24 +107,29 @@ FMKGPHyperparameterOptimization::~FMKGPHyperparameterOptimization()
 
 void FMKGPHyperparameterOptimization::initialize ( const Config *_conf, ParameterizedFunction *_pf, FastMinKernel *_fmk, const std::string & _confSection )
 {
-  if ( this->fmk != NULL )
-  {
-    std::cerr << "fmk deleted" << std::endl;
-    delete this->fmk;
-  }
+
   if ( _fmk != NULL )
   {
-    std::cerr << "fmk copied" << std::endl;    
+    if ( this->fmk != NULL )
+    {
+      delete this->fmk;
+      fmk = NULL;
+    }    
     this->fmk = _fmk;
   }
   
   this->pf = _pf;
-  std::cerr << "pf copied" << std::endl;
   
-  
-  std::cerr << "------------" << std::endl;
-  std::cerr << "|  set-up  |" << std::endl;
-  std::cerr << "------------" << std::endl;
+  this->verbose = _conf->gB ( _confSection, "verbose", false );
+  this->verboseTime = _conf->gB ( _confSection, "verboseTime", false );
+  this->debug = _conf->gB ( _confSection, "debug", false );
+
+  if ( verbose )
+  {  
+    std::cerr << "------------" << std::endl;
+    std::cerr << "|  set-up  |" << std::endl;
+    std::cerr << "------------" << std::endl;
+  }
 
 
   this->eig = new EVArnoldi ( _conf->gB ( _confSection, "eig_verbose", false ) /* verbose flag */, 10 );
@@ -144,17 +146,20 @@ void FMKGPHyperparameterOptimization::initialize ( const Config *_conf, Paramete
   this->nrOfEigenvaluesToConsider = _conf->gI ( _confSection, "nrOfEigenvaluesToConsider", 1 );
   this->nrOfEigenvaluesToConsiderForVarApprox = _conf->gI ( _confSection, "nrOfEigenvaluesToConsiderForVarApprox", 2 );
 
-  this->verbose = _conf->gB ( _confSection, "verbose", false );
-  this->verboseTime = _conf->gB ( _confSection, "verboseTime", false );
-  this->debug = _conf->gB ( _confSection, "debug", false );
+
 
   bool useQuantization = _conf->gB ( _confSection, "use_quantization", false );
-  std::cerr << "_confSection: " << _confSection << std::endl;
-  std::cerr << "use_quantization: " << useQuantization << std::endl;
+  
+  if ( verbose ) 
+  {
+    std::cerr << "_confSection: " << _confSection << std::endl;
+    std::cerr << "use_quantization: " << useQuantization << std::endl;
+  }
+  
   if ( _conf->gB ( _confSection, "use_quantization", false ) ) {
     int numBins = _conf->gI ( _confSection, "num_bins", 100 );
     if ( verbose )
-      cerr << "FMKGPHyperparameterOptimization: quantization initialized with " << numBins << " bins." << endl;
+      std::cerr << "FMKGPHyperparameterOptimization: quantization initialized with " << numBins << " bins." << std::endl;
     this->q = new Quantization ( numBins );
   } else {
     this->q = NULL;
@@ -163,7 +168,7 @@ void FMKGPHyperparameterOptimization::initialize ( const Config *_conf, Paramete
   bool ils_verbose = _conf->gB ( _confSection, "ils_verbose", false );
   ils_max_iterations = _conf->gI ( _confSection, "ils_max_iterations", 1000 );
   if ( verbose )
-    cerr << "FMKGPHyperparameterOptimization: maximum number of iterations is " << ils_max_iterations << endl;
+    std::cerr << "FMKGPHyperparameterOptimization: maximum number of iterations is " << ils_max_iterations << std::endl;
 
   double ils_min_delta = _conf->gD ( _confSection, "ils_min_delta", 1e-7 );
   double ils_min_residual = _conf->gD ( _confSection, "ils_min_residual", 1e-7/*1e-2 */ );
@@ -175,29 +180,29 @@ void FMKGPHyperparameterOptimization::initialize ( const Config *_conf, Paramete
       std::cerr << "We use CG with " << ils_max_iterations << " iterations, " << ils_min_delta << " as min delta, and " << ils_min_residual << " as min res " << std::endl;
     this->linsolver = new ILSConjugateGradients ( ils_verbose , ils_max_iterations, ils_min_delta, ils_min_residual );
     if ( verbose )
-      cerr << "FMKGPHyperparameterOptimization: using ILS ConjugateGradients" << endl;
+      std::cerr << "FMKGPHyperparameterOptimization: using ILS ConjugateGradients" << std::endl;
   }
   else if ( ils_method.compare ( "CGL" ) == 0 )
   {
     this->linsolver = new ILSConjugateGradientsLanczos ( ils_verbose , ils_max_iterations );
     if ( verbose )
-      cerr << "FMKGPHyperparameterOptimization: using ILS ConjugateGradients (Lanczos)" << endl;
+      std::cerr << "FMKGPHyperparameterOptimization: using ILS ConjugateGradients (Lanczos)" << std::endl;
   }
   else if ( ils_method.compare ( "SYMMLQ" ) == 0 )
   {
     this->linsolver = new ILSSymmLqLanczos ( ils_verbose , ils_max_iterations );
     if ( verbose )
-      cerr << "FMKGPHyperparameterOptimization: using ILS SYMMLQ" << endl;
+      std::cerr << "FMKGPHyperparameterOptimization: using ILS SYMMLQ" << std::endl;
   }
   else if ( ils_method.compare ( "MINRES" ) == 0 )
   {
     this->linsolver = new ILSMinResLanczos ( ils_verbose , ils_max_iterations );
     if ( verbose )
-      cerr << "FMKGPHyperparameterOptimization: using ILS MINRES" << endl;
+      std::cerr << "FMKGPHyperparameterOptimization: using ILS MINRES" << std::endl;
   }
   else
   {
-    cerr << "FMKGPHyperparameterOptimization: " << _confSection << ":ils_method (" << ils_method << ") does not match any type (CG,CGL,SYMMLQ,MINRES), I will use CG" << endl;
+    std::cerr << "FMKGPHyperparameterOptimization: " << _confSection << ":ils_method (" << ils_method << ") does not match any type (CG,CGL,SYMMLQ,MINRES), I will use CG" << std::endl;
     this->linsolver = new ILSConjugateGradients ( ils_verbose , ils_max_iterations, ils_min_delta, ils_min_residual );
   }
   
@@ -212,7 +217,7 @@ void FMKGPHyperparameterOptimization::initialize ( const Config *_conf, Paramete
     fthrow ( Exception, "Optimization method " << optimizationMethod_s << " is not known." );
 
   if ( verbose )
-    cerr << "Using optimization method: " << optimizationMethod_s << endl;
+    std::cerr << "Using optimization method: " << optimizationMethod_s << std::endl;
 
   downhillSimplexMaxIterations = _conf->gI ( _confSection, "downhillsimplex_max_iterations", 20 );
   // do not run longer than a day :)
@@ -221,11 +226,14 @@ void FMKGPHyperparameterOptimization::initialize ( const Config *_conf, Paramete
 
   optimizeNoise = _conf->gB ( _confSection, "optimize_noise", false );
   if ( verbose )
-    cerr << "Optimize noise: " << ( optimizeNoise ? "on" : "off" ) << endl;
+    std::cerr << "Optimize noise: " << ( optimizeNoise ? "on" : "off" ) << std::endl;
   
-  std::cerr << "------------" << std::endl;
-  std::cerr << "|   start   |" << std::endl;
-  std::cerr << "------------" << std::endl;  
+  if ( verbose )
+  {
+    std::cerr << "------------" << std::endl;
+    std::cerr << "|   start   |" << std::endl;
+    std::cerr << "------------" << std::endl;
+  }
 }
 
 // get and set methods
@@ -294,7 +302,7 @@ void FMKGPHyperparameterOptimization::performOptimization ( GPLikelihoodApprox &
     NICE::Vector uB = ikmsum->getParameterUpperBounds();
     
     if ( verbose )
-      cerr << "lower bound " << lB << " upper bound " << uB << " parameterStepSize: " << parameterStepSize << endl;
+      std::cerr << "lower bound " << lB << " upper bound " << uB << " parameterStepSize: " << parameterStepSize << std::endl;
 
     
     NICE::Vector tmp = gplike.getBestParameters(  );
@@ -331,7 +339,7 @@ void FMKGPHyperparameterOptimization::performOptimization ( GPLikelihoodApprox &
     
     OPTIMIZATION::SimpleOptProblem optProblem ( &gplike, initialParams, initialParams /* scales*/ );
 
-    //     cerr << "OPT: " << mypara << " " << nlikelihood << " " << logdet << " " << dataterm << endl;
+    //     std::cerr << "OPT: " << mypara << " " << nlikelihood << " " << logdet << " " << dataterm << std::endl;
     optimizer.setMaxNumIter ( true, downhillSimplexMaxIterations );
     optimizer.setTimeLimit ( true, downhillSimplexTimeLimit );
     optimizer.setParamTol ( true, downhillSimplexParamTol );
@@ -430,7 +438,7 @@ void FMKGPHyperparameterOptimization::optimizeBinary ( const sparse_t & data, co
     }
   }
   y.resize ( examples.size() );
-  cerr << "Examples: " << examples.size() << endl;
+  std::cerr << "Examples: " << examples.size() << std::endl;
 
   optimize ( data, y, examples, noise );
 }
@@ -440,7 +448,7 @@ void FMKGPHyperparameterOptimization::optimize ( const sparse_t & data, const NI
 {
   Timer t;
   t.start();
-  cerr << "Initializing data structure ..." << std::endl;
+  std::cerr << "Initializing data structure ..." << std::endl;
   if ( fmk != NULL ) delete fmk;
   fmk = new FastMinKernel ( data, noise, examples );
   t.stop();
@@ -560,7 +568,7 @@ void FMKGPHyperparameterOptimization::optimize ( std::map<int, NICE::Vector> & b
   
   if (verbose)
   {
-    std::cerr << "Initial noise level: " << fmk->getNoise() << endl;
+    std::cerr << "Initial noise level: " << fmk->getNoise() << std::endl;
 
     std::cerr << "Number of classes (=1 means we have a binary setting):" << nrOfClasses << std::endl;
     std::cerr << "Effective number of classes (neglecting classes without positive examples): " << knownClasses.size() << std::endl;
@@ -623,7 +631,7 @@ void FMKGPHyperparameterOptimization::optimize ( std::map<int, NICE::Vector> & b
     std::cerr << "Time used for performing the optimization: " << t1.getLast() << std::endl;
 
   if ( verbose )
-    cerr << "Preparing classification ..." << endl;
+    std::cerr << "Preparing classification ..." << std::endl;
 
   t1.start();
   this->transformFeaturesWithOptimalParameters ( *gplike, parameterVectorSize );
@@ -1169,185 +1177,33 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
   {
     if ( b_restoreVerbose ) 
       std::cerr << " in FMKGP restore" << std::endl;
-    //load the underlying data
-    if (fmk != NULL)
-      delete fmk;
-    
-    if ( ikmsum == NULL )
-    {
-        ikmsum = new IKMLinearCombination (); 
-        if ( b_restoreVerbose ) 
-          std::cerr << "ikmsum object created" << std::endl;
-    }
-    else
-    {
-      if ( b_restoreVerbose ) 
-        std::cerr << "ikmsum object already existing" << std::endl;
-    }    
     
     std::string tmp;
-    is >> tmp; //class name    
+    is >> tmp; //class name 
     
+    if ( ! this->isStartTag( tmp, "FMKGPHyperparameterOptimization" ) )
+    {
+        std::cerr << " WARNING - attempt to restore FMKGPHyperparameterOptimization, but start flag " << tmp << " does not match! Aborting... " << std::endl;
+	throw;
+    } 
+
+    if (fmk != NULL)
+    {
+      delete fmk;
+      fmk = NULL;
+    }
+    
+    if ( ikmsum != NULL )
+    {
+      delete ikmsum;
+    }
+    ikmsum = new IKMLinearCombination (); 
     if ( b_restoreVerbose ) 
-      std::cerr << " create FMK" << std::endl;
-    fmk = new FastMinKernel;
-    if ( b_restoreVerbose ) 
-      std::cerr << " restore FMK" << std::endl;
-    fmk->restore(is,format); 
-    if ( b_restoreVerbose ) 
-      std::cerr << "fmk->restore done " << std::endl;
+      std::cerr << "ikmsum object created" << std::endl;
+    
     
     is.precision ( numeric_limits<double>::digits10 + 1 );
-    
-    
-
-
-    
-//     is >> tmp; //precomputedA:
-//     is >> tmp; //size:
-// 
-//     int preCompSize ( 0 );
-//     is >> preCompSize;
-//     precomputedA.clear();
-// 
-//     if ( b_restoreVerbose ) 
-//       std::cerr << "restore precomputedA with size: " << preCompSize << std::endl;
-//     for ( int i = 0; i < preCompSize; i++ )
-//     {
-//       int nr;
-//       is >> nr;
-//       PrecomputedType pct;
-//       pct.setIoUntilEndOfFile ( false );
-//       pct.restore ( is, format );
-//       precomputedA.insert ( std::pair<int, PrecomputedType> ( nr, pct ) );
-//     }
-//     
-//     is >> tmp; //precomputedB:
-//     is >> tmp; //size:
-// 
-//     is >> preCompSize;
-//     precomputedB.clear();
-// 
-//     if ( b_restoreVerbose ) 
-//       std::cerr << "restore precomputedB with size: " << preCompSize << std::endl;
-//     for ( int i = 0; i < preCompSize; i++ )
-//     {
-//       int nr;
-//       is >> nr;
-//       PrecomputedType pct;
-//       pct.setIoUntilEndOfFile ( false );
-//       pct.restore ( is, format );
-//       precomputedB.insert ( std::pair<int, PrecomputedType> ( nr, pct ) );
-//     }    
-//     
-//     is >> tmp; //precomputedT: std::cerr << " content of tmp: " << tmp << std::endl; 
-//     is >> tmp; //size: std::cerr << " content of tmp: " << tmp << std::endl;
-//     
-//     int precomputedTSize ( 0 );
-//     is >> precomputedTSize;
-// 
-//     precomputedT.clear();
-//     
-//     if ( b_restoreVerbose ) 
-//       std::cerr << "restore precomputedT with size: " << precomputedTSize << std::endl;
-// 
-//     if ( precomputedTSize > 0 )
-//     {
-//       if ( b_restoreVerbose ) 
-//         std::cerr << " restore precomputedT" << std::endl;
-//       is >> tmp;
-//       int sizeOfLUT;
-//       is >> sizeOfLUT;    
-//       
-//       for (int i = 0; i < precomputedTSize; i++)
-//       {
-//         is >> tmp;
-//         int index;
-//         is >> index;        
-//         double * array = new double [ sizeOfLUT];
-//         for ( int i = 0; i < sizeOfLUT; i++ )
-//         {
-//           is >> array[i];
-//         }
-//         precomputedT.insert ( std::pair<int, double*> ( index, array ) );
-//       }
-//     } 
-//     else
-//     {
-//       if ( b_restoreVerbose ) 
-//         std::cerr << " skip restoring precomputedT" << std::endl;
-//     }
-// 
-//     //now restore the things we need for the variance computation
-//     is >> tmp;
-//     if ( b_restoreVerbose ) 
-//       std::cerr << " content of tmp: " << tmp << std::endl;
-//     int sizeOfAForVarEst;
-//     is >> sizeOfAForVarEst;
-//     
-//     if ( b_restoreVerbose ) 
-//       std::cerr << "restore precomputedAForVarEst with size: " << sizeOfAForVarEst << std::endl;
-//     
-//     if (sizeOfAForVarEst > 0)
-//     {
-//       precomputedAForVarEst.clear();
-//       
-//       precomputedAForVarEst.setIoUntilEndOfFile ( false );
-//       std::cerr << "restore precomputedAForVarEst" << std::endl;
-//       precomputedAForVarEst.restore ( is, format );
-//     }    
-// 
-//     is >> tmp; //precomputedTForVarEst
-//       if ( b_restoreVerbose ) 
-//     std::cerr << "content of tmp: " << tmp << std::endl;
-//     is >> tmp; // NOTNULL or NULL
-//     if ( b_restoreVerbose ) 
-//       std::cerr << "content of tmp: " << tmp << std::endl;    
-//     if (tmp.compare("NOTNULL") == 0)
-//     {
-//       if ( b_restoreVerbose ) 
-//         std::cerr << "restore precomputedTForVarEst" << std::endl;
-//       
-//       int sizeOfLUT;
-//       is >> sizeOfLUT;      
-//       precomputedTForVarEst = new double [ sizeOfLUT ];
-//       for ( int i = 0; i < sizeOfLUT; i++ )
-//       {
-//         is >> precomputedTForVarEst[i];
-//       }      
-//     }
-//     else
-//     {
-//       if ( b_restoreVerbose ) 
-//         std::cerr << "skip restoring of precomputedTForVarEst" << std::endl;
-//       if (precomputedTForVarEst != NULL)
-//         delete precomputedTForVarEst;
-//     }
-//     
-//     if ( b_restoreVerbose ) 
-//       std::cerr << "restore eigenMax and eigenMaxVectors " << std::endl;
-//     
-//     
-//     if ( b_restoreVerbose ) 
-//       std::cerr << " create ikmsum object" << std::endl;
-//     
-// 
-//       
-// 
-//     is >> tmp; //"numberOfModels:"
-//     if ( b_restoreVerbose ) 
-//       std::cerr << "content of tmp: " << tmp << std::endl;
-//     int nrOfModels ( 0 );
-//     is >> nrOfModels;
-//     if ( b_restoreVerbose ) 
-//       std::cerr << "number of models to add in total: " << nrOfModels << std::endl;
-//     
-//     if ( b_restoreVerbose ) 
-//       std::cerr << " restore IKMNoise " << std::endl;
-//     
-    
-//     //the first one is always our noise-model
-    
+       
     
     bool b_endOfBlock ( false ) ;
     
@@ -1363,9 +1219,18 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
       
       tmp = this->removeStartTag ( tmp );
       
-      std::cerr << " currently restore setcion " << tmp << " in FMKGPHyperparameterOptimization" << std::endl;
+      if ( b_restoreVerbose )
+	std::cerr << " currently restore section " << tmp << " in FMKGPHyperparameterOptimization" << std::endl;
       
-      if ( tmp.compare("precomputedA") == 0 )
+      if ( tmp.compare("fmk") == 0 )
+      {
+	fmk = new FastMinKernel;
+        fmk->restore( is, format );
+
+	is >> tmp; // end of block 
+	tmp = this->removeEndTag ( tmp );
+      }      
+      else if ( tmp.compare("precomputedA") == 0 )
       {
         is >> tmp; // size
         int preCompSize ( 0 );
@@ -1383,6 +1248,9 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
           pct.restore ( is, format );
           precomputedA.insert ( std::pair<int, PrecomputedType> ( nr, pct ) );
         }
+        
+	is >> tmp; // end of block 
+	tmp = this->removeEndTag ( tmp );
       }        
       else if ( tmp.compare("precomputedB") == 0 )
       {
@@ -1402,6 +1270,9 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
           pct.restore ( is, format );
           precomputedB.insert ( std::pair<int, PrecomputedType> ( nr, pct ) );
         }    
+        
+	is >> tmp; // end of block 
+	tmp = this->removeEndTag ( tmp );
       }       
       else if ( tmp.compare("precomputedT") == 0 )
       {
@@ -1439,7 +1310,10 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
         {
           if ( b_restoreVerbose ) 
             std::cerr << " skip restoring precomputedT" << std::endl;
-        }   
+        }
+        
+	is >> tmp; // end of block 
+	tmp = this->removeEndTag ( tmp );
       }      
       else if ( tmp.compare("precomputedAForVarEst") == 0 )
       {
@@ -1454,9 +1328,11 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
           precomputedAForVarEst.clear();
           
           precomputedAForVarEst.setIoUntilEndOfFile ( false );
-          std::cerr << "restore precomputedAForVarEst" << std::endl;
           precomputedAForVarEst.restore ( is, format );
-        }     
+        }
+        
+	is >> tmp; // end of block 
+	tmp = this->removeEndTag ( tmp );
       }        
       else if ( tmp.compare("precomputedTForVarEst") == 0 )
       {
@@ -1483,15 +1359,22 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
             std::cerr << "skip restoring of precomputedTForVarEst" << std::endl;
           if (precomputedTForVarEst != NULL)
             delete precomputedTForVarEst;
-        } 
+        }
+        
+	is >> tmp; // end of block 
+	tmp = this->removeEndTag ( tmp );
       }       
       else if ( tmp.compare("eigenMax") == 0 )
       {
-        is >> eigenMax;     
+        is >> eigenMax;
+	is >> tmp; // end of block 
+	tmp = this->removeEndTag ( tmp );
       }    
       else if ( tmp.compare("eigenMaxVectors") == 0 )
       {
-        is >> eigenMaxVectors;     
+        is >> eigenMaxVectors;
+	is >> tmp; // end of block 
+	tmp = this->removeEndTag ( tmp );
       }    
       else if ( tmp.compare("ikmsum") == 0 )
       {
@@ -1518,28 +1401,37 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
             ikmsum->addModel ( ikmnoise );        
           }
           else
-          {}
-          is >> tmp; // end of block 
-          tmp = this->removeEndTag ( tmp );           
+          { 
+	    std::cerr << "WARNING -- unexpected ikmsum object -- " << tmp << " -- for restoration... aborting" << std::endl;
+	    throw;
+	  }         
         }
-        std::cerr  << " ended restoring ikmsum " << std::endl;
       }
       else if ( tmp.compare("binaryLabelPositive") == 0 )
       {
-        is >> binaryLabelPositive;     
+        is >> binaryLabelPositive;
+	is >> tmp; // end of block 
+	tmp = this->removeEndTag ( tmp );
       }
       else if  ( tmp.compare("binaryLabelNegative") == 0 )
       {
         is >> binaryLabelNegative;        
+	is >> tmp; // end of block 
+	tmp = this->removeEndTag ( tmp );
       }
       else if  ( tmp.compare("labels") == 0 )
       {
         is >> labels;        
+	is >> tmp; // end of block 
+	tmp = this->removeEndTag ( tmp );
       }       
-      else{ }
+      else
+      {
+	std::cerr << "WARNING -- unexpected FMKGPHyper object -- " << tmp << " -- for restoration... aborting" << std::endl;
+	throw;	
+      }
       
-      is >> tmp; // end of block 
-      tmp = this->removeEndTag ( tmp );  
+ 
     }
 
     
@@ -1547,7 +1439,6 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
 
     //NOTE are there any more models you added? then add them here respectively in the correct order
     //.....  
-
 
     //the last one is the GHIK - which we do not have to restore, but simply reset it
     if ( b_restoreVerbose ) 
@@ -1583,6 +1474,7 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
   else
   {
     std::cerr << "InStream not initialized - restoring not possible!" << std::endl;
+    throw;
   }
 }
 
@@ -1593,7 +1485,9 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) co
     // show starting point
     os << this->createStartTag( "FMKGPHyperparameterOptimization" ) << std::endl;
     
+    os << this->createStartTag( "fmk" ) << std::endl;
     fmk->store ( os, format );
+    os << this->createEndTag( "fmk" ) << std::endl;
 
     os.precision ( numeric_limits<double>::digits10 + 1 );
 
@@ -1689,8 +1583,6 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) co
     os << eigenMaxVectors << std::endl;
     os << this->createEndTag( "eigenMaxVectors" ) << std::endl;       
 
-    //store the ikmsum object
-//     os << "numberOfModels: " << ikmsum->getNumberOfModels() << std::endl;
 
     os << this->createStartTag( "ikmsum" ) << std::endl;
     for ( int j = 0; j < ikmsum->getNumberOfModels() - 1; j++ )

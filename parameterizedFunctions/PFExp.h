@@ -1,12 +1,18 @@
 /** 
 * @file PFExp.h
-* @author Erik Rodner
+* @author Erik Rodner, Alexander Freytag
 * @brief Parameterized Function: exponential operation -- exp(fabs(x), exponent) (Interface + Implementation)
 */
 #ifndef _NICE_PFEXPINCLUDE
 #define _NICE_PFEXPINCLUDE
 
+// STL includes
 #include <math.h>
+
+// NICE-core includes
+#include <core/vector/VectorT.h>
+
+// NICE-core includes
 #include "ParameterizedFunction.h"
 
 namespace NICE {
@@ -14,7 +20,7 @@ namespace NICE {
  /** 
  * @class PFExp
  * @brief Parameterized Function: Parameterized Function: exponential operation -- exp(fabs(x), exponent)
- * @author Erik Rodner
+ * @author Erik Rodner, Alexander Freytag
  */
  
 class PFExp : public ParameterizedFunction
@@ -42,8 +48,8 @@ class PFExp : public ParameterizedFunction
 
   bool isOrderPreserving() const { return true; };
 
-  Vector getParameterUpperBounds() const { return Vector(1, upperBound); };
-  Vector getParameterLowerBounds() const { return Vector(1, lowerBound); };
+  Vector getParameterUpperBounds() const { return NICE::Vector(1, upperBound); };
+  Vector getParameterLowerBounds() const { return NICE::Vector(1, lowerBound); };
   
   void setParameterLowerBounds(const NICE::Vector & _newLowerBounds) { if (_newLowerBounds.size() > 0) lowerBound = _newLowerBounds(0);};
   void setParameterUpperBounds(const NICE::Vector & _newUpperBounds) { if (_newUpperBounds.size() > 0) upperBound = _newUpperBounds(0);};
@@ -53,26 +59,78 @@ class PFExp : public ParameterizedFunction
   {
     if (is.good())
     {
-      is.precision (std::numeric_limits<double>::digits10 + 1);
+      is.precision (std::numeric_limits<double>::digits10 + 1); 
       
-      std::string tmp;
-      is >> tmp;
-      is >> upperBound;
+      std::string tmp;    
 
-      is >> tmp;
-      is >> lowerBound;      
+      bool b_endOfBlock ( false ) ;
+      
+      while ( !b_endOfBlock )
+      {
+	is >> tmp; // start of block 
+	
+	if ( this->isEndTag( tmp, "PFExp" ) )
+	{
+	  b_endOfBlock = true;
+	  continue;
+	}
+		    
+	
+	tmp = this->removeStartTag ( tmp );
+	
+	if ( tmp.compare("upperBound") == 0 )
+	{
+	  is >> upperBound;
+	  is >> tmp; // end of block 
+	  tmp = this->removeEndTag ( tmp );	    
+	}
+	else if ( tmp.compare("lowerBound") == 0 )
+	{
+	  is >> lowerBound;
+	  is >> tmp; // end of block 
+	  tmp = this->removeEndTag ( tmp );    	    
+	}
+	else if ( tmp.compare("ParameterizedFunction") == 0 )
+	{
+	  // restore parent object
+	  ParameterizedFunction::restore(is);
+	}
+	else
+	{
+	  std::cerr << "WARNING -- unexpected PFExp object -- " << tmp << " -- for restoration... aborting" << std::endl;
+	  throw;	
+	}  
+      }
     }
-    ParameterizedFunction::restore(is);
+    else
+    {
+      std::cerr << "PFExp::restore -- InStream not initialized - restoring not possible!" << std::endl;
+    }
   };
   virtual void store ( std::ostream & os, int format = 0 ) const
   {
     if (os.good())
     {
+      // show starting point
+      os << this->createStartTag( "PFExp" ) << std::endl;      
+      
       os.precision (std::numeric_limits<double>::digits10 + 1); 
-      os << "upperBound: " << std::endl <<  upperBound << std::endl;
-      os << "lowerBound: " << std::endl <<  lowerBound << std::endl;
+
+      os << this->createStartTag( "upperBound" ) << std::endl;
+      os << upperBound << std::endl;
+      os << this->createEndTag( "upperBound" ) << std::endl; 
+      
+      os << this->createStartTag( "lowerBound" ) << std::endl;
+      os << lowerBound << std::endl;
+      os << this->createEndTag( "lowerBound" ) << std::endl;
+      
+      // store parent object
+      ParameterizedFunction::store(os); 
+      
+      // done
+      os << this->createEndTag( "PFExp" ) << std::endl;         
     }
-    ParameterizedFunction::store(os);
+
   };
   virtual void clear () {};
   

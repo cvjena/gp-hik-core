@@ -7,14 +7,18 @@
 #ifndef FASTMINKERNELINCLUDE
 #define FASTMINKERNELINCLUDE
 
+// STL includes
 #include <iostream>
 
+// NICE-core includes
+#include <core/basics/Exception.h>
+#include <core/basics/Persistent.h>
+// 
 #include <core/vector/MatrixT.h>
 #include <core/vector/SparseVectorT.h>
 #include <core/vector/VVector.h>
-#include <core/basics/Exception.h>
-#include "core/basics/Persistent.h"
 
+// gp-hik-core includes
 #include "FeatureMatrixT.h"
 #include "Quantization.h"
 #include "gp-hik-core/parameterizedFunctions/ParameterizedFunction.h"

@@ -4,11 +4,15 @@
  * @author Alexander Freytag
  * @date 06-12-2011 (dd-mm-yyyy)
 */
-#include <iostream>
-//#include "tools.h"
 
-#include "core/basics/vectorio.h"
-#include "core/basics/Timer.h"
+// STL includes
+#include <iostream>
+
+// NICE-core includes
+#include <core/basics/vectorio.h>
+#include <core/basics/Timer.h>
+
+// gp-hik-core includes
 #include "FastMinKernel.h"
 
 using namespace std;
@@ -1375,49 +1379,122 @@ void FastMinKernel::hikComputeKernelVector( const NICE::Vector & xstar, NICE::Ve
 
 void FastMinKernel::restore ( std::istream & is, int format )
 {
-  if (is.good())
+  bool b_restoreVerbose ( false );
+  if ( is.good() )
   {
-    std::cerr << "FastMinKernel::restore  " << std::endl;
-    is.precision (numeric_limits<double>::digits10 + 1);  
+    if ( b_restoreVerbose ) 
+      std::cerr << " restore FastMinKernel" << std::endl;
     
-    string tmp;
-    is >> tmp; //class name
+    std::string tmp;
+    is >> tmp; //class name 
     
-    is >> tmp;
-    is >> n;
+    if ( ! this->isStartTag( tmp, "FastMinKernel" ) )
+    {
+        std::cerr << " WARNING - attempt to restore FastMinKernel, but start flag " << tmp << " does not match! Aborting... " << std::endl;
+	throw;
+    }   
+        
+    is.precision (numeric_limits<double>::digits10 + 1);
     
-    is >> tmp;
-    is >> d;
+    bool b_endOfBlock ( false ) ;
     
-    is >> tmp;
-    is >> noise;
-    
-    is >> tmp;
-    int approxSchemeInt;
-    is >> approxSchemeInt;
-    setApproximationScheme(approxSchemeInt);
-   
-    std::cerr << "start restoring X_sorted  " << std::endl;
-    X_sorted.restore(is,format);
-    std::cerr << " done :) " << std::endl;
+    while ( !b_endOfBlock )
+    {
+      is >> tmp; // start of block 
+      
+      if ( this->isEndTag( tmp, "FastMinKernel" ) )
+      {
+        b_endOfBlock = true;
+        continue;
+      }      
+      
+      tmp = this->removeStartTag ( tmp );
+      
+      if ( b_restoreVerbose )
+	std::cerr << " currently restore section " << tmp << " in FastMinKernel" << std::endl;
+      
+      if ( tmp.compare("n") == 0 )
+      {
+        is >> n;        
+	is >> tmp; // end of block 
+	tmp = this->removeEndTag ( tmp );
+      }
+      else if ( tmp.compare("d") == 0 )
+      {
+        is >> d;        
+	is >> tmp; // end of block 
+	tmp = this->removeEndTag ( tmp );
+      } 
+      else if ( tmp.compare("noise") == 0 )
+      {
+        is >> noise;
+	is >> tmp; // end of block 
+	tmp = this->removeEndTag ( tmp );
+      }
+      else if ( tmp.compare("approxScheme") == 0 )
+      {
+	int approxSchemeInt;
+	is >> approxSchemeInt;
+	setApproximationScheme(approxSchemeInt);
+	is >> tmp; // end of block 
+	tmp = this->removeEndTag ( tmp );	
+      }
+      else if ( tmp.compare("X_sorted") == 0 )
+      {
+	X_sorted.restore(is,format);
+	
+	is >> tmp; // end of block 
+	tmp = this->removeEndTag ( tmp );
+      }       
+      else
+      {
+	std::cerr << "WARNING -- unexpected FastMinKernel object -- " << tmp << " -- for restoration... aborting" << std::endl;
+	throw;	
+      }
+    }
    }
   else
   {
     std::cerr << "FastMinKernel::restore -- InStream not initialized - restoring not possible!" << std::endl;
-  }  
-  std::cerr << " FMK restore ended " << std::endl;
+  }
 }
+
 void FastMinKernel::store ( std::ostream & os, int format ) const
 {
   if (os.good())
-  {
+  {    
+    // show starting point
+    os << this->createStartTag( "FastMinKernel" ) << std::endl;    
+    
     os.precision (numeric_limits<double>::digits10 + 1);
-    os << "FastMinKernel" << std::endl;
-    os << "n: " << n << std::endl;
-    os << "d: " << d << std::endl;
-    os << "noise: " << noise << std::endl;
-    os << "approxScheme: " << approxScheme << std::endl;    
-    X_sorted.store(os,format);  
+
+    os << this->createStartTag( "n" ) << std::endl;
+    os << n << std::endl;
+    os << this->createEndTag( "n" ) << std::endl;
+    
+    
+    os << this->createStartTag( "d" ) << std::endl;
+    os << d << std::endl;
+    os << this->createEndTag( "d" ) << std::endl;
+
+    
+    os << this->createStartTag( "noise" ) << std::endl;
+    os << noise << std::endl;
+    os << this->createEndTag( "noise" ) << std::endl;
+
+    
+    os << this->createStartTag( "approxScheme" ) << std::endl;
+    os << approxScheme << std::endl;
+    os << this->createEndTag( "approxScheme" ) << std::endl;
+    
+    os << this->createStartTag( "X_sorted" ) << std::endl;
+    //store the underlying data
+    X_sorted.store(os, format);
+    os << this->createEndTag( "X_sorted" ) << std::endl;   
+    
+    
+    // done
+    os << this->createEndTag( "FastMinKernel" ) << std::endl;        
   }
   else
   {

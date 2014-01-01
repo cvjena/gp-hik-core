@@ -7,23 +7,25 @@
 #ifndef FEATUREMATRIXINCLUDE
 #define FEATUREMATRIXINCLUDE
 
+// STL includes
 #include <vector>
 #include <set>
 #include <map>
 #include <iostream>
 #include <limits>
 
+// NICE-core includes
 #include <core/basics/Exception.h>
-#include "core/basics/Persistent.h"
-
+#include <core/basics/Persistent.h>
+// 
 #include <core/vector/MatrixT.h>
 #include <core/vector/SparseVectorT.h>
-
+// 
 #ifdef NICE_USELIB_MATIO
   #include <core/matlabAccess/MatFileIO.h> 
 #endif
   
-
+// gp-hik-core includes
 #include "SortedVectorSparse.h"
 #include "gp-hik-core/parameterizedFunctions/ParameterizedFunction.h"
 

@@ -1,13 +1,19 @@
 /** 
 * @file PFWeightedDim.h
 * @brief Parameterized Function: weights for each dimension (Interface + Implementation)
-* @author Erik Rodner
+* @author Erik Rodner, Alexander Freytag
 
 */
 #ifndef _NICE_PFWEIGHTEDDIMINCLUDE
 #define _NICE_PFWEIGHTEDDIMINCLUDE
 
+// STL includes
 #include <math.h>
+
+// NICE-core includes
+#include <core/vector/VectorT.h>
+
+// NICE-core includes
 #include "ParameterizedFunction.h"
 
 namespace NICE {
@@ -15,7 +21,7 @@ namespace NICE {
  /** 
  * @class PFWeightedDim
  * @brief Parameterized Function: weights for each dimension
- * @author Erik Rodner
+ * @author Erik Rodner, Alexander Freytag
  */
  
 class PFWeightedDim : public ParameterizedFunction
@@ -24,7 +30,6 @@ class PFWeightedDim : public ParameterizedFunction
 
     double upperBound;
     double lowerBound;
-    uint dimension;
 
   public:
 
@@ -33,7 +38,6 @@ class PFWeightedDim : public ParameterizedFunction
             double uB = std::numeric_limits<double>::max() ) : 
             ParameterizedFunction(dimension) 
   { 
-    this->dimension = dimension;
     upperBound = uB;
     lowerBound = lB;
     if ( uB < 1.0 )
@@ -48,8 +52,8 @@ class PFWeightedDim : public ParameterizedFunction
 
   bool isOrderPreserving() const { return true; };
 
-  Vector getParameterUpperBounds() const { return Vector(m_parameters.size(), upperBound); };
-  Vector getParameterLowerBounds() const { return Vector(m_parameters.size(), lowerBound); };
+  Vector getParameterUpperBounds() const { return NICE::Vector(m_parameters.size(), upperBound); };
+  Vector getParameterLowerBounds() const { return NICE::Vector(m_parameters.size(), lowerBound); };
   
   void setParameterLowerBounds(const NICE::Vector & _newLowerBounds) { if (_newLowerBounds.size() > 0) lowerBound = _newLowerBounds(0);};
   void setParameterUpperBounds(const NICE::Vector & _newUpperBounds) { if (_newUpperBounds.size() > 0) upperBound = _newUpperBounds(0);};
@@ -59,30 +63,79 @@ class PFWeightedDim : public ParameterizedFunction
   {
     if (is.good())
     {
-      is.precision (std::numeric_limits<double>::digits10 + 1);
+      is.precision (std::numeric_limits<double>::digits10 + 1); 
       
-      std::string tmp;
-      is >> tmp;
-      is >> upperBound;
+      std::string tmp;    
 
-      is >> tmp;
-      is >> lowerBound;   
+      bool b_endOfBlock ( false ) ;
       
-      is >> tmp;
-      is >> dimension;
+      while ( !b_endOfBlock )
+      {
+	is >> tmp; // start of block 
+	
+	if ( this->isEndTag( tmp, "PFWeightedDim" ) )
+	{
+	  b_endOfBlock = true;
+	  continue;
+	}
+		    
+	
+	tmp = this->removeStartTag ( tmp );
+	
+	if ( tmp.compare("upperBound") == 0 )
+	{
+	  is >> upperBound;
+	  is >> tmp; // end of block 
+	  tmp = this->removeEndTag ( tmp );	    
+	}
+	else if ( tmp.compare("lowerBound") == 0 )
+	{
+	  is >> lowerBound;
+	  is >> tmp; // end of block 
+	  tmp = this->removeEndTag ( tmp ); 	    
+	}
+	else if ( tmp.compare("ParameterizedFunction") == 0 )
+	{
+	  // restore parent object
+	  ParameterizedFunction::restore(is);
+	}	
+	else
+	{
+	  std::cerr << "WARNING -- unexpected PFWeightedDim object -- " << tmp << " -- for restoration... aborting" << std::endl;
+	  throw;	
+	}
+      }
     }
-    ParameterizedFunction::restore(is);
+    else
+    {
+      std::cerr << "PFWeightedDim::restore -- InStream not initialized - restoring not possible!" << std::endl;
+    }
   };  
   virtual void store ( std::ostream & os, int format = 0 ) const
   {
     if (os.good())
     {
+      // show starting point
+      os << this->createStartTag( "PFWeightedDim" ) << std::endl;      
+      
       os.precision (std::numeric_limits<double>::digits10 + 1); 
-      os << "upperBound: " << std::endl <<  upperBound << std::endl;
-      os << "lowerBound: " << std::endl <<  lowerBound << std::endl;
-      os << "dimension: " << std::endl << dimension << std::endl;
+
+      os << this->createStartTag( "upperBound" ) << std::endl;
+      os << upperBound << std::endl;
+      os << this->createEndTag( "upperBound" ) << std::endl; 
+      
+      os << this->createStartTag( "lowerBound" ) << std::endl;
+      os << lowerBound << std::endl;
+      os << this->createEndTag( "lowerBound" ) << std::endl;   
+      
+
+      // store parent object
+      ParameterizedFunction::store(os); 
+      
+      // done
+      os << this->createEndTag( "PFWeightedDim" ) << std::endl;
     }
-    ParameterizedFunction::store(os);
+
   };  
   virtual void clear () {};
   

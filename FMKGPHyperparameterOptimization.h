@@ -8,10 +8,12 @@
 #ifndef _NICE_FMKGPHYPERPARAMETEROPTIMIZATIONINCLUDE
 #define _NICE_FMKGPHYPERPARAMETEROPTIMIZATIONINCLUDE
 
+// STL includes
 #include <vector>
 #include <set>
 #include <map>
 
+// NICE-core includes
 #include <core/algebra/EigValues.h>
 #include <core/algebra/IterativeLinearSolver.h>
 #include <core/basics/Config.h>
@@ -22,6 +24,7 @@
 #include <core/matlabAccess/MatFileIO.h>
 #endif
 
+// gp-hik-core includes
 #include "FastMinKernel.h"
 #include "GPLikelihoodApprox.h"
 #include "IKMLinearCombination.h"
