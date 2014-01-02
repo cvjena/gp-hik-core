@@ -32,7 +32,6 @@ bool compareVVector(const NICE::VVector & A, const NICE::VVector & B, const doub
       break;
     } 
     
-//     std::cerr << "itA->size(): " << itA->size() << "itB->size(): " << itB->size() << std::endl;
     for(uint i = 0; (i < itA->size()) && (i < itB->size()); i++)
     {
       if (fabs((*itA)[i] - (*itB)[i]) > tolerance)
@@ -46,7 +45,6 @@ bool compareVVector(const NICE::VVector & A, const NICE::VVector & B, const doub
           break;        
     itA++;
     itB++;
-//     std::cerr << "foo" << std::endl;
   }
   
   return result;
@@ -72,7 +70,7 @@ bool compareLUTs(const double* LUT1, const double* LUT2, const int & size, const
 const bool verbose = false;
 const bool verboseStartEnd = true;
 const bool solveLinWithoutRand = false;
-const uint n = 20;//1500;//1500;//10;
+const uint n = 30;//1500;//1500;//10;
 const uint d = 5;//200;//2;
 const uint numBins = 11;//1001;//1001;
 const uint solveLinMaxIterations = 1000;
@@ -638,13 +636,13 @@ void TestFastHIK::testLinSolve()
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testLinSolve ===================== " << std::endl;
 
-  Quantization q ( numBins );
+  NICE::Quantization q ( numBins );
 
   // data is generated, such that there is no approximation error
-  vector< vector<double> > dataMatrix;
+  std::vector< std::vector<double> > dataMatrix;
   for ( uint i = 0; i < d ; i++ )
   {
-    vector<double> v;
+    std::vector<double> v;
     v.resize(n);
     for ( uint k = 0; k < n; k++ ) {
       if ( drand48() < sparse_prob ) {
@@ -658,28 +656,27 @@ void TestFastHIK::testLinSolve()
   }
   
   if ( verbose ) {
-    cerr << "data matrix: " << endl;
+    std::cerr << "data matrix: " << std::endl;
     printMatrix ( dataMatrix );
-    cerr << endl;
+    std::cerr << std::endl;
   }
 
   double noise = 1.0;
-  FastMinKernel fmk ( dataMatrix, noise );
+  NICE::FastMinKernel fmk ( dataMatrix, noise );
   
-  ParameterizedFunction *pf = new PFAbsExp ( 1.0 );
+  NICE::ParameterizedFunction *pf = new NICE::PFAbsExp ( 1.0 );
   fmk.applyFunctionToFeatureMatrix( pf );
-//   pf->applyFunctionToFeatureMatrix ( fmk.featureMatrix() );
 
-  Vector y ( n );  
+  NICE::Vector y ( n );  
   for ( uint i = 0; i < y.size(); i++ )
     y[i] = sin(i);
   
-  Vector alpha;
-  Vector alphaRandomized;
+  NICE::Vector alpha;
+  NICE::Vector alphaRandomized;
 
   std::cerr << "solveLin with randomization" << std::endl;
   // tic
-  Timer t;
+  NICE::Timer t;
   t.start();
   //let's try to do 10.000 iterations and sample in each iteration 30 examples randomly
   fmk.solveLin(y,alphaRandomized,q,pf,true,solveLinMaxIterations,30);

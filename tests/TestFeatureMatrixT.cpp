@@ -182,7 +182,7 @@ void TestFeatureMatrixT::testMatlabIO()
 #endif //#ifdef NICE_USELIB_MATIO
 
   if (verboseStartEnd)
-    std::cerr << "================== TestFeatureMatrixT::testMatlabIO done===================== " << std::endl;
+    std::cerr << "================== TestFeatureMatrixT::testMatlabIO done ===================== " << std::endl;
   
 }
 

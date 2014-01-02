@@ -431,6 +431,10 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
   this->clear();
   
   bool b_restoreVerbose ( false );
+#ifdef B_RESTOREVERBOSE
+  b_restoreVerbose = true;
+#endif  
+  
   if ( is.good() )
   {
     if ( b_restoreVerbose ) 

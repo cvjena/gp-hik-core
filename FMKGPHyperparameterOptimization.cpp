@@ -374,11 +374,13 @@ void FMKGPHyperparameterOptimization::performOptimization ( GPLikelihoodApprox &
   }
 
   if ( verbose )
+  {
     std::cerr << "Optimal hyperparameter was: " << gplike.getBestParameters() << std::endl;
   
-  std::map<int, Vector> bestAlphas = gplike.getBestAlphas();
-  std::cerr << "length of alpha vectors: " << bestAlphas.size() << std::endl;
-  std::cerr << "alpha vector: " << bestAlphas.begin()->second << std::endl;
+    std::map<int, NICE::Vector> bestAlphas = gplike.getBestAlphas();
+    std::cerr << "length of alpha vectors: " << bestAlphas.size() << std::endl;
+    std::cerr << "alpha vector for first class: " << bestAlphas.begin()->second << std::endl;
+  }
 }
 
 void FMKGPHyperparameterOptimization::transformFeaturesWithOptimalParameters ( const GPLikelihoodApprox & gplike, const uint & parameterVectorSize )
@@ -1173,6 +1175,11 @@ t.start();*/
 void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
 {
   bool b_restoreVerbose ( false );
+
+#ifdef B_RESTOREVERBOSE
+  b_restoreVerbose = true;
+#endif
+
   if ( is.good() )
   {
     if ( b_restoreVerbose ) 

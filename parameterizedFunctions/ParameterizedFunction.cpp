@@ -87,7 +87,7 @@ void ParameterizedFunction::store ( std::ostream & os, int format ) const
     os.precision (std::numeric_limits<double>::digits10 + 1);
     
     os << this->createStartTag( "m_parameters" ) << std::endl;
-    os << m_parameters;
+    os << m_parameters << std::endl;
     os << this->createEndTag( "m_parameters" ) << std::endl;   
     
     

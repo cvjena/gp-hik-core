@@ -5,14 +5,17 @@
 * @date 19-10-2012
 */
 
+// STL includes
 #include <iostream>
 #include <vector>
 
+// NICE-core includes
 #include <core/basics/Config.h>
 #include <core/basics/Timer.h>
 #include <core/vector/MatrixT.h>
 #include <core/vector/VectorT.h>
 
+// gp-hik-core includes
 #include "gp-hik-core/GPHIKClassifier.h"
 
 using namespace std; //C basics
