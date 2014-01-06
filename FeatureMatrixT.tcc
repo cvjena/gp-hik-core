@@ -637,7 +637,7 @@ namespace NICE {
       {
         std::cerr << "set_features without features" << std::endl;
       }
-      
+            
       // resize our data structure      
       if (_dim >= 0) //did the user specified the number of dimensions?
         set_d(_dim);
@@ -664,8 +664,8 @@ namespace NICE {
             set_d(0);
           }          
         }
-      }    
-      
+      }  
+            
       // set number of examples n
       if (d>0)
       {
@@ -674,7 +674,7 @@ namespace NICE {
         else //we have examples x dimes (as usually done)   
           n = _features.size(); 
       }       
-      
+            
       // insert all values
       if (dimensionsOverExamples) //do we have dim x examples ?
       {

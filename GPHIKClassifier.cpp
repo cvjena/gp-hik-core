@@ -116,6 +116,12 @@ void GPHIKClassifier::classify ( const SparseVector * example,  int & result, Sp
   this->classify( example, result, scores, tmpUncertainty );
 }
 
+void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, SparseVector & scores )
+{
+  double tmpUncertainty;
+  this->classify( example, result, scores, tmpUncertainty );
+}
+
 void GPHIKClassifier::classify ( const SparseVector * example,  int & result, SparseVector & scores, double & uncertainty )
 {
   scores.clear();
@@ -149,6 +155,38 @@ void GPHIKClassifier::classify ( const SparseVector * example,  int & result, Sp
   }    
 }
 
+void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, SparseVector & scores, double & uncertainty )
+{
+  scores.clear();
+  
+  int classno = gphyper->classify ( *example, scores );
+
+  if ( scores.size() == 0 ) {
+    fthrow(Exception, "Zero scores, something is likely to be wrong here: svec.size() = " << example->size() );
+  }
+  
+  result = scores.maxElement();
+   
+  if (uncertaintyPredictionForClassification)
+  {
+    if (varianceApproximation != NONE)
+    {
+      std::cerr << "ERROR: Uncertainty computation is currently not supported for NICE::Vector - use SparseVector instead" << std::endl;
+      uncertainty = std::numeric_limits<double>::max();
+    }  
+    else
+    {
+      //do nothing
+      uncertainty = std::numeric_limits<double>::max();
+    }
+  }
+  else
+  {
+    //do nothing
+    uncertainty = std::numeric_limits<double>::max();
+  }    
+}
+
 /** training process */
 void GPHIKClassifier::train ( const std::vector< NICE::SparseVector *> & examples, const NICE::Vector & labels )
 {
@@ -158,6 +196,7 @@ void GPHIKClassifier::train ( const std::vector< NICE::SparseVector *> & example
   Timer t;
   t.start();
   FastMinKernel *fmk = new FastMinKernel ( examples, noise, this->debug );
+  
   t.stop();
   if (verbose)
     std::cerr << "Time used for setting up the fmk object: " << t.getLast() << std::endl;  

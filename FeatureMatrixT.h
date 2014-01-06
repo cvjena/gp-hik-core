@@ -81,7 +81,7 @@ template<class T> class FeatureMatrixT : NICE::Persistent
     /** 
     * @brief Recommended constructor
     * @author Alexander Freytag
-    * @date 07-12-2011 (dd-mm-yyyy)
+    * @date 07-12-2011 (dd-mm-yyyy) 
     */
     FeatureMatrixT(const std::vector<std::vector<T> > & _features, const int & _dim = -1);
     

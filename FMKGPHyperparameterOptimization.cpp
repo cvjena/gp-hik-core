@@ -261,7 +261,6 @@ void FMKGPHyperparameterOptimization::updateEigenVectors()
   if ( verbose )
   {
     std::cerr << "FMKGPHyperparameterOptimization::updateEigenVectors -- size of ikmsums: " << ikmsums.size() << std::endl;
-    std::cerr << "class of first object: " << ikmsums.begin()->first << std::endl;
   }
   
   if ( learnBalanced )
@@ -280,15 +279,12 @@ void FMKGPHyperparameterOptimization::updateEigenVectors()
   }
   else
   {
-    std::cerr << "not balanced, considere for VarApprox: " << nrOfEigenvaluesToConsiderForVarApprox << " eigenvalues" << std::endl;
-    std::cerr << "and for simple: " << nrOfEigenvaluesToConsider << std::endl;
-    if (nrOfEigenvaluesToConsiderForVarApprox > 1)
-      nrOfEigenvaluesToConsiderForVarApprox = 1;
     //compute the largest eigenvalue of K + noise
     eigenMax.resize(1);
     eigenMaxVectors.resize(1);    
     
-    eig->getEigenvalues ( * ( ikmsums.begin()->second ),  eigenMax[0], eigenMaxVectors[0], nrOfEigenvaluesToConsiderForVarApprox );
+    //TODO check why we are only interested in the largest EW!
+    eig->getEigenvalues ( * ( ikmsums.begin()->second ),  eigenMax[0], eigenMaxVectors[0], 1 /* we are only interested in the largest eigenvalue here*/ );
   }
 }
 
@@ -430,7 +426,8 @@ void FMKGPHyperparameterOptimization::performOptimization ( std::map<int, GPLike
       OPTIMIZATION::matrix_type hyperp ( 1, 1, value );
       gplikes.begin()->second->setParameterLowerBound ( value );
       gplikes.begin()->second->setParameterUpperBound ( value );
-      gplikes.begin()->second->evaluate ( hyperp );
+      //we do not need to compute the likelihood here - we are only interested in directly obtaining alpha vectors
+      gplikes.begin()->second->computeAlphaDirect( hyperp );
     }
   }
 
@@ -538,6 +535,7 @@ void FMKGPHyperparameterOptimization::computeMatricesAndLUTs ( const std::map<in
       fmk->hik_prepare_alpha_multiplications ( i->second, A, B );
       A.setIoUntilEndOfFile ( false );
       B.setIoUntilEndOfFile ( false );
+
       precomputedA[ i->first ] = A;
       precomputedB[ i->first ] = B;
 
@@ -1376,6 +1374,56 @@ void FMKGPHyperparameterOptimization::prepareVarianceApproximation()
 }
 
 int FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & xstar, NICE::SparseVector & scores ) const
+{
+  // loop through all classes
+  if ( precomputedA.size() == 0 )
+  {
+    fthrow ( Exception, "The precomputation vector is zero...have you trained this classifier?" );
+  }
+
+  uint maxClassNo = 0;
+  for ( map<int, PrecomputedType>::const_iterator i = precomputedA.begin() ; i != precomputedA.end(); i++ )
+  {
+    uint classno = i->first;
+    maxClassNo = std::max ( maxClassNo, classno );
+    double beta;
+
+    if ( q != NULL ) {
+      map<int, double *>::const_iterator j = precomputedT.find ( classno );
+      double *T = j->second;
+      fmk->hik_kernel_sum_fast ( T, *q, xstar, beta );
+    } else {
+      const PrecomputedType & A = i->second;
+      map<int, PrecomputedType>::const_iterator j = precomputedB.find ( classno );
+      const PrecomputedType & B = j->second;
+
+      // fmk->hik_kernel_sum ( A, B, xstar, beta ); if A, B are of type Matrix
+      // Giving the transformation pf as an additional
+      // argument is necessary due to the following reason:
+      // FeatureMatrixT is sorted according to the original values, therefore,
+      // searching for upper and lower bounds ( findFirst... functions ) require original feature
+      // values as inputs. However, for calculation we need the transformed features values.
+
+      fmk->hik_kernel_sum ( A, B, xstar, beta, pf );
+    }
+
+    scores[ classno ] = beta;
+  }
+  scores.setDim ( maxClassNo + 1 );
+  
+  if ( precomputedA.size() > 1 ) {
+    // multi-class classification
+    return scores.maxElement();
+  } else {
+    // binary setting
+    // FIXME: not really flexible for every situation
+    scores[binaryLabelNegative] = -scores[binaryLabelPositive]; 
+    
+    return scores[ binaryLabelPositive ] <= 0.0 ? binaryLabelNegative : binaryLabelPositive;
+  }
+}
+
+int FMKGPHyperparameterOptimization::classify ( const NICE::Vector & xstar, NICE::SparseVector & scores ) const
 {
   // loop through all classes
   if ( precomputedA.size() == 0 )

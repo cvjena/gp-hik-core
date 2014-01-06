@@ -507,13 +507,65 @@ void FastMinKernel::hik_kernel_sum(const NICE::VVector & A, const NICE::VVector 
 {
   // sparse version of hik_kernel_sum, no really significant changes,
   // we are just skipping zero elements
-  // for additional comments see the non-sparse version of hik_kernel_sum
   beta = 0.0;
   for (SparseVector::const_iterator i = xstar.begin(); i != xstar.end(); i++)
   {
   
     int dim = i->first;
     double fval = i->second;
+    
+    int nrZeroIndices = X_sorted.getNumberOfZeroElementsPerDimension(dim);
+    if ( nrZeroIndices == n ) {
+      // all features are zero and let us ignore it completely
+      continue;
+    }
+
+    int position;
+
+    //where is the example x^z_i located in
+    //the sorted array? -> perform binary search, runtime O(log(n))
+    // search using the original value
+    X_sorted.findFirstLargerInDimension(dim, fval, position);
+    position--;
+  
+    //NOTE again - pay attention! This is only valid if all entries are NOT negative! - if not, ask wether the current feature is greater than zero. If so, subtract the nrZeroIndices, if not do not
+    //sum_{l \in L_k} \alpha_l x^l_k
+    double firstPart(0.0);
+    //TODO in the "overnext" line there occurs the following error
+    // Invalid read of size 8
+    if (position >= 0) 
+      firstPart = (A[dim][position-nrZeroIndices]);
+    
+    // sum_{u \in U_k} alpha_u
+    
+    // sum_{u \in U_k} alpha_u
+    // => double secondPart( B(dim, n-1) - B(dim, position));
+    //TODO in the next line there occurs the following error
+    // Invalid read of size 8      
+    double secondPart( B[dim][n-1-nrZeroIndices]);
+    //TODO in the "overnext" line there occurs the following error
+    // Invalid read of size 8    
+    if (position >= 0) 
+      secondPart-= B[dim][position-nrZeroIndices];
+    
+    if ( pf != NULL )
+    {
+      fval = pf->f ( dim, fval );
+    }   
+    
+    // but apply using the transformed one
+    beta += firstPart + secondPart* fval;
+  }
+}
+
+void FastMinKernel::hik_kernel_sum(const NICE::VVector & A, const NICE::VVector & B, const NICE::Vector & xstar, double & beta, const ParameterizedFunction *pf) const
+{
+  beta = 0.0;
+  int dim ( 0 );
+  for (NICE::Vector::const_iterator i = xstar.begin(); i != xstar.end(); i++, dim++)
+  {
+  
+    double fval = *i;
     
     int nrZeroIndices = X_sorted.getNumberOfZeroElementsPerDimension(dim);
     if ( nrZeroIndices == n ) {

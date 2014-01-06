@@ -103,6 +103,16 @@ class GPLikelihoodApprox : public OPTIMIZATION::CostFunction
     virtual ~GPLikelihoodApprox();
      
     // ------ main methods ------
+    
+    /**
+    * @brief Compute alpha vectors for given hyperparameters
+    *
+    * @param x vector with specified hyperparameters to evaluate their likelihood
+    *
+    * @return void
+    */    
+    void computeAlphaDirect(const OPTIMIZATION::matrix_type & x);
+    
     /**
     * @brief Evaluate the likelihood for given hyperparameters
     *
