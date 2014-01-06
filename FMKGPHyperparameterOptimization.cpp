@@ -49,8 +49,6 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
       const std::set < int > newClasses,
       const bool & performOptimizationAfterIncrement )
 {
-  NICE::Timer t;
-  t.start();
   if ( this->fmk == NULL )
     fthrow ( Exception, "FastMinKernel object was not initialized!" );
 
@@ -67,7 +65,6 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
   NICE::GPLikelihoodApprox * gplike;
   uint parameterVectorSize;
 
-  std::cerr << "setup GPLikelihoodApprox object " << std::endl;
   t1.start();
   this->setupGPLikelihoodApprox ( gplike, binaryLabels, parameterVectorSize );
   t1.stop();
@@ -75,9 +72,8 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
     std::cerr << "Time used for setting up the gplike-objects: " << t1.getLast() << std::endl;
 
 
-  std::cerr << "setup previous alpha guess " << std::endl;
   t1.start();
-  if ( this->b_usePreviousAlphas )
+  if ( this->b_usePreviousAlphas && ( this->previousAlphas.size() > 0) )
   {
     //We initialize it with the same values as we use in GPLikelihoodApprox in batch training
     //default in GPLikelihoodApprox for the first time:
@@ -86,18 +82,21 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
     
     std::map<int, NICE::Vector>::const_iterator binaryLabelsIt = binaryLabels.begin();
     
-    for ( std::map<int, NICE::Vector>::iterator lastAlphaIt = lastAlphas.begin() ;lastAlphaIt != lastAlphas.end(); lastAlphaIt++ )
+    for ( std::map<int, NICE::Vector>::iterator prevAlphaIt = this->previousAlphas.begin();
+         prevAlphaIt != this->previousAlphas.end();
+         prevAlphaIt++
+        )
     {
-      int oldSize ( lastAlphaIt->second.size() );
-      lastAlphaIt->second.resize ( oldSize + 1 );
+      int oldSize ( prevAlphaIt->second.size() );
+      prevAlphaIt->second.resize ( oldSize + 1 );
 
   
 
       if ( binaryLabelsIt->second[oldSize] > 0 ) //we only have +1 and -1, so this might be benefitial in terms of speed
-        lastAlphaIt->second[oldSize] = factor;
+        prevAlphaIt->second[oldSize] = factor;
       else
-        lastAlphaIt->second[oldSize] = -factor; //we follow the initialization as done in previous steps
-        //lastAlphaIt->second[oldSize] = 0.0; // following the suggestion of Yeh and Darrell
+        prevAlphaIt->second[oldSize] = -factor; //we follow the initialization as done in previous steps
+        //prevAlphaIt->second[oldSize] = 0.0; // following the suggestion of Yeh and Darrell
 
       binaryLabelsIt++;
       
@@ -107,21 +106,24 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
     for (std::set<int>::const_iterator newClIt =  newClasses.begin(); newClIt != newClasses.end(); newClIt++)
     {      
       NICE::Vector alphaVec = (binaryLabels[*newClIt] * factor ); //see GPLikelihoodApprox for an explanation
-      lastAlphas.insert( std::pair<int, NICE::Vector>(*newClIt, alphaVec) );
+      previousAlphas.insert( std::pair<int, NICE::Vector>(*newClIt, alphaVec) );
     }      
 
-    gplike->setInitialAlphaGuess ( &lastAlphas );
+    gplike->setInitialAlphaGuess ( &previousAlphas );
   }
   else
   {
     //if we do not use previous alphas, we do not have to set up anything here
+    gplike->setInitialAlphaGuess ( NULL );
   }
   
   t1.stop();
   if ( this->verboseTime )
     std::cerr << "Time used for setting up the alpha-objects: " << t1.getLast() << std::endl;
 
-  std::cerr << "update Eigendecomposition " << std::endl;
+  if ( this->verbose ) 
+    std::cerr << "update Eigendecomposition " << std::endl;
+  
   t1.start();
   // we compute all needed eigenvectors for standard classification and variance prediction at ones.
   // nrOfEigenvaluesToConsiderForVarApprox should NOT be larger than 1 if a method different than approximate_fine is used!
@@ -138,7 +140,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
   
   if ( this->verbose )
     std::cerr << "resulting eigenvalues for first class: " << eigenMax[0] << std::endl;
-
+  
   // we can reuse the already given performOptimization-method:
   // OPT_GREEDY
   // for this strategy we can't reuse any of the previously computed scores
@@ -161,11 +163,10 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
     optimizationMethodTmpCopy = this->optimizationMethod;
     this->optimizationMethod = OPT_NONE;
   }
-    
+      
   t1.start();
-  //TODO add option for handing over previous solution!
   this->performOptimization ( *gplike, parameterVectorSize);
-//         this->performOptimization ( *gplike, parameterVectorSize, false /* initialize not with default values but using the last solution */ );
+
   t1.stop();
   if ( this->verboseTime )
     std::cerr << "Time used for performing the optimization: " << t1.getLast() << std::endl;
@@ -194,14 +195,6 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
   t1.stop();
   if ( this->verboseTime )
     std::cerr << "Time used for setting up the A'nB -objects: " << t1.getLast() << std::endl;
-
-  t.stop();  
-
-  NICE::ResourceStatistics rs;
-  std::cerr << "Time used for re-learning: " << t.getLast() << std::endl;
-  long maxMemory;
-  rs.getMaximumMemory ( maxMemory );
-  std::cerr << "Maximum memory used: " << maxMemory << " KB" << std::endl;
 
   //don't waste memory
   delete gplike;
@@ -252,7 +245,6 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config 
   binaryLabelNegative = -2;  
   knownClasses.clear();
 
-  //TODO 
   if ( _fmk == NULL )
     this->initialize ( _conf, _pf ); //then the confSection is also the default value
   else
@@ -307,11 +299,10 @@ void FMKGPHyperparameterOptimization::initialize ( const Config *_conf, Paramete
     std::cerr << "------------" << std::endl;
   }
 
-
-  this->eig = new EVArnoldi ( _conf->gB ( _confSection, "eig_verbose", false ) /* verbose flag */, 10 );
   // this->eig = new EigValuesTRLAN();
   // My time measurements show that both methods use equal time, a comparision
   // of their numerical performance has not been done yet  
+  this->eig = new EVArnoldi ( _conf->gB ( _confSection, "eig_verbose", false ) /* verbose flag */, 10 );
 
 
   this->parameterUpperBound = _conf->gD ( _confSection, "parameter_upper_bound", 2.5 );
@@ -321,7 +312,6 @@ void FMKGPHyperparameterOptimization::initialize ( const Config *_conf, Paramete
   this->verifyApproximation = _conf->gB ( _confSection, "verify_approximation", false );
   this->nrOfEigenvaluesToConsider = _conf->gI ( _confSection, "nrOfEigenvaluesToConsider", 1 );
   this->nrOfEigenvaluesToConsiderForVarApprox = _conf->gI ( _confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 );
-
 
 
   bool useQuantization = _conf->gB ( _confSection, "use_quantization", false );
@@ -485,8 +475,6 @@ void FMKGPHyperparameterOptimization::performOptimization ( GPLikelihoodApprox &
       std::cerr << "lower bound " << lB << " upper bound " << uB << " parameterStepSize: " << parameterStepSize << std::endl;
 
     
-    NICE::Vector tmp = gplike.getBestParameters(  );
-    
     for ( double mypara = lB[0]; mypara <= uB[0]; mypara += this->parameterStepSize )
     {
       OPTIMIZATION::matrix_type hyperp ( 1, 1, mypara );
@@ -514,17 +502,16 @@ void FMKGPHyperparameterOptimization::performOptimization ( GPLikelihoodApprox &
       std::cerr << "Initial parameters: " << initialParams << std::endl;
 
     //the scales object does not really matter in the actual implementation of Downhill Simplex
-    //OPTIMIZATION::matrix_type scales ( parameterVectorSize, 1);
-    //scales.Set(1.0);
-    
-    OPTIMIZATION::SimpleOptProblem optProblem ( &gplike, initialParams, initialParams /* scales*/ );
+//     OPTIMIZATION::matrix_type scales ( parameterVectorSize, 1);
+//     scales.set(1.0);
 
-    //     std::cerr << "OPT: " << mypara << " " << nlikelihood << " " << logdet << " " << dataterm << std::endl;
+    OPTIMIZATION::SimpleOptProblem optProblem ( &gplike, initialParams, initialParams /* scales */ );
+
     optimizer.setMaxNumIter ( true, downhillSimplexMaxIterations );
     optimizer.setTimeLimit ( true, downhillSimplexTimeLimit );
     optimizer.setParamTol ( true, downhillSimplexParamTol );
+    
     optimizer.optimizeProb ( optProblem );
-
   }
   else if ( optimizationMethod == OPT_NONE )
   {
@@ -567,12 +554,8 @@ void FMKGPHyperparameterOptimization::transformFeaturesWithOptimalParameters ( c
 
 void FMKGPHyperparameterOptimization::computeMatricesAndLUTs ( const GPLikelihoodApprox & gplike )
 {
-  
-  std::cerr << "FMKGPHyperparameterOptimization::computeMatricesAndLUTs" << std::endl;
   precomputedA.clear();
   precomputedB.clear();
-  
-  std::cerr << "length of best alpha vectors: " << gplike.getBestAlphas().size() << std::endl; 
 
   for ( std::map<int, NICE::Vector>::const_iterator i = gplike.getBestAlphas().begin(); i != gplike.getBestAlphas().end(); i++ )
   {
@@ -605,14 +588,18 @@ void FMKGPHyperparameterOptimization::computeMatricesAndLUTs ( const GPLikelihoo
   {
      this->prepareVarianceApproximationFine();
   }
+  
+  // in case that we should want to store the alpha vectors for incremental extensions
+  if ( this->b_usePreviousAlphas )
+    this->previousAlphas = gplike.getBestAlphas();
 
 }
 
 #ifdef NICE_USELIB_MATIO
 void FMKGPHyperparameterOptimization::optimizeBinary ( const sparse_t & data, const NICE::Vector & yl, const std::set<int> & positives, const std::set<int> & negatives, double noise )
 {
-  map<int, int> examples;
-  Vector y ( yl.size() );
+  std::map<int, int> examples;
+  NICE::Vector y ( yl.size() );
   int ind = 0;
   for ( uint i = 0 ; i < yl.size(); i++ )
   {
@@ -635,7 +622,7 @@ void FMKGPHyperparameterOptimization::optimizeBinary ( const sparse_t & data, co
 
 void FMKGPHyperparameterOptimization::optimize ( const sparse_t & data, const NICE::Vector & y, const std::map<int, int> & examples, double noise )
 {
-  Timer t;
+  NICE::Timer t;
   t.start();
   std::cerr << "Initializing data structure ..." << std::endl;
   if ( fmk != NULL ) delete fmk;
@@ -697,25 +684,9 @@ int FMKGPHyperparameterOptimization::prepareBinaryLabels ( std::map<int, NICE::V
       yb[i] = ( y[i] == binaryLabelNegative ) ? -1.0 : 1.0;
     
     binaryLabels[ binaryLabelPositive ] = yb;
-    
-    //NOTE 
-    //uncomment the following, if you want to perform real binary computations with 2 classes
-// 	  //we only need one vector, which already contains +1 and -1, so we need only one computation too
-//     binaryLabels[ negativeClass ] = yb;
-//     binaryLabels[ negativeClass ] *= -1.0;  
-    
-//     std::cerr << "binaryLabels.size(): " << binaryLabels.size() << std::endl;
-    
-//     binaryLabels[ 0 ] = yb;
-//     binaryLabels[ 0 ] *= -1.0;
-    
-    
-    //comment the following, if you want to do a real binary computation. It should be senseless, but let's see...
-    
+        
     //we do NOT do real binary computation, but an implicite one with only a single object  
-    nrOfClasses--;
-    std::set<int>::iterator it = myClasses.begin(); it++;
-//     myClasses.erase(it);    
+    nrOfClasses--;  
   }
   else //OCC setting
   {
@@ -1110,24 +1081,16 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceExact ( const NIC
   }
 
   // ---------------- compute the second term --------------------
-//     t.stop();  
-//   std::cerr << "ApproxExact -- time for first term: "  << t.getLast()  << std::endl;
-
-//   t.start();  
   NICE::Vector kStar;
   fmk->hikComputeKernelVector ( x, kStar );
-//  t.stop();
-//   std::cerr << "ApproxExact -- time for kernel vector: "  << t.getLast()  << std::endl;
-//   
-
   
   //now run the ILS method
   NICE::Vector diagonalElements;
   ikmsum->getDiagonalElements ( diagonalElements );
 
-//     t.start();
   // init simple jacobi pre-conditioning
   ILSConjugateGradients *linsolver_cg = dynamic_cast<ILSConjugateGradients *> ( linsolver );
+  //TODO what to do for other solver techniques?
 
 
   //perform pre-conditioning
@@ -1149,16 +1112,8 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceExact ( const NIC
       *  This reduces the number of iterations by 5 or 8
       */  
   beta = (kStar * (1.0 / eigenMax[0]) );
-/*    t.stop();
-std::cerr << "ApproxExact -- time for preconditioning etc: "  << t.getLast()  << std::endl;    
   
-t.start();*/
-  //   t.start();
   linsolver->solveLin ( *ikmsum, kStar, beta );
-  //   t.stop();
-//     t.stop();
-//         t.stop();
-//   std::cerr << "ApproxExact -- time for lin solve: "  << t.getLast()  << std::endl;
 
   beta *= kStar;
   
@@ -1484,8 +1439,8 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
             std::cerr << " skip restoring precomputedT" << std::endl;
         }
         
-	is >> tmp; // end of block 
-	tmp = this->removeEndTag ( tmp );
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
       }      
       else if ( tmp.compare("precomputedAForVarEst") == 0 )
       {
@@ -1503,8 +1458,8 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
           precomputedAForVarEst.restore ( is, format );
         }
         
-	is >> tmp; // end of block 
-	tmp = this->removeEndTag ( tmp );
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
       }        
       else if ( tmp.compare("precomputedTForVarEst") == 0 )
       {
@@ -1533,20 +1488,20 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
             delete precomputedTForVarEst;
         }
         
-	is >> tmp; // end of block 
-	tmp = this->removeEndTag ( tmp );
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
       }       
       else if ( tmp.compare("eigenMax") == 0 )
       {
         is >> eigenMax;
-	is >> tmp; // end of block 
-	tmp = this->removeEndTag ( tmp );
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
       }    
       else if ( tmp.compare("eigenMaxVectors") == 0 )
       {
         is >> eigenMaxVectors;
-	is >> tmp; // end of block 
-	tmp = this->removeEndTag ( tmp );
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
       }    
       else if ( tmp.compare("ikmsum") == 0 )
       {
@@ -1574,39 +1529,60 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
           }
           else
           { 
-	    std::cerr << "WARNING -- unexpected ikmsum object -- " << tmp << " -- for restoration... aborting" << std::endl;
-	    throw;
-	  }         
+            std::cerr << "WARNING -- unexpected ikmsum object -- " << tmp << " -- for restoration... aborting" << std::endl;
+            throw;
+          }         
         }
       }
       else if ( tmp.compare("binaryLabelPositive") == 0 )
       {
         is >> binaryLabelPositive;
-	is >> tmp; // end of block 
-	tmp = this->removeEndTag ( tmp );
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
       }
       else if  ( tmp.compare("binaryLabelNegative") == 0 )
       {
         is >> binaryLabelNegative;        
-	is >> tmp; // end of block 
-	tmp = this->removeEndTag ( tmp );
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
       }
       else if  ( tmp.compare("labels") == 0 )
       {
         is >> labels;        
-	is >> tmp; // end of block 
-	tmp = this->removeEndTag ( tmp );
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
       }
       else if  ( tmp.compare("b_usePreviousAlphas") == 0 )
       {
         is >> b_usePreviousAlphas;        
-	is >> tmp; // end of block 
-	tmp = this->removeEndTag ( tmp );
-      }          
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      else if  ( tmp.compare("previousAlphas") == 0 )
+      {        
+        is >> tmp; // size
+        int sizeOfPreviousAlphas ( 0 );
+        is >> sizeOfPreviousAlphas;
+        previousAlphas.clear();
+
+        if ( b_restoreVerbose ) 
+          std::cerr << "restore previousAlphas with size: " << sizeOfPreviousAlphas << std::endl;
+        for ( int i = 0; i < sizeOfPreviousAlphas; i++ )
+        {
+          int classNo;
+          is >> classNo;
+          NICE::Vector classAlpha;
+          is >> classAlpha;
+          previousAlphas.insert ( std::pair< int, NICE::Vector > ( classNo, classAlpha ) );
+        }
+        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }      
       else
       {
-	std::cerr << "WARNING -- unexpected FMKGPHyper object -- " << tmp << " -- for restoration... aborting" << std::endl;
-	throw;	
+        std::cerr << "WARNING -- unexpected FMKGPHyper object -- " << tmp << " -- for restoration... aborting" << std::endl;
+        throw;
       }
       
  
@@ -1787,7 +1763,18 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) co
     
     os << this->createStartTag( "b_usePreviousAlphas" ) << std::endl;
     os << b_usePreviousAlphas << std::endl;
-    os << this->createEndTag( "b_usePreviousAlphas" ) << std::endl;      
+    os << this->createEndTag( "b_usePreviousAlphas" ) << std::endl;
+    
+    os << this->createStartTag( "previousAlphas" ) << std::endl;
+    os << "size: " << previousAlphas.size() << std::endl;
+    std::map< int, NICE::Vector >::const_iterator prevAlphaIt = previousAlphas.begin();
+    for ( uint i = 0; i < previousAlphas.size(); i++ )
+    {
+      os << prevAlphaIt->first << std::endl;
+      os << prevAlphaIt->second << std::endl;
+      prevAlphaIt++;
+    }
+    os << this->createEndTag( "previousAlphas" ) << std::endl;       
     
     
     // done
@@ -1810,8 +1797,11 @@ void FMKGPHyperparameterOptimization::addExample( const NICE::SparseVector * exa
 			     const bool & performOptimizationAfterIncrement
 			   )
 {
+  if ( this->verbose )
+    std::cerr << " --- FMKGPHyperparameterOptimization::addExample --- " << std::endl;  
   
-  std::cerr << " --- FMKGPHyperparameterOptimization::addExample --- " << std::endl;  
+  NICE::Timer t;
+  t.start();  
 
   std::set< int > newClasses;
   
@@ -1823,21 +1813,19 @@ void FMKGPHyperparameterOptimization::addExample( const NICE::SparseVector * exa
     newClasses.insert( label );
   }    
 
-  std::cerr << "call addExample of fmk object " << std::endl;
   // add the new example to our data structure
   // It is necessary to do this already here and not lateron for internal reasons (see GMHIKernel for more details)
-  NICE::Timer t;
-  t.start();
+  NICE::Timer tFmk;
+  tFmk.start();
   this->fmk->addExample ( example, pf );
-  t.stop();
+  tFmk.stop();
   if ( this->verboseTime)
-    std::cerr << "Time used for adding the data to the fmk object: " << t.getLast() << std::endl;
+    std::cerr << "Time used for adding the data to the fmk object: " << tFmk.getLast() << std::endl;
 
   
   // add examples to all implicite kernel matrices we currently use
   this->ikmsum->addExample ( example, label, performOptimizationAfterIncrement );
   
-  std::cerr << "call updateAfterIncrement " << std::endl;
   
   // update the corresponding matrices A, B and lookup tables T  
   // optional: do the optimization again using the previously known solutions as initialization
@@ -1846,7 +1834,20 @@ void FMKGPHyperparameterOptimization::addExample( const NICE::SparseVector * exa
   //clean up
   newClasses.clear();
   
-  std::cerr << " --- FMKGPHyperparameterOptimization::addExample done --- " << std::endl;   
+  t.stop();  
+
+  NICE::ResourceStatistics rs;
+  
+  std::cerr << "Time used for re-learning: " << t.getLast() << std::endl;
+  
+  long maxMemory;
+  rs.getMaximumMemory ( maxMemory );
+  
+  if ( this->verbose )
+    std::cerr << "Maximum memory used: " << maxMemory << " KB" << std::endl;   
+  
+  if ( this->verbose )
+    std::cerr << " --- FMKGPHyperparameterOptimization::addExample done --- " << std::endl;   
 }
 
 void FMKGPHyperparameterOptimization::addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
@@ -1854,7 +1855,11 @@ void FMKGPHyperparameterOptimization::addMultipleExamples( const std::vector< co
 				      const bool & performOptimizationAfterIncrement
 				    )
 {
-  std::cerr << " --- FMKGPHyperparameterOptimization::addMultipleExamples --- " << std::endl;  
+  if ( this->verbose )
+    std::cerr << " --- FMKGPHyperparameterOptimization::addMultipleExamples --- " << std::endl;  
+  
+  NICE::Timer t;
+  t.start();  
 
   std::set< int > newClasses;
   
@@ -1871,21 +1876,18 @@ void FMKGPHyperparameterOptimization::addMultipleExamples( const std::vector< co
     } 
   }
   
-  std::cerr << "call addExample of fmk object " << std::endl;
   // add the new example to our data structure
   // It is necessary to do this already here and not lateron for internal reasons (see GMHIKernel for more details)
-  NICE::Timer t;
-  t.start();
+  NICE::Timer tFmk;
+  tFmk.start();
   this->fmk->addMultipleExamples ( newExamples, pf );
-  t.stop();
+  tFmk.stop();
   if ( this->verboseTime)
-    std::cerr << "Time used for adding the data to the fmk object: " << t.getLast() << std::endl;
+    std::cerr << "Time used for adding the data to the fmk object: " << tFmk.getLast() << std::endl;
   
   // add examples to all implicite kernel matrices we currently use
   this->ikmsum->addMultipleExamples ( newExamples, newLabels, performOptimizationAfterIncrement );
-  
-  std::cerr << "call updateAfterIncrement " << std::endl;
-  
+    
   // update the corresponding matrices A, B and lookup tables T  
   // optional: do the optimization again using the previously known solutions as initialization
   this->updateAfterIncrement ( newClasses, performOptimizationAfterIncrement );
@@ -1893,5 +1895,18 @@ void FMKGPHyperparameterOptimization::addMultipleExamples( const std::vector< co
   //clean up
   newClasses.clear();
   
-  std::cerr << " --- FMKGPHyperparameterOptimization::addMultipleExamples done --- " << std::endl;    
+  t.stop();  
+
+  NICE::ResourceStatistics rs;
+  
+  std::cerr << "Time used for re-learning: " << t.getLast() << std::endl;
+  
+  long maxMemory;
+  rs.getMaximumMemory ( maxMemory );
+  
+  if ( this->verbose )
+    std::cerr << "Maximum memory used: " << maxMemory << " KB" << std::endl;  
+  
+  if ( this->verbose )
+    std::cerr << " --- FMKGPHyperparameterOptimization::addMultipleExamples done --- " << std::endl;    
 }

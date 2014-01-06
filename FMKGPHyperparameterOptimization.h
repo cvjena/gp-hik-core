@@ -152,7 +152,7 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     bool b_usePreviousAlphas;
     
     //! we store the alpha vectors for good initializations in the IL setting
-    std::map<int, NICE::Vector> lastAlphas;  
+    std::map<int, NICE::Vector> previousAlphas;  
 
     //! Update matrices (A, B, LUTs) and optionally find optimal parameters after adding (a) new example(s).  
     void updateAfterIncrement (

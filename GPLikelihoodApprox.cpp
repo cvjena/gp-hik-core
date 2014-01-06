@@ -158,13 +158,13 @@ void GPLikelihoodApprox::computeAlphaDirect(const OPTIMIZATION::matrix_type & x,
   std::map<int, NICE::Vector> alphas;
 
   // This has to be done m times for the multi-class case
-  if (verbose)
+  if ( this->verbose )
     std::cerr << "run ILS for every bin label. binaryLabels.size(): " << binaryLabels.size() << std::endl;
   for ( std::map<int, NICE::Vector>::const_iterator j = binaryLabels.begin(); j != binaryLabels.end() ; j++)
   {
     // (b) y^T (K+sI)^{-1} y
     int classCnt = j->first;
-    if (verbose)
+    if ( this->verbose )
     {
       std::cerr << "Solving linear equation system for class " << classCnt << " ..." << std::endl;
     }
@@ -212,13 +212,13 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
 
   // check whether we have been here before
   unsigned long hashValue = xv.getHashValue();
-  if (verbose)  
+  if ( this->verbose )  
     std::cerr << "Current parameter: " << xv << " (weird hash value is " << hashValue << ")" << std::endl;
   std::map<unsigned long, double>::const_iterator k = alreadyVisited.find(hashValue);
   
   if ( k != alreadyVisited.end() )
   {
-    if (verbose)
+    if ( this->verbose )
       std::cerr << "Using cached value: " << k->second << std::endl;
     
     //already computed, simply return the cached value
@@ -228,19 +228,19 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
   // set parameter value and check lower and upper bounds of pf
   if ( ikm->outOfBounds(xv) )
   {
-    if (verbose)
+    if ( this->verbose )
       std::cerr << "Parameters are out of bounds" << std::endl;
     return numeric_limits<double>::max();
   }
   
   ikm->setParameters ( xv );
-  if (verbose)  
+  if ( this->verbose )  
     std::cerr << "setParameters xv: " << xv << std::endl;
 
   // --- calculate the likelihood
   // (a) logdet(K + sI)
   Timer t;
-  if (verbose)  
+  if ( this->verbose )  
     std::cerr << "Calculating eigendecomposition " << ikm->rows() << " x " << ikm->cols() << std::endl;
   t.start();
   NICE::Vector eigenmax;
@@ -256,7 +256,7 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
   
   // we have to re-compute EV and EW in all cases, since we change the hyper parameter and thereby the kernel matrix 
   eig->getEigenvalues( *ikm, eigenmax, eigenmaxvectors, rank ); 
-  if (verbose)
+  if ( this->verbose )
     std::cerr << "eigenmax: " << eigenmax << std::endl;
       
   t.stop();
@@ -278,13 +278,14 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
   std::map<int, NICE::Vector> alphas;
 
   // This has to be done m times for the multi-class case
-  if (verbose)
+  if ( this->verbose )
     std::cerr << "run ILS for every bin label. binaryLabels.size(): " << binaryLabels.size() << std::endl;
+  
   for ( std::map<int, NICE::Vector>::const_iterator j = binaryLabels.begin(); j != binaryLabels.end() ; j++)
   {
     // (b) y^T (K+sI)^{-1} y
     int classCnt = j->first;
-    if (verbose)
+    if ( this->verbose )
     {
       std::cerr << "Solving linear equation system for class " << classCnt << " ..." << std::endl;
       std::cerr << "Size of the kernel matrix " << ikm->rows() << std::endl;
@@ -334,7 +335,7 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
   }
   
   // approximation stuff
-  if (verbose)  
+  if ( this->verbose )  
     cerr << "Approximating logdet(K) ..." << endl;
   t.start();
   LogDetApproxBaiAndGolub la;
@@ -351,9 +352,9 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
   }
 
                 
-  if (verbose)
+  if ( this->verbose )
     cerr << " frob norm squared: est:" << frobNormSquared << endl;
-  if (verbose)  
+  if ( this->verbose )  
     std::cerr << "trace: " << diagonalElements.Sum() << std::endl;
   double logdet = la.getLogDetApproximationUpperBound( diagonalElements.Sum(), /* trace = n only for non-transformed features*/
                              frobNormSquared, /* use a rough approximation of the frobenius norm */
@@ -363,7 +364,7 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
   
   t.stop();
   
-  if (verbose)
+  if ( this->verbose )
     cerr << "Time used for approximating logdet(K): " << t.getLast() << endl;
 
   // (c) adding the two terms
@@ -371,7 +372,7 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
   double dataterm = binaryDataterms.sum();
   nlikelihood += dataterm;
 
-  if (verbose)
+  if ( this->verbose )
     cerr << "OPT: " << xv << " " << nlikelihood << " " << logdet << " " << dataterm << endl;
 
   if ( nlikelihood < min_nlikelihood )

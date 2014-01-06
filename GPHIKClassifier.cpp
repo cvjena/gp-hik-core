@@ -263,9 +263,7 @@ void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & e
     std::cerr << "optimization done" << std::endl;
   
   if ( ( varianceApproximation != NONE ) )
-  {
-    std::cerr << "now prepare for the uncertainty prediction" << std::endl;
-    
+  {    
     switch (varianceApproximation)    
     {
       case APPROXIMATE_ROUGH:
@@ -328,9 +326,7 @@ void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & e
     std::cerr << "optimization done, now prepare for the uncertainty prediction" << std::endl;
   
   if ( ( varianceApproximation != NONE ) )
-  {
-    std::cerr << "now prepare for the uncertainty prediction" << std::endl;
-    
+  {    
     switch (varianceApproximation)    
     {
       case APPROXIMATE_ROUGH:
@@ -651,19 +647,11 @@ void GPHIKClassifier::addExample( const NICE::SparseVector * example,
 			     const bool & performOptimizationAfterIncrement
 			   )
 {
-  //***done*** //TODO add option for starting with empty classifier!
-  //***done***   // -> call train() with converted input here
-  //***done***  // TODO add option to go from 2 to 3 classes!  ***done***
-  //***done*** // TODO add option going from 1 to 2 classes without adding new alpha vector
-  //***done*** // TODO check variance matrices in update ***done***
-  // TODO add check option for variance update
-  //***done*** // TODO adapt code for addMultipleExamples  
-  
   
   if ( this->gphyper == NULL )
   {
     //call train method instead
-     std::cerr << "Classifier not initially trained yet -- run initial training instead of incremental extension!"  << std::endl;
+    std::cerr << "Classifier not initially trained yet -- run initial training instead of incremental extension!"  << std::endl;
      
     std::vector< const NICE::SparseVector *> examplesVec;
     examplesVec.push_back ( example );
@@ -674,9 +662,7 @@ void GPHIKClassifier::addExample( const NICE::SparseVector * example,
   }
   else
   {
-    this->gphyper->addExample( example, label, performOptimizationAfterIncrement );
-
-    std::cerr << " --- GPHIKClassifierIL::addExample done --- " << std::endl;   
+    this->gphyper->addExample( example, label, performOptimizationAfterIncrement );  
   }
 }
 
@@ -692,10 +678,9 @@ void GPHIKClassifier::addMultipleExamples( const std::vector< const NICE::Sparse
   if ( this->gphyper == NULL )
   {
     //call train method instead
+    std::cerr << "Classifier not initially trained yet -- run initial training instead of incremental extension!"  << std::endl;
     
     this->train ( newExamples, newLabels );    
-    
-    std::cerr << "train method successfully called in add multiple examples" << std::endl;
   }
   else
   {
