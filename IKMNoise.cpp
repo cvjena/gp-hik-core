@@ -3,11 +3,13 @@
 * @author Erik Rodner, Alexander Freytag
 * @brief Noise matrix (for model regularization) as an implicit kernel matrix (Implementation)
 * @date 02/14/2012
-
 */
+
+// STL includes
 #include <iostream>
 #include <limits>
 
+// NICE-core includes
 #include "IKMNoise.h"
 
 using namespace NICE;
@@ -18,8 +20,6 @@ IKMNoise::IKMNoise()
   this->size = 0;
   this->noise = 0.1;
   this->optimizeNoise = false;
-  this->np = 0;
-  this->nn = 0;
   this->verbose = false;
 }
 
@@ -28,30 +28,7 @@ IKMNoise::IKMNoise( uint size, double noise, bool optimizeNoise )
   this->size = size;
   this->noise = noise;
   this->optimizeNoise = optimizeNoise;
-  this->np = 0;
-  this->nn = 0;
   this->verbose = false;
-}
-
-IKMNoise::IKMNoise( const Vector & labels, double noise, bool optimizeNoise )
-{
-  this->size = labels.size();
-  this->noise = noise;
-  this->optimizeNoise = optimizeNoise;
-  this->labels = labels;
-  this->np = 0;
-  this->nn = 0;
-  this->verbose = false;
-  for ( uint i = 0 ; i < labels.size(); i++ )
-    if ( labels[i] == 1 ) 
-      this->np++;
-    else
-      this->nn++;
-    
-  if (verbose)
-  {
-    std::cerr << "IKMNoise np : " << np << " nn: " << nn << std::endl;
-  }
 }
 
 
@@ -63,47 +40,16 @@ IKMNoise::~IKMNoise()
 void IKMNoise::getDiagonalElements ( Vector & diagonalElements ) const
 {
   diagonalElements.resize( size );
-  if ( labels.size() == 0 ) {
-    diagonalElements.set( noise );
-  } else {
-    for ( uint i = 0 ; i < labels.size(); i++ )
-      if ( labels[i] == 1 ) {
-        diagonalElements[i] = 2*np*noise/size;
-      } else {
-        diagonalElements[i] = 2*nn*noise/size;
-      }
-  }
+  diagonalElements.set( noise );
 }
 
 void IKMNoise::getFirstDiagonalElement ( double & diagonalElement ) const
 {
-  if ( labels.size() == 0 )
-  {
-    if (verbose)
-    {    
-      std::cerr << "IKMNoise::getFirstDiagonalElement  and labels.size() is zero" << std::endl;
-    }
-    diagonalElement = noise ;
+  if (verbose)
+  {    
+    std::cerr << "IKMNoise::getFirstDiagonalElement  and labels.size() is zero" << std::endl;
   }
-  else
-  {
-    if ( labels[0] == 1 )
-    {
-      if (verbose)
-      {          
-        std::cerr << "IKMNoise::getFirstDiagonalElement -- and first entry is +1" << std::endl;
-      }
-      diagonalElement = 2*np*noise/size;
-    } 
-    else
-    {
-      if (verbose)
-      {                
-        std::cerr << "IKMNoise::getFirstDiagonalElement -- and first entry is -1" << std::endl;
-      }
-      diagonalElement = 2*nn*noise/size;
-    }
-  }
+  diagonalElement = noise ;
 }
 
 
@@ -159,17 +105,7 @@ void IKMNoise::multiply (NICE::Vector & y, const NICE::Vector & x) const
 {
   y.resize( rows() );
   
-  if ( labels.size() == 0 )
-  {
-    y = noise * x;
-  } else {
-    for ( uint i = 0 ; i < labels.size(); i++ )
-      if ( labels[i] == 1 ) {
-        y[i] = 2*np*noise/size * x[i];
-      } else {
-        y[i] = 2*nn*noise/size * x[i];
-      }
-  }
+  y = noise * x;
 }
 
 uint IKMNoise::rows () const
@@ -197,50 +133,90 @@ void IKMNoise::restore ( std::istream & is, int format )
   {
     is.precision (std::numeric_limits<double>::digits10 + 1); 
     
-    std::string tmp;
-    is >> tmp; //class name
+    std::string tmp;    
+
+    bool b_endOfBlock ( false ) ;
     
-    is >> tmp;
-    is >> size;
-    
-    is >> tmp;
-    is >> noise;
-    
-    is >> tmp;
-    is >> optimizeNoise;
-    
-    is >> tmp;
-    is >> np;
-    
-    is >> tmp;
-    is >> nn;
-    
-    is >> tmp;
-    is >> labels;
+    while ( !b_endOfBlock )
+    {
+      is >> tmp; // start of block 
+      
+      if ( this->isEndTag( tmp, "IKMNoise" ) )
+      {
+        b_endOfBlock = true;
+        continue;
+      }
+                  
+      
+      tmp = this->removeStartTag ( tmp );
+      
+      if ( tmp.compare("size") == 0 )
+      {
+          is >> size;
+      }
+      else if ( tmp.compare("noise") == 0 )
+      {
+          is >> noise;
+      }
+      else if ( tmp.compare("optimizeNoise") == 0 )
+      {
+          is >> optimizeNoise;
+      }
+      else
+      {
+	std::cerr << "WARNING -- unexpected IKMNoise object -- " << tmp << " -- for restoration... aborting" << std::endl;
+	throw;	
+      }
+      
+      is >> tmp; // end of block 
+      tmp = this->removeEndTag ( tmp );      
+    }
+   }
+  else
+  {
+    std::cerr << "IKMNoise::restore -- InStream not initialized - restoring not possible!" << std::endl;
   }
 }
 
 void IKMNoise::store ( std::ostream & os, int format ) const
 {
-  os << "IKMNoise" << std::endl;
-  os << "size: " << size << std::endl;
-  os << "noise: " << noise << std::endl;
-  os << "optimizeNoise: " <<  optimizeNoise << std::endl;
-  os << "np: " << np  << std::endl;
-  os << "nn: " << nn << std::endl;
-  os << "labels: " << labels << std::endl;
+  // show starting point
+  os << this->createStartTag( "IKMNoise" ) << std::endl;
+  
+  
+  
+  os << this->createStartTag( "size" ) << std::endl;
+  os << size << std::endl;
+  os << this->createEndTag( "size" ) << std::endl;
+  
+  os << this->createStartTag( "noise" ) << std::endl;
+  os << noise << std::endl;
+  os << this->createEndTag( "noise" ) << std::endl;
+  
+  os << this->createStartTag( "optimizeNoise" ) << std::endl;
+  os << optimizeNoise << std::endl;
+  os << this->createEndTag( "optimizeNoise" ) << std::endl; 
+  
+  // done
+  os << this->createEndTag( "IKMNoise" ) << std::endl;
 }
 
-// ----------------- INCREMENTAL LEARNING METHODS -----------------------
-void IKMNoise::addExample(const NICE::SparseVector & x, const NICE::Vector & binLabels)
+///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+// interface specific methods for incremental extensions
+///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+
+void IKMNoise::addExample( const NICE::SparseVector * example, 
+			     const double & label, 
+			     const bool & performOptimizationAfterIncrement
+			   )
 {
-  ++size;
-  if ( (np != 0) && (nn != 0) )
-  {
-    labels = binLabels;
-    if (binLabels[binLabels.size()-1] == 1)
-      ++np;
-    else
-      ++nn;
-  }
+ this->size++;
+}
+
+void IKMNoise::addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
+				      const NICE::Vector & newLabels,
+				      const bool & performOptimizationAfterIncrement
+				    )
+{
+  this->size += newExamples.size();
 }

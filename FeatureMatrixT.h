@@ -7,23 +7,25 @@
 #ifndef FEATUREMATRIXINCLUDE
 #define FEATUREMATRIXINCLUDE
 
+// STL includes
 #include <vector>
 #include <set>
 #include <map>
 #include <iostream>
 #include <limits>
 
+// NICE-core includes
 #include <core/basics/Exception.h>
-#include "core/basics/Persistent.h"
-
+#include <core/basics/Persistent.h>
+// 
 #include <core/vector/MatrixT.h>
 #include <core/vector/SparseVectorT.h>
-
+// 
 #ifdef NICE_USELIB_MATIO
   #include <core/matlabAccess/MatFileIO.h> 
 #endif
   
-
+// gp-hik-core includes
 #include "SortedVectorSparse.h"
 #include "gp-hik-core/parameterizedFunctions/ParameterizedFunction.h"
 
@@ -95,7 +97,7 @@ template<class T> class FeatureMatrixT : NICE::Persistent
 #endif
 
     /** just another constructor for sparse features */
-    FeatureMatrixT(const std::vector< SparseVector * > & X, const bool dimensionsOverExamples = false, const int & _dim = -1);
+    FeatureMatrixT(const std::vector< const NICE::SparseVector * > & X, const bool dimensionsOverExamples = false, const int & _dim = -1);
     
 #ifdef NICE_USELIB_MATIO
     /**
@@ -301,7 +303,7 @@ template<class T> class FeatureMatrixT : NICE::Persistent
     void set_features(const std::vector<std::vector<T> > & _features, std::vector<std::vector<int> > & permutations, const int & _dim = -1);
     void set_features(const std::vector<std::vector<T> > & _features, std::vector<std::map<int,int> > & permutations, const int & _dim = -1);
     void set_features(const std::vector<std::vector<T> > & _features, const int & _dim = -1);
-    void set_features(const std::vector< NICE::SparseVector * > & _features, const bool dimensionsOverExamples = false, const int & _dim = -1);
+    void set_features(const std::vector< const NICE::SparseVector * > & _features, const bool dimensionsOverExamples = false, const int & _dim = -1);
     
     /**
     * @brief get a permutation vector for each dimension

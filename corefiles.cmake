@@ -38,5 +38,6 @@ SET(nice_gp-hik-core_HDR
 ./parameterizedFunctions/PFMKL.h
 ./parameterizedFunctions/PFAbsExp.h
 ./parameterizedFunctions/PFWeightedDim.h
+./OnlineLearnable.h
 )
 

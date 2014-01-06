@@ -1,6 +1,6 @@
 /** 
 * @file FMKGPHyperparameterOptimization.h
-* @brief Heart of the framework to set up everything, perform optimization, incremental updates, classification, variance prediction (Interface)
+* @brief Heart of the framework to set up everything, perform optimization, classification, and variance prediction (Interface)
 * @author Erik Rodner, Alexander Freytag
 * @date 01/02/2012
 
@@ -8,10 +8,12 @@
 #ifndef _NICE_FMKGPHYPERPARAMETEROPTIMIZATIONINCLUDE
 #define _NICE_FMKGPHYPERPARAMETEROPTIMIZATIONINCLUDE
 
+// STL includes
 #include <vector>
 #include <set>
 #include <map>
 
+// NICE-core includes
 #include <core/algebra/EigValues.h>
 #include <core/algebra/IterativeLinearSolver.h>
 #include <core/basics/Config.h>
@@ -22,10 +24,13 @@
 #include <core/matlabAccess/MatFileIO.h>
 #endif
 
-#include "FastMinKernel.h"
-#include "GPLikelihoodApprox.h"
-#include "IKMLinearCombination.h"
-#include "Quantization.h"
+// gp-hik-core includes
+#include "gp-hik-core/FastMinKernel.h"
+#include "gp-hik-core/GPLikelihoodApprox.h"
+#include "gp-hik-core/IKMLinearCombination.h"
+#include "gp-hik-core/OnlineLearnable.h"
+#include "gp-hik-core/Quantization.h"
+
 
 #include "gp-hik-core/parameterizedFunctions/ParameterizedFunction.h"
 
@@ -33,11 +38,11 @@ namespace NICE {
   
   /** 
  * @class FMKGPHyperparameterOptimization
- * @brief Heart of the framework to set up everything, perform optimization, incremental updates, classification, variance prediction
+ * @brief Heart of the framework to set up everything, perform optimization, classification, and variance prediction
  * @author Erik Rodner, Alexander Freytag
  */
   
-class FMKGPHyperparameterOptimization : NICE::Persistent
+class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::OnlineLearnable
 {
   protected:
     enum {
@@ -102,52 +107,40 @@ class FMKGPHyperparameterOptimization : NICE::Persistent
     double * precomputedTForVarEst;
 
     //! optimize noise with the GP likelihood
-    bool optimizeNoise;
-
-    //! learn in a balanced manner
-    bool learnBalanced;       
+    bool optimizeNoise;     
        
-    //! k largest eigenvalues for every kernel matrix (k == nrOfEigenvaluesToConsider, if we do not use balanced learning, we have only 1 entry)
-    std::vector< NICE::Vector> eigenMax;
+    //! k largest eigenvalues of the kernel matrix (k == nrOfEigenvaluesToConsider)
+    NICE::Vector eigenMax;
 
-    //! eigenvectors corresponding to k largest eigenvalues for every matrix (k == nrOfEigenvaluesToConsider) -- format: nxk
-    std::vector< NICE::Matrix> eigenMaxVectors;
+    //! eigenvectors corresponding to k largest eigenvalues (k == nrOfEigenvaluesToConsider) -- format: nxk
+    NICE::Matrix eigenMaxVectors;
     
     //! needed for optimization and variance approximation
-    std::map<int, IKMLinearCombination * > ikmsums;
+    IKMLinearCombination * ikmsum;
     
     //! storing the labels is needed for Incremental Learning (re-optimization)
     NICE::Vector labels;
     
-    //! we store the alpha vectors for good initializations in the IL setting
-    std::map<int, NICE::Vector> lastAlphas;
 
     //! calculate binary label vectors using a multi-class label vector
     int prepareBinaryLabels ( std::map<int, NICE::Vector> & binaryLabels, const NICE::Vector & y , std::set<int> & myClasses);     
     
-    //! prepare the GPLike objects for given binary labels and already given ikmsum-objects
-    inline void setupGPLikelihoodApprox(std::map<int,GPLikelihoodApprox * > & gplikes, const std::map<int, NICE::Vector> & binaryLabels, std::map<int,uint> & parameterVectorSizes);    
+    //! prepare the GPLike object for given binary labels and already given ikmsum-object
+    inline void setupGPLikelihoodApprox( GPLikelihoodApprox * & gplike, const std::map<int, NICE::Vector> & binaryLabels, uint & parameterVectorSize);    
     
     //! update eigenvectors and eigenvalues for given ikmsum-objects and a method to compute eigenvalues
-    inline void updateEigenVectors();
+    inline void updateEigenDecomposition( const int & i_noEigenValues );
     
     //! core of the optimize-functions
-    inline void performOptimization(std::map<int,GPLikelihoodApprox * > & gplikes, const std::map<int,uint> & parameterVectorSizes, const bool & roughOptimization = true);
+    inline void performOptimization( GPLikelihoodApprox & gplike, const uint & parameterVectorSize);
     
     //! apply the optimized transformation values to the underlying features
-    inline void transformFeaturesWithOptimalParameters(const std::map<int,GPLikelihoodApprox * > & gplikes, const std::map<int,uint> & parameterVectorSizes);
+    inline void transformFeaturesWithOptimalParameters(const GPLikelihoodApprox & gplike, const uint & parameterVectorSize);
     
     //! build the resulting matrices A and B as well as lookup tables T for fast evaluations using the optimized parameter settings
-    inline void computeMatricesAndLUTs(const std::map<int,GPLikelihoodApprox * > & gplikes);
+    inline void computeMatricesAndLUTs( const GPLikelihoodApprox & gplike);
     
-    //! Update matrices (A, B, LUTs) and optionally find optimal parameters after adding a new example.  
-    void updateAfterSingleIncrement (const NICE::SparseVector & x, const bool & performOptimizationAfterIncrement = false);    
-    //! Update matrices (A, B, LUTs) and optionally find optimal parameters after adding multiple examples.  
-    void updateAfterMultipleIncrements (const std::vector<const NICE::SparseVector*> & x, const bool & performOptimizationAfterIncrement = false);   
-    
-    //! use the alphas from the last iteration as initial guess for the ILS?
-    bool usePreviousAlphas;
-    
+     
     //! store the class number of the positive class (i.e., larger class no), only used in binary settings
     int binaryLabelPositive;
     //! store the class number of the negative class (i.e., smaller class no), only used in binary settings
@@ -155,8 +148,19 @@ class FMKGPHyperparameterOptimization : NICE::Persistent
     
     //! contains all class numbers of the currently known classes
     std::set<int> knownClasses;
-    //! contains the class numbers of new classes - only needed within the increment step
-    std::set<int> newClasses;
+    
+    bool b_usePreviousAlphas;
+    
+    //! we store the alpha vectors for good initializations in the IL setting
+    std::map<int, NICE::Vector> lastAlphas;  
+
+    //! Update matrices (A, B, LUTs) and optionally find optimal parameters after adding (a) new example(s).  
+    void updateAfterIncrement (
+      const std::set<int> newClasses,
+      const bool & performOptimizationAfterIncrement = false
+    );    
+  
+
     
   public:  
     
@@ -175,11 +179,17 @@ class FMKGPHyperparameterOptimization : NICE::Persistent
     /** simple destructor */
     virtual ~FMKGPHyperparameterOptimization();
     
-    // get and set methods
+    ///////////////////// ///////////////////// /////////////////////
+    //                         GET / SET
+    ///////////////////// ///////////////////// ///////////////////// 
     void setParameterUpperBound(const double & _parameterUpperBound);
     void setParameterLowerBound(const double & _parameterLowerBound);  
     
-    //high level methods
+    std::set<int> getKnownClassNumbers ( ) const;
+    
+    ///////////////////// ///////////////////// /////////////////////
+    //                      CLASSIFIER STUFF
+    ///////////////////// ///////////////////// /////////////////////  
     
     void initialize( const Config *conf, ParameterizedFunction *pf, FastMinKernel *fmk = NULL, const std::string & confSection = "GPHIKClassifier" );
        
@@ -219,11 +229,18 @@ class FMKGPHyperparameterOptimization : NICE::Persistent
     void optimize ( std::map<int, NICE::Vector> & binaryLabels );    
     
     /**
-    * @brief Compute the necessary variables for appxorimations of predictive variance, assuming an already initialized fmk object
+    * @brief Compute the necessary variables for appxorimations of predictive variance (LUTs), assuming an already initialized fmk object
     * @author Alexander Freytag
     * @date 11-04-2012 (dd-mm-yyyy)
     */       
-    void prepareVarianceApproximation();
+    void prepareVarianceApproximationRough();
+    
+    /**
+    * @brief Compute the necessary variables for fine appxorimations of predictive variance (EVs), assuming an already initialized fmk object
+    * @author Alexander Freytag
+    * @date 11-04-2012 (dd-mm-yyyy)
+    */       
+    void prepareVarianceApproximationFine();    
     
     /**
     * @brief classify an example 
@@ -249,44 +266,104 @@ class FMKGPHyperparameterOptimization : NICE::Persistent
     */
     int classify ( const NICE::Vector & x, SparseVector & scores ) const;    
 
+    //////////////////////////////////////////
+    // variance computation: sparse inputs
+    //////////////////////////////////////////
+    
     /**
     * @brief compute predictive variance for a given test example using a rough approximation: k_{**} -  k_*^T (K+\sigma I)^{-1} k_* <= k_{**} - |k_*|^2 * 1 / \lambda_max(K + \sigma I), where we approximate |k_*|^2 by neglecting the mixed terms
     * @author Alexander Freytag
     * @date 10-04-2012 (dd-mm-yyyy)
     * @param x input example
-    * @param predVariances contains the approximations of the predictive variances
+    * @param predVariance contains the approximation of the predictive variance
     *
     */    
-    void computePredictiveVarianceApproximateRough(const NICE::SparseVector & x, NICE::Vector & predVariances) const;
-
+    void computePredictiveVarianceApproximateRough(const NICE::SparseVector & x, double & predVariance ) const;
+    
     /**
     * @brief compute predictive variance for a given test example using a fine approximation  (k eigenvalues and eigenvectors to approximate the quadratic term)
     * @author Alexander Freytag
     * @date 18-04-2012 (dd-mm-yyyy)
     * @param x input example
-    * @param predVariances contains the approximations of the predictive variances
+     * @param predVariance contains the approximation of the predictive variance
     *
     */    
-    void computePredictiveVarianceApproximateFine(const NICE::SparseVector & x, NICE::Vector & predVariances) const;    
+    void computePredictiveVarianceApproximateFine(const NICE::SparseVector & x, double & predVariance ) const; 
     
     /**
     * @brief compute exact predictive variance for a given test example using ILS methods (exact, but more time consuming than approx versions)
     * @author Alexander Freytag
     * @date 10-04-2012 (dd-mm-yyyy)
     * @param x input example
-    * @param predVariances contains the approximations of the predictive variances
+     * @param predVariance contains the approximation of the predictive variance
     *
     */    
-    void computePredictiveVarianceExact(const NICE::SparseVector & x, NICE::Vector & predVariances) const;
+    void computePredictiveVarianceExact(const NICE::SparseVector & x, double & predVariance ) const; 
     
-    /** Persistent interface */
+    
+    //////////////////////////////////////////
+    // variance computation: non-sparse inputs
+    //////////////////////////////////////////
+    
+    /**
+    * @brief compute predictive variance for a given test example using a rough approximation: k_{**} -  k_*^T (K+\sigma I)^{-1} k_* <= k_{**} - |k_*|^2 * 1 / \lambda_max(K + \sigma I), where we approximate |k_*|^2 by neglecting the mixed terms
+    * @author Alexander Freytag
+    * @date 19-12-2013 (dd-mm-yyyy)
+    * @param x input example
+    * @param predVariance contains the approximation of the predictive variance
+    *
+    */    
+    void computePredictiveVarianceApproximateRough(const NICE::Vector & x, double & predVariance ) const;    
+
+   
+    
+    /**
+    * @brief compute predictive variance for a given test example using a fine approximation  (k eigenvalues and eigenvectors to approximate the quadratic term)
+    * @author Alexander Freytag
+    * @date 19-12-2013 (dd-mm-yyyy)
+    * @param x input example
+     * @param predVariance contains the approximation of the predictive variance
+    *
+    */    
+    void computePredictiveVarianceApproximateFine(const NICE::Vector & x, double & predVariance ) const;      
+    
+
+    
+   /**
+    * @brief compute exact predictive variance for a given test example using ILS methods (exact, but more time consuming than approx versions)
+    * @author Alexander Freytag
+    * @date 19-12-2013 (dd-mm-yyyy)
+    * @param x input example
+    * @param predVariance contains the approximation of the predictive variance
+    *
+    */    
+    void computePredictiveVarianceExact(const NICE::Vector & x, double & predVariance ) const;  
+    
+    
+    
+    
+    
+    ///////////////////// INTERFACE PERSISTENT /////////////////////
+    // interface specific methods for store and restore
+    ///////////////////// INTERFACE PERSISTENT ///////////////////// 
+    
     void restore ( std::istream & is, int format = 0 );
     void store ( std::ostream & os, int format = 0 ) const;
     void clear ( ) ;
     
-    void addExample( const NICE::SparseVector & x, const double & label, const bool & performOptimizationAfterIncrement = true);
-    void addMultipleExamples( const std::vector<const NICE::SparseVector*> & newExamples, const NICE::Vector & labels, const bool & performOptimizationAfterIncrement = false);
-        
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+    // interface specific methods for incremental extensions
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////    
+    
+    virtual void addExample( const NICE::SparseVector * example, 
+			     const double & label, 
+			     const bool & performOptimizationAfterIncrement = true
+			   );
+			   
+    virtual void addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
+				      const NICE::Vector & newLabels,
+				      const bool & performOptimizationAfterIncrement = true
+				    );         
 };
 
 }

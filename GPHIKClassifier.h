@@ -8,13 +8,19 @@
 #ifndef _NICE_GPHIKCLASSIFIERINCLUDE
 #define _NICE_GPHIKCLASSIFIERINCLUDE
 
+// STL includes
 #include <string>
 #include <limits>
 
+// NICE-core includes
 #include <core/basics/Config.h>
+#include <core/basics/Persistent.h>
+// 
 #include <core/vector/SparseVectorT.h>
 
-#include "FMKGPHyperparameterOptimization.h"
+// gp-hik-core includes
+#include "gp-hik-core/FMKGPHyperparameterOptimization.h"
+#include "gp-hik-core/OnlineLearnable.h"
 #include "gp-hik-core/parameterizedFunctions/ParameterizedFunction.h"
 
 namespace NICE {
@@ -25,7 +31,7 @@ namespace NICE {
  * @author Erik Rodner, Alexander Freytag
  */
  
-class GPHIKClassifier
+class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
 {
 
   protected:
@@ -57,18 +63,27 @@ class GPHIKClassifier
     * @brief classify a given example with the previously learnt model
     * @param pe example to be classified given in a sparse representation
     */    
-    void init(const NICE::Config *conf, const std::string & confSection);
+    void init(const NICE::Config *conf, const std::string & s_confSection);
        
 
   public:
 
     /** simple constructor */
-    GPHIKClassifier( const NICE::Config *conf, const std::string & confSection = "GPHIKClassifier" );
+    GPHIKClassifier( const NICE::Config *conf = NULL, const std::string & s_confSection = "GPHIKClassifier" );
       
     /** simple destructor */
     ~GPHIKClassifier();
+    
+    ///////////////////// ///////////////////// /////////////////////
+    //                         GET / SET
+    ///////////////////// ///////////////////// /////////////////////      
+    
+    std::set<int> getKnownClassNumbers ( ) const;    
    
-
+    ///////////////////// ///////////////////// /////////////////////
+    //                      CLASSIFIER STUFF
+    ///////////////////// ///////////////////// /////////////////////      
+    
     /** 
      * @brief classify a given example with the previously learnt model
      * @date 19-06-2012 (dd-mm-yyyy)
@@ -77,7 +92,7 @@ class GPHIKClassifier
      * @param result (int) class number of most likely class
      * @param scores (SparseVector) classification scores for known classes
      */        
-    void classify ( const NICE::SparseVector * example,  int & result, NICE::SparseVector & scores );
+    void classify ( const NICE::SparseVector * example,  int & result, NICE::SparseVector & scores ) const;
     
     /** 
      * @brief classify a given example with the previously learnt model
@@ -88,7 +103,7 @@ class GPHIKClassifier
      * @param scores (SparseVector) classification scores for known classes
      * @param uncertainty (double*) predictive variance of the classification result, if computed
      */    
-    void classify ( const NICE::SparseVector * example,  int & result, NICE::SparseVector & scores, double & uncertainty );
+    void classify ( const NICE::SparseVector * example,  int & result, NICE::SparseVector & scores, double & uncertainty ) const;
     
     /** 
      * @brief classify a given example with the previously learnt model
@@ -99,7 +114,7 @@ class GPHIKClassifier
      * @param result (int) class number of most likely class
      * @param scores (SparseVector) classification scores for known classes
      */        
-    void classify ( const NICE::Vector * example,  int & result, NICE::SparseVector & scores );
+    void classify ( const NICE::Vector * example,  int & result, NICE::SparseVector & scores ) const;
     
     /** 
      * @brief classify a given example with the previously learnt model
@@ -109,9 +124,9 @@ class GPHIKClassifier
      * @param example (non-sparse Vector) to be classified given in a non-sparse representation
      * @param result (int) class number of most likely class
      * @param scores (SparseVector) classification scores for known classes
-     * @param uncertainty (double*) predictive variance of the classification result, if computed
+     * @param uncertainty (double) predictive variance of the classification result, if computed
      */    
-    void classify ( const NICE::Vector * example,  int & result, NICE::SparseVector & scores, double & uncertainty );    
+    void classify ( const NICE::Vector * example,  int & result, NICE::SparseVector & scores, double & uncertainty ) const;    
 
     /**
      * @brief train this classifier using a given set of examples and a given set of binary label vectors 
@@ -120,7 +135,7 @@ class GPHIKClassifier
      * @param examples (std::vector< NICE::SparseVector *>) training data given in a sparse representation
      * @param labels (Vector) class labels (multi-class)
      */
-    void train ( const std::vector< NICE::SparseVector *> & examples, const NICE::Vector & labels );
+    void train ( const std::vector< const NICE::SparseVector *> & examples, const NICE::Vector & labels );
     
     /** 
      * @brief train this classifier using a given set of examples and a given set of binary label vectors 
@@ -129,13 +144,8 @@ class GPHIKClassifier
      * @param examples examples to use given in a sparse data structure
      * @param binLabels corresponding binary labels with class no. There is no need here that every examples has only on positive entry in this set (1,-1)
      */
-    void train ( const std::vector< NICE::SparseVector *> & examples, std::map<int, NICE::Vector> & binLabels );
+    void train ( const std::vector< const NICE::SparseVector *> & examples, std::map<int, NICE::Vector> & binLabels );
     
-    /** Persistent interface */
-    void restore ( std::istream & is, int format = 0 );
-    void store ( std::ostream & os, int format = 0 ) const;
-    void clear ();
-
     GPHIKClassifier *clone () const;
 
     /** 
@@ -143,12 +153,46 @@ class GPHIKClassifier
      * @date 19-06-2012 (dd-mm-yyyy)
      * @author Alexander Freytag
      * @param examples example for which the classification uncertainty shall be predicted, given in a sparse representation
-     * @param uncertainties contains the resulting classification uncertainties (1 entry for standard setting, m entries for binary-balanced setting)
+     * @param uncertainty contains the resulting classification uncertainty
      */       
-    void predictUncertainty( const NICE::SparseVector * example, NICE::Vector & uncertainties );
+    void predictUncertainty( const NICE::SparseVector * example, double & uncertainty ) const;
     
-    void addExample( const NICE::SparseVector * example, const double & label, const bool & performOptimizationAfterIncrement = true);
-    void addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples, const NICE::Vector & newLabels, const bool & performOptimizationAfterIncrement = true);
+    /** 
+     * @brief prediction of classification uncertainty
+     * @date 19-12-2013 (dd-mm-yyyy)
+     * @author Alexander Freytag
+     * @param examples example for which the classification uncertainty shall be predicted, given in a non-sparse representation
+     * @param uncertainty contains the resulting classification uncertainty
+     */       
+    void predictUncertainty( const NICE::Vector * example, double & uncertainty ) const;    
+    
+
+
+    ///////////////////// INTERFACE PERSISTENT /////////////////////
+    // interface specific methods for store and restore
+    ///////////////////// INTERFACE PERSISTENT /////////////////////   
+    
+    void restore ( std::istream & is, int format = 0 );
+    void store ( std::ostream & os, int format = 0 ) const;
+    void clear ();
+    
+    
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+    // interface specific methods for incremental extensions
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+    
+    virtual void addExample( const NICE::SparseVector * example, 
+			     const double & label, 
+			     const bool & performOptimizationAfterIncrement = true
+			   );
+			   
+    virtual void addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
+				      const NICE::Vector & newLabels,
+				      const bool & performOptimizationAfterIncrement = true
+				    );       
+
+
+
 };
 
 }

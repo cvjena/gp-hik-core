@@ -7,6 +7,7 @@
 #ifndef SORTEDVECTORSPARSEINCLUDE
 #define SORTEDVECTORSPARSEINCLUDE
 
+// STL includes
 #include <vector>
 #include <cmath>
 #include <map>
@@ -14,10 +15,13 @@
 #include <iostream>
 #include <limits>
 
+// NICE-core includes
 #include <core/basics/Exception.h>
+#include <core/basics/Persistent.h>
+// 
 #include <core/vector/VectorT.h>
 #include <core/vector/SparseVectorT.h>
-#include "core/basics/Persistent.h"
+
 
 namespace NICE {
 
@@ -587,70 +591,151 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
     /** Persistent interface */
     virtual void restore ( std::istream & is, int format = 0 )
     {
-      if (is.good())
+      bool b_restoreVerbose ( false );
+      if ( is.good() )
       {
-        is.precision (std::numeric_limits<double>::digits10 + 1);
-        
-        std::string tmp;
-        is >> tmp; //class name
-        
-        is >> tmp;
-        is >> tolerance;
-               
-        is >> tmp;
-        is >> n;
-               
-        is >> tmp;
-        int size;
-        is >> size;
-        
-        is >> tmp;
-        
-        T origValue;
-        int origIndex;
-        T transformedValue;
-        
-        nzData.clear();
-        for (int i = 0; i < size; i++)
-        {
-         
-          is >> origValue;
-          is >> origIndex;
-          is >> transformedValue;
-        
-          std::pair<T, dataelement > p ( origValue, dataelement ( origIndex, transformedValue ) );
-          elementpointer it = nzData.insert ( p);
-          nonzero_indices.insert ( std::pair<int, elementpointer> ( origIndex, it ) );
-        }
-        
-        if (verbose)
-        {
-          std::cerr << "SortedVectorSparse::restore" << std::endl;      
-          std::cerr << "tolerance: " << tolerance << std::endl;          
-          std::cerr << "n: " << n << std::endl;          
-          std::cerr << "size: " << size << std::endl;          
-        }
+	if ( b_restoreVerbose ) 
+	  std::cerr << " restore SortedVectorSparse" << std::endl;
+	
+	std::string tmp;
+	is >> tmp; //class name 
+	
+	if ( ! this->isStartTag( tmp, "SortedVectorSparse" ) )
+	{
+	    std::cerr << " WARNING - attempt to restore SortedVectorSparse, but start flag " << tmp << " does not match! Aborting... " << std::endl;
+	    throw;
+	}   
+	    
+	is.precision ( std::numeric_limits<double>::digits10 + 1);
+	
+	bool b_endOfBlock ( false ) ;
+	
+	while ( !b_endOfBlock )
+	{
+	  is >> tmp; // start of block 
+	  
+	  if ( this->isEndTag( tmp, "SortedVectorSparse" ) )
+	  {
+	    b_endOfBlock = true;
+	    continue;
+	  }      
+	  
+	  tmp = this->removeStartTag ( tmp );
+	  
+	  if ( b_restoreVerbose )
+	    std::cerr << " currently restore section " << tmp << " in SortedVectorSparse" << std::endl;
+	  
+	  if ( tmp.compare("tolerance") == 0 )
+	  {
+	    is >> tolerance;        
+	    is >> tmp; // end of block 
+	    tmp = this->removeEndTag ( tmp );
+	  }
+	  else if ( tmp.compare("n") == 0 )
+	  {
+	    is >> n;        
+	    is >> tmp; // end of block 
+	    tmp = this->removeEndTag ( tmp );
+	  }
+	  else if ( tmp.compare("underlying_data_(sorted)") == 0 )
+	  {
+	    is >> tmp; // start of block 
+	    
+	    int nonZeros;
+	    if ( ! this->isStartTag( tmp, "nonZeros" ) )
+	    {
+	      std::cerr << "Attempt to restore SortedVectorSparse, but found no information about nonZeros elements. Aborting..." << std::endl;
+	      throw;
+	    }
+	    else
+	    {
+	      is >> nonZeros;
+	      is >> tmp; // end of block 
+	      tmp = this->removeEndTag ( tmp );     
+	    }
+	    
+	    is >> tmp; // start of block 
+	    
+	    if ( ! this->isStartTag( tmp, "data" ) )
+	    {
+	      std::cerr << "Attempt to restore SortedVectorSparse, but found no data. Aborting..." << std::endl;
+	      throw;
+	    }
+	    else
+	    {	    
+	      T origValue;
+	      int origIndex;
+	      T transformedValue;
+	      
+	      nzData.clear();
+	      for (int i = 0; i < nonZeros; i++)
+	      {
+	      
+		is >> origValue;
+		is >> origIndex;
+		is >> transformedValue;
+	      
+		std::pair<T, dataelement > p ( origValue, dataelement ( origIndex, transformedValue ) );
+		elementpointer it = nzData.insert ( p);
+		nonzero_indices.insert ( std::pair<int, elementpointer> ( origIndex, it ) );
+	      }
+	      
+	      is >> tmp; // end of block 
+	      tmp = this->removeEndTag ( tmp );  
+	    }
+	    
+	    
+	    is >> tmp; // end of block 
+	    tmp = this->removeEndTag ( tmp );	    
+	  }
+	  else
+	  {
+	    std::cerr << "WARNING -- unexpected SortedVectorSparse object -- " << tmp << " -- for restoration... aborting" << std::endl;
+	    throw;	
+	  }
+	}        
+
       }
       else
       {
         std::cerr << "SortedVectorSparse::restore -- InStream not initialized - restoring not possible!" << std::endl;
+	throw;
       }      
     };
     virtual void store ( std::ostream & os, int format = 0 ) const
     {
       if (os.good())
       {
+	// show starting point
+	os << this->createStartTag( "SortedVectorSparse" ) << std::endl;
+	
         os.precision (std::numeric_limits<double>::digits10 + 1);
-        os << "SortedVectorSparse" << std::endl;
-        os << "tolerance: " << tolerance << std::endl;
-        os << "n: " << n << std::endl;
-        os << "nonZeros: " << nzData.size() << std::endl;
-        os << "underlying_data_(sorted)" << std::endl;
-        for (const_elementpointer elP = nzData.begin();  elP != nzData.end(); elP++)
-        {
-          os << elP->first << " " << elP->second.first << " " << elP->second.second << " ";
-        }
-        os << std::endl;
+	
+	os << this->createStartTag( "tolerance" ) << std::endl;
+	os << tolerance << std::endl;
+	os << this->createEndTag( "tolerance" ) << std::endl;
+	
+	os << this->createStartTag( "n" ) << std::endl;
+	os << n << std::endl;
+	os << this->createEndTag( "n" ) << std::endl;
+		
+
+        os << this->createStartTag( "underlying_data_(sorted)" ) << std::endl;
+	  os << this->createStartTag( "nonZeros" ) << std::endl;
+	  os << this->getNonZeros() << std::endl;
+	  os << this->createEndTag( "nonZeros" ) << std::endl;
+	  
+	  os << this->createStartTag( "data" ) << std::endl;  
+	  for (const_elementpointer elP = nzData.begin();  elP != nzData.end(); elP++)
+	  {
+	    os << elP->first << " " << elP->second.first << " " << elP->second.second << " ";
+	  }
+	  os << std::endl;
+	  os << this->createEndTag( "data" ) << std::endl;
+	os << this->createEndTag( "underlying_data_(sorted)" ) << std::endl;
+	
+	// done
+	os << this->createEndTag( "SortedVectorSparse" ) << std::endl;	
       }
       else
       {

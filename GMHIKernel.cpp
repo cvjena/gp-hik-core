@@ -199,11 +199,22 @@ void GMHIKernel::setApproximationScheme(const int & _approxScheme)
   this->fmk->setApproximationScheme(_approxScheme);
 }
 
-// ----------------- INCREMENTAL LEARNING METHODS -----------------------
-void GMHIKernel::addExample(const NICE::SparseVector & x, const NICE::Vector & binLabels)
+///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+// interface specific methods for incremental extensions
+///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+
+void GMHIKernel::addExample( const NICE::SparseVector * example, 
+			     const double & label, 
+			     const bool & performOptimizationAfterIncrement
+			   )
 {
-  // we could add the example to the fmk, but we won't do it here
-  // reason: if we have a balanced learning, we have multiple identical GMHI-objects
-  // if we would add the example here, it would be added as often as we have those objects
-  // therefor we add the example already in the FMKGPHypOpt class
+  //nothing has to be done here, the fmk-object got new examples already in outer struct (FMKGPHyperparameterOptimization)
+}
+
+void GMHIKernel::addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
+				      const NICE::Vector & newLabels,
+				      const bool & performOptimizationAfterIncrement
+				    )
+{
+  //nothing has to be done here, the fmk-object got new examples already in outer struct (FMKGPHyperparameterOptimization)
 }

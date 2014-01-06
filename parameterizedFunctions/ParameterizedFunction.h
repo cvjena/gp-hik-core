@@ -1,16 +1,19 @@
 /** 
 * @file ParameterizedFunction.h
 * @brief Simple parameterized multi-dimensional function (Interface)
-* @author Erik Rodner
+* @author Erik Rodner, Alexander Freytag
 * @date 01/04/2012
 */
 #ifndef _NICE_PARAMETERIZEDFUNCTIONINCLUDE
 #define _NICE_PARAMETERIZEDFUNCTIONINCLUDE
 
+// STL includes
 #include <vector>
 #include <limits>
 
-#include "core/basics/Persistent.h"
+// NICE-core includes
+#include <core/basics/Persistent.h>
+// 
 #include <core/vector/VectorT.h>
 #include <core/vector/SparseVectorT.h>
 
@@ -25,15 +28,15 @@ namespace NICE {
  * (1) f(0) = 0
  * (2) f is monotonically increasing
  *
- * @author Erik Rodner
+ * @author Erik Rodner, Alexander Freytag
  */
-class ParameterizedFunction : NICE::Persistent
+class ParameterizedFunction : public NICE::Persistent
 {
 
   protected:
 
     /** parameters of the function */
-    Vector m_parameters;
+    NICE::Vector m_parameters;
 
 
   public:

@@ -7,7 +7,7 @@
 // #ifndef FEATUREMATRIX_TCC
 // #define FEATUREMATRIX_TCC
 
-
+// gp-hik-core includes
 #include "FeatureMatrixT.h"
 
 namespace NICE {
@@ -51,7 +51,7 @@ namespace NICE {
     //Constructor reading data from a vector of sparse vector pointers
     template <typename T>
     FeatureMatrixT<T>::
-    FeatureMatrixT(const std::vector< SparseVector * > & X, const bool dimensionsOverExamples, const int & _dim)
+    FeatureMatrixT(const std::vector< const NICE::SparseVector * > & X, const bool dimensionsOverExamples, const int & _dim)
     {
       features.clear();
       
@@ -630,7 +630,7 @@ namespace NICE {
     }
     
     template <typename T>
-    void FeatureMatrixT<T>::set_features(const std::vector< NICE::SparseVector * > & _features, const bool dimensionsOverExamples, const int & _dim)
+    void FeatureMatrixT<T>::set_features(const std::vector< const NICE::SparseVector * > & _features, const bool dimensionsOverExamples, const int & _dim)
     {   
       features.clear();
       if (_features.size() == 0)
@@ -881,40 +881,79 @@ namespace NICE {
     template <typename T>
     void FeatureMatrixT<T>::restore ( std::istream & is, int format )
     {
-      if (is.good())
+      bool b_restoreVerbose ( false );
+      if ( is.good() )
       {
-        is.precision (std::numeric_limits<double>::digits10 + 1);
-        std::string tmp;
-        
-        is >> tmp; //classname
-        
-        is >> tmp;
-        is >> n;
-
-        
-        is >> tmp;
-        is >> d;
-        
-        features.resize(d);
-        //now read features for every dimension
-        for (int dim = 0; dim < d; dim++)
-        {
-          NICE::SortedVectorSparse<T> svs;
-          features[dim] = svs;          
-          features[dim].restore(is,format);
-        }
-        
-        if (verbose)
-        {
-          std::cerr << "FeatureMatrixT<T>::restore" << std::endl;
-          std::cerr << "n: " << n << std::endl;          
-          std::cerr << "d: " << d << std::endl;
-          this->print(std::cerr);
-        }
+	if ( b_restoreVerbose ) 
+	  std::cerr << " restore FeatureMatrixT" << std::endl;
+	
+	std::string tmp;
+	is >> tmp; //class name 
+	
+	if ( ! this->isStartTag( tmp, "FeatureMatrixT" ) )
+	{
+	    std::cerr << " WARNING - attempt to restore FeatureMatrixT, but start flag " << tmp << " does not match! Aborting... " << std::endl;
+	    throw;
+	}   
+	    
+	is.precision ( std::numeric_limits<double>::digits10 + 1);
+	
+	bool b_endOfBlock ( false ) ;
+	
+	while ( !b_endOfBlock )
+	{
+	  is >> tmp; // start of block 
+	  
+	  if ( this->isEndTag( tmp, "FeatureMatrixT" ) )
+	  {
+	    b_endOfBlock = true;
+	    continue;
+	  }      
+	  
+	  tmp = this->removeStartTag ( tmp );
+	  
+	  if ( b_restoreVerbose )
+	    std::cerr << " currently restore section " << tmp << " in FeatureMatrixT" << std::endl;
+	  
+	  if ( tmp.compare("n") == 0 )
+	  {
+	    is >> n;        
+	    is >> tmp; // end of block 
+	    tmp = this->removeEndTag ( tmp );
+	  }
+	  else if ( tmp.compare("d") == 0 )
+	  {
+	    is >> d;        
+	    is >> tmp; // end of block 
+	    tmp = this->removeEndTag ( tmp );
+	  } 
+	  else if ( tmp.compare("features") == 0 )
+	  {
+	    //NOTE assumes d to be read first!
+	    features.resize(d);
+	    //now read features for every dimension
+	    for (int dim = 0; dim < d; dim++)
+	    {
+	      NICE::SortedVectorSparse<T> svs;
+	      features[dim] = svs;          
+	      features[dim].restore(is,format);
+	    }
+	    
+	    is >> tmp; // end of block 
+	    tmp = this->removeEndTag ( tmp );
+	  }       
+	  else
+	  {
+	    std::cerr << "WARNING -- unexpected FeatureMatrixT object -- " << tmp << " -- for restoration... aborting" << std::endl;
+	    throw;	
+	  }
+	}
+         
       }
       else
       {
         std::cerr << "FeatureMatrixT<T>::restore -- InStream not initialized - restoring not possible!" << std::endl;
+        throw;
       }
     }
 
@@ -923,16 +962,30 @@ namespace NICE {
     {
       if (os.good())
       {
+	// show starting point
+	os << this->createStartTag( "FeatureMatrixT" ) << std::endl;
+	
         os.precision (std::numeric_limits<double>::digits10 + 1);
-        os << "FeatureMatrixT" << std::endl;
-        os << "n: " << n << std::endl;
-        os << "d: " << d << std::endl;
+	
+	os << this->createStartTag( "n" ) << std::endl;
+	os << n << std::endl;
+	os << this->createEndTag( "n" ) << std::endl;
+	
+	
+	os << this->createStartTag( "d" ) << std::endl;
+	os << d << std::endl;
+	os << this->createEndTag( "d" ) << std::endl;
         
         //now write features for every dimension
-        for (int dim = 0; dim < d; dim++)
-        {
-          features[dim].store(os,format);
-        }
+	os << this->createStartTag( "features" ) << std::endl;
+	for (int dim = 0; dim < d; dim++)
+	{
+	  features[dim].store(os,format);
+	}
+        os << this->createEndTag( "features" ) << std::endl;
+        
+	// done
+	os << this->createEndTag( "FeatureMatrixT" ) << std::endl;       
       }
       else
       {

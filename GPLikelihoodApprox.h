@@ -8,18 +8,21 @@
 #ifndef _NICE_GPLIKELIHOODAPPROXINCLUDE
 #define _NICE_GPLIKELIHOODAPPROXINCLUDE
 
+// STL includes
 #include <map>
 
-#include <core/vector/VectorT.h>
-#include <core/basics/Config.h>
+// NICE-core includes
 #include <core/algebra/EigValues.h>
 #include <core/algebra/IterativeLinearSolver.h>
-
+// 
+#include <core/basics/Config.h>
 #include <core/optimization/blackbox/CostFunction.h>
+// 
+#include <core/vector/VectorT.h>
 
-#include "FastMinKernel.h"
-#include "ImplicitKernelMatrix.h"
-
+// gp-hik-core includes
+#include "gp-hik-core/FastMinKernel.h"
+#include "gp-hik-core/ImplicitKernelMatrix.h"
 #include "gp-hik-core/parameterizedFunctions/ParameterizedFunction.h"
 
 namespace NICE {
@@ -57,7 +60,7 @@ class GPLikelihoodApprox : public OPTIMIZATION::CostFunction
     void calculateLikelihood ( double mypara, const FeatureMatrix & f, const std::map< int, NICE::Vector > & yset, double noise, double lambdaMax );
 
     //! last alpha vectors computed (from previous IL-step)
-    std::map<int, Vector> * lastAlphas;
+    std::map<int, NICE::Vector> * initialAlphaGuess;
     
     //! alpha vectors of the best solution
     std::map<int, Vector> min_alphas;
@@ -84,8 +87,6 @@ class GPLikelihoodApprox : public OPTIMIZATION::CostFunction
     /** debug flag for several outputs useful for debugging*/
     bool debug;  
     
-    /** after adding new examples, shall the previous alpha solution be used as an initial guess?*/
-    bool usePreviousAlphas;
 
   public:
 
@@ -111,7 +112,7 @@ class GPLikelihoodApprox : public OPTIMIZATION::CostFunction
     *
     * @return void
     */    
-    void computeAlphaDirect(const OPTIMIZATION::matrix_type & x);
+    void computeAlphaDirect(const OPTIMIZATION::matrix_type & x, const NICE::Vector & eigenValues);
     
     /**
     * @brief Evaluate the likelihood for given hyperparameters
@@ -124,18 +125,20 @@ class GPLikelihoodApprox : public OPTIMIZATION::CostFunction
      
     
     // ------ get and set methods ------
-    const Vector & getBestParameters () const { return min_parameter; };
-    const std::map<int, Vector> & getBestAlphas () const { return min_alphas; };
+    const NICE::Vector & getBestParameters () const { return min_parameter; };
+    const std::map<int, Vector> & getBestAlphas () const;
     
     void setParameterLowerBound(const double & _parameterLowerBound);
     void setParameterUpperBound(const double & _parameterUpperBound);
     
-    void setLastAlphas(std::map<int, NICE::Vector> * _lastAlphas);
+    void setInitialAlphaGuess(std::map<int, NICE::Vector> * _initialAlphaGuess);
     void setBinaryLabels(const std::map<int, Vector> & _binaryLabels);
     
-    void setUsePreviousAlphas( const bool & _usePreviousAlphas );
     void setVerbose( const bool & _verbose );
     void setDebug( const bool & _debug );
+    
+    bool getVerbose ( ) { return verbose; } ;
+    bool getDebug ( ) { return debug; } ;
 };
 
 }

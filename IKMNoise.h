@@ -23,7 +23,6 @@ class IKMNoise : public ImplicitKernelMatrix
 {
 
   protected:
-    Vector labels;
 
     uint size;
 
@@ -31,9 +30,7 @@ class IKMNoise : public ImplicitKernelMatrix
 
     bool optimizeNoise;
 
-    uint np;
-    uint nn;
-    
+   
     /** give some debug outputs. There is not set function so far... */
     bool verbose;
   
@@ -43,20 +40,19 @@ class IKMNoise : public ImplicitKernelMatrix
     
     IKMNoise( uint size, double noise, bool optimizeNoise );
     
-    IKMNoise( const Vector & labels, double noise, bool optimizeNoise );
       
     virtual ~IKMNoise();
 
-    virtual void getDiagonalElements ( Vector & diagonalElements ) const;
+    virtual void getDiagonalElements ( NICE::Vector & diagonalElements ) const;
     virtual void getFirstDiagonalElement ( double & diagonalElement ) const;
     virtual uint getNumParameters() const;
     
-    virtual void getParameters(Vector & parameters) const;
-    virtual void setParameters(const Vector & parameters);
-    virtual bool outOfBounds(const Vector & parameters) const;
+    virtual void getParameters( NICE::Vector & parameters) const;
+    virtual void setParameters(const NICE::Vector & parameters);
+    virtual bool outOfBounds(const NICE::Vector & parameters) const;
 
-    virtual Vector getParameterLowerBounds() const;
-    virtual Vector getParameterUpperBounds() const;
+    virtual NICE::Vector getParameterLowerBounds() const;
+    virtual NICE::Vector getParameterUpperBounds() const;
 
     /** multiply with a vector: A*x = y */
     virtual void multiply (NICE::Vector & y, const NICE::Vector & x) const;
@@ -70,12 +66,27 @@ class IKMNoise : public ImplicitKernelMatrix
     virtual double approxFrobNorm() const;
     virtual void setApproximationScheme(const int & _approxScheme) {};
     
-    /** Persistent interface */
+    ///////////////////// INTERFACE PERSISTENT /////////////////////
+    // interface specific methods for store and restore
+    ///////////////////// INTERFACE PERSISTENT /////////////////////
     virtual void restore ( std::istream & is, int format = 0 );
     virtual void store ( std::ostream & os, int format = 0 ) const; 
     virtual void clear () {};
     
-    void addExample(const NICE::SparseVector & x, const NICE::Vector & binLabels);
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+    // interface specific methods for incremental extensions
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////    
+    
+    virtual void addExample( const NICE::SparseVector * example, 
+			     const double & label, 
+			     const bool & performOptimizationAfterIncrement = true
+			   );
+			   
+    virtual void addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
+				      const NICE::Vector & newLabels,
+				      const bool & performOptimizationAfterIncrement = true
+				    );        
+    
 
 };
 

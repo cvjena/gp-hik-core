@@ -19,8 +19,6 @@ class TestFastHIK : public CppUnit::TestFixture {
     CPPUNIT_TEST(testLUTUpdate);
     CPPUNIT_TEST(testLinSolve);
     CPPUNIT_TEST(testKernelVector);
-    CPPUNIT_TEST(testAddExample);
-    CPPUNIT_TEST(testAddMultipleExamples);
     
     CPPUNIT_TEST_SUITE_END();
   
@@ -40,8 +38,6 @@ class TestFastHIK : public CppUnit::TestFixture {
     void testLUTUpdate();
     void testLinSolve();
     void testKernelVector();
-    void testAddExample();
-    void testAddMultipleExamples();
 
 };
 

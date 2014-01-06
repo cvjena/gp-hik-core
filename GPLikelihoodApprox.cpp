@@ -5,22 +5,28 @@
 * @date 02/09/2012
 
 */
+
+// STL includes
 #include <iostream>
 
+// NICE-core includes
 #include <core/algebra/CholeskyRobust.h>
+#include <core/algebra/ILSConjugateGradients.h>
+// 
+#include <core/basics/Timer.h>
+// 
 #include <core/vector/Algorithms.h>
 #include <core/vector/Eigen.h>
 
-#include <core/basics/Timer.h>
-#include <core/algebra/ILSConjugateGradients.h>
+//stuff used for verification only
 #include "kernels/GeneralizedIntersectionKernelFunction.h"
 #include "kernels/IntersectionKernelFunction.h"
 
-
-#include "GPLikelihoodApprox.h"
-#include "IKMLinearCombination.h"
-#include "GMHIKernel.h"
-#include "algebra/LogDetApproxBaiAndGolub.h"
+// gp-hik-core includes
+#include "gp-hik-core/GPLikelihoodApprox.h"
+#include "gp-hik-core/IKMLinearCombination.h"
+#include "gp-hik-core/GMHIKernel.h"
+#include "gp-hik-core/algebra/LogDetApproxBaiAndGolub.h"
 
 
 using namespace std;
@@ -28,7 +34,7 @@ using namespace NICE;
 using namespace OPTIMIZATION;
 
 
-GPLikelihoodApprox::GPLikelihoodApprox( const map<int, Vector> & binaryLabels,
+GPLikelihoodApprox::GPLikelihoodApprox( const std::map<int, NICE::Vector> & binaryLabels,
                                         ImplicitKernelMatrix *ikm,
                                         IterativeLinearSolver *linsolver, 
                                         EigValues *eig,
@@ -52,21 +58,37 @@ GPLikelihoodApprox::GPLikelihoodApprox( const map<int, Vector> & binaryLabels,
   this->verifyApproximation = verifyApproximation;
   
   this->nrOfEigenvaluesToConsider = _nrOfEigenvaluesToConsider;
-  
-  lastAlphas = NULL;
-  
+    
   this->verbose = false;
   this->debug = false;
   
-  this->usePreviousAlphas = true;
-
+  this->initialAlphaGuess = NULL;
 }
 
 GPLikelihoodApprox::~GPLikelihoodApprox()
 {
-  //delete the pointer, but not the content (which is stored somewhere else)
-  if (lastAlphas != NULL)
-    lastAlphas = NULL;  
+  //we do not have to delete the memory here, since it will be handled externally...
+  // TODO however, if we should copy the whole vector, than we also have to delete it here accordingly! Check this!
+  if ( this->initialAlphaGuess != NULL )
+    this->initialAlphaGuess = NULL;
+}
+
+const std::map<int, Vector> & GPLikelihoodApprox::getBestAlphas () const
+{
+  if ( this->min_alphas.size() > 0 )
+  {
+  // did we already computed a local optimal solution?
+    return this->min_alphas;
+  }
+  else if ( this->initialAlphaGuess != NULL)
+  {
+    std::cerr << "no known alpha vectors so far, take initial guess instaed" << std::endl;
+    // computation not started, but initial guess was given, so use this one
+    return *(this->initialAlphaGuess);
+  }  
+  
+  // nothing known, min_alphas will be empty
+  return this->min_alphas;
 }
 
 void GPLikelihoodApprox::calculateLikelihood ( double mypara, const FeatureMatrix & f, const std::map< int, NICE::Vector > & yset, double noise, double lambdaMax )
@@ -98,9 +120,9 @@ void GPLikelihoodApprox::calculateLikelihood ( double mypara, const FeatureMatri
   cerr << "chol * chol^T: " << ( choleskyMatrix * choleskyMatrix.transpose() )(0,0,4,4) << endl;
 
   double gt_dataterm = 0.0;
-  for ( map< int, NICE::Vector >::const_iterator i = yset.begin(); i != yset.end(); i++ )
+  for ( std::map< int, NICE::Vector >::const_iterator i = yset.begin(); i != yset.end(); i++ )
   {
-    const Vector & y = i->second;
+    const NICE::Vector & y = i->second;
     Vector gt_alpha;
     choleskySolve ( choleskyMatrix, y, gt_alpha );
     cerr << "cholesky error: " << (K*gt_alpha - y).normL2() << endl;
@@ -113,31 +135,23 @@ void GPLikelihoodApprox::calculateLikelihood ( double mypara, const FeatureMatri
   cerr << "Something of K: " << K(0, 0, 4, 4) << endl;
   cerr << "frob norm: gt:" << K.frobeniusNorm() << endl;
   
-  /*try {
-    Vector *eigenv = eigenvalues ( K ); 
-    cerr << "lambda_max: gt:" << eigenv->Max() << " est:" << lambdaMax << endl; 
-    delete eigenv;
-  } catch (...) {
-    cerr << "NICE eigenvalues function failed!" << endl;
-  }*/
-
+  
   double gt_nlikelihood = gt_logdet + gt_dataterm;
   cerr << "OPTGT: " << mypara << " " << gt_nlikelihood << " " << gt_logdet << " " << gt_dataterm << endl;
 }
 
-void GPLikelihoodApprox::computeAlphaDirect(const OPTIMIZATION::matrix_type & x)
+void GPLikelihoodApprox::computeAlphaDirect(const OPTIMIZATION::matrix_type & x, const NICE::Vector & eigenValues )
 {
   Timer t;
-//   NICE::Vector diagonalElements;
   
-//   ikm->getDiagonalElements ( diagonalElements );
+  NICE::Vector diagonalElements; 
+  ikm->getDiagonalElements ( diagonalElements );
 
   // set simple jacobi pre-conditioning
   ILSConjugateGradients *linsolver_cg = dynamic_cast<ILSConjugateGradients *> ( linsolver );
 
-//   //TODO why do we need this?  
-//   if ( linsolver_cg != NULL )
-//     linsolver_cg->setJacobiPreconditioner ( diagonalElements );
+  if ( linsolver_cg != NULL )
+    linsolver_cg->setJacobiPreconditioner ( diagonalElements );
   
 
   // all alpha vectors will be stored!
@@ -153,8 +167,6 @@ void GPLikelihoodApprox::computeAlphaDirect(const OPTIMIZATION::matrix_type & x)
     if (verbose)
     {
       std::cerr << "Solving linear equation system for class " << classCnt << " ..." << std::endl;
-      std::cerr << "Size of the kernel matrix " << ikm->rows() << std::endl;
-      std::cerr << "binary label: " << j->second << std::endl;
     }
 
     /** About finding a good initial solution
@@ -171,23 +183,10 @@ void GPLikelihoodApprox::computeAlphaDirect(const OPTIMIZATION::matrix_type & x)
      * v = y ....which is somehow a weird assumption (cf Kernel PCA)
      *  This reduces the number of iterations by 5 or 8
      */
-    Vector alpha;
+    NICE::Vector alpha;
     
-    if ( (usePreviousAlphas) && (lastAlphas != NULL) )
-    {
-      std::map<int, NICE::Vector>::iterator alphaIt = lastAlphas->begin();
-      alpha = (*lastAlphas)[classCnt];
-    }
-    else  
-    {
-      //TODO hand over the eigenmax
-      alpha = (binaryLabels[classCnt] ); //* (1.0 / eigenmax[0]) );
-    }
+    alpha = (binaryLabels[classCnt] * (1.0 / eigenValues[0]) );
     
-    NICE::Vector initialAlpha;
-    if ( verbose )
-     initialAlpha = alpha;
-
     if ( verbose )
       std::cerr << "Using the standard solver ..." << std::endl;
 
@@ -205,8 +204,8 @@ void GPLikelihoodApprox::computeAlphaDirect(const OPTIMIZATION::matrix_type & x)
 
 double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
 {
-  Vector xv;
- 
+  NICE::Vector xv;
+   
   xv.resize ( x.rows() );
   for ( uint i = 0 ; i < x.rows(); i++ )
     xv[i] = x(i,0);
@@ -215,7 +214,7 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
   unsigned long hashValue = xv.getHashValue();
   if (verbose)  
     std::cerr << "Current parameter: " << xv << " (weird hash value is " << hashValue << ")" << std::endl;
-  map<unsigned long, double>::const_iterator k = alreadyVisited.find(hashValue);
+  std::map<unsigned long, double>::const_iterator k = alreadyVisited.find(hashValue);
   
   if ( k != alreadyVisited.end() )
   {
@@ -244,8 +243,8 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
   if (verbose)  
     std::cerr << "Calculating eigendecomposition " << ikm->rows() << " x " << ikm->cols() << std::endl;
   t.start();
-  Vector eigenmax;
-  Matrix eigenmaxvectors;
+  NICE::Vector eigenmax;
+  NICE::Matrix eigenmaxvectors;
  
   int rank = nrOfEigenvaluesToConsider;
 
@@ -255,9 +254,7 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
   // the current implementation converges very quickly
   //old version: just use the first eigenvalue
   
-  //NOTE
-  // in theory, we have these values already on hand since we've done it in FMKGPHypOpt.
-  // Think about wether to give them as input to this function or not
+  // we have to re-compute EV and EW in all cases, since we change the hyper parameter and thereby the kernel matrix 
   eig->getEigenvalues( *ikm, eigenmax, eigenmaxvectors, rank ); 
   if (verbose)
     std::cerr << "eigenmax: " << eigenmax << std::endl;
@@ -278,12 +275,12 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
   
 
   // all alpha vectors will be stored!
-  map<int, Vector> alphas;
+  std::map<int, NICE::Vector> alphas;
 
   // This has to be done m times for the multi-class case
   if (verbose)
     std::cerr << "run ILS for every bin label. binaryLabels.size(): " << binaryLabels.size() << std::endl;
-  for ( map<int, Vector>::const_iterator j = binaryLabels.begin(); j != binaryLabels.end() ; j++)
+  for ( std::map<int, NICE::Vector>::const_iterator j = binaryLabels.begin(); j != binaryLabels.end() ; j++)
   {
     // (b) y^T (K+sI)^{-1} y
     int classCnt = j->first;
@@ -307,22 +304,18 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
      * v = y ....which is somehow a weird assumption (cf Kernel PCA)
      *  This reduces the number of iterations by 5 or 8
      */
-    Vector alpha;
-    
-    if ( (usePreviousAlphas) && (lastAlphas != NULL) )
+    NICE::Vector alpha;
+    if ( this->initialAlphaGuess != NULL )
     {
-      std::map<int, NICE::Vector>::iterator alphaIt = lastAlphas->begin();
-      alpha = (*lastAlphas)[classCnt];
+      alpha = this->initialAlphaGuess->find(classCnt)->second;
     }
-    else  
+    else
     {
-      alpha = (binaryLabels[classCnt] * (1.0 / eigenmax[0]) );
+      alpha = (binaryLabels[classCnt] * (1.0 / eigenmax[0]) );      
     }
     
-    Vector initialAlpha;
-    if ( verbose )
-     initialAlpha = alpha;
 
+    
     if ( verbose )
       cerr << "Using the standard solver ..." << endl;
 
@@ -330,22 +323,6 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
     linsolver->solveLin ( *ikm, binaryLabels[classCnt], alpha );
     t.stop();
    
-    //TODO This is only important for the incremental learning stuff.
-//     if ( verbose )
-//     {
-//       double initialAlphaNorm ( initialAlpha.normL1() );
-//       //compute the difference
-//       initialAlpha -= alpha;
-//       //take the abs of the differences
-//       initialAlpha.absInplace();
-//       //and compute a final score using a suitable norm
-// //       double difference( initialAlpha.normInf() );
-//       double difference( initialAlpha.normL1() );
-//       std::cerr << "debug -- last entry of new alpha: " << abs(alpha[alpha.size() -1 ]) << std::endl;
-//       std::cerr << "debug -- difference using inf norm: " << difference  << std::endl;
-//       std::cerr << "debug -- relative difference using inf norm: " << difference / initialAlphaNorm  << std::endl;
-//     }
-
 
     if ( verbose )
       std::cerr << "Time used for solving (K + sigma^2 I)^{-1} y: " << t.getLast() << std::endl;
@@ -418,19 +395,15 @@ void GPLikelihoodApprox::setParameterUpperBound(const double & _parameterUpperBo
   parameterUpperBound = _parameterUpperBound;
 }
 
-void GPLikelihoodApprox::setLastAlphas(std::map<int, NICE::Vector> * _lastAlphas)
+void GPLikelihoodApprox::setInitialAlphaGuess(std::map< int, NICE::Vector >* _initialAlphaGuess)
 {
-  lastAlphas = _lastAlphas;
+  this->initialAlphaGuess = _initialAlphaGuess;
 }
+
 
 void GPLikelihoodApprox::setBinaryLabels(const std::map<int, Vector> & _binaryLabels)
 {
   binaryLabels = _binaryLabels;
-}
-
-void GPLikelihoodApprox::setUsePreviousAlphas( const bool & _usePreviousAlphas )
-{
-  this->usePreviousAlphas = _usePreviousAlphas; 
 }
 
 void GPLikelihoodApprox::setVerbose( const bool & _verbose )

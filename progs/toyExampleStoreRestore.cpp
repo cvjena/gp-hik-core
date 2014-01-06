@@ -1,8 +1,8 @@
 /** 
-* @file toyExample.cpp
-* @brief Demo-Program to show how to call some methods of the GPHIKClassifier class
+* @file toyExampleStoreRestore.cpp
+* @brief 
 * @author Alexander Freytag
-* @date 19-10-2012
+* @date 21-12-2013
 */
 
 // STL includes
@@ -12,8 +12,6 @@
 // NICE-core includes
 #include <core/basics/Config.h>
 #include <core/basics/Timer.h>
-#include <core/vector/MatrixT.h>
-#include <core/vector/VectorT.h>
 
 // gp-hik-core includes
 #include "gp-hik-core/GPHIKClassifier.h"
@@ -24,50 +22,30 @@ using namespace NICE;  // nice-core
 int main (int argc, char* argv[])
 {  
   
-  Config conf ( argc, argv );
+  NICE::Config conf ( argc, argv );
   std::string trainData = conf.gS( "main", "trainData", "progs/toyExampleSmallScaleTrain.data" );
-  bool b_debug = conf.gB( "main", "debug", false );
-
+  NICE::GPHIKClassifier * classifier;  
   
   //------------- read the training data --------------
   
   NICE::Matrix dataTrain;
   NICE::Vector yBinTrain;
-  NICE::Vector yMultiTrain;  
+  NICE::Vector yMultiTrain; 
 
-  if ( b_debug )
-  { 
-    dataTrain.resize(6,3);
-    dataTrain.set(0);
-    dataTrain(0,0) = 0.2; dataTrain(0,1) = 0.3; dataTrain(0,2) = 0.5;
-    dataTrain(1,0) = 0.3; dataTrain(1,1) = 0.2; dataTrain(1,2) = 0.5;    
-    dataTrain(2,0) = 0.9; dataTrain(2,1) = 0.0; dataTrain(2,2) = 0.1;
-    dataTrain(3,0) = 0.8; dataTrain(3,1) = 0.1; dataTrain(3,2) = 0.1;    
-    dataTrain(4,0) = 0.1; dataTrain(4,1) = 0.1; dataTrain(4,2) = 0.8;
-    dataTrain(5,0) = 0.1; dataTrain(5,1) = 0.0; dataTrain(5,2) = 0.9;    
-    
-    yMultiTrain.resize(6);
-    yMultiTrain[0] = 1; yMultiTrain[1] = 1;
-    yMultiTrain[2] = 2; yMultiTrain[3] = 2;
-    yMultiTrain[4] = 3; yMultiTrain[5] = 3;
+  std::ifstream ifsTrain ( trainData.c_str() , ios::in );
+
+  if (ifsTrain.good() )
+  {
+    ifsTrain >> dataTrain;
+    ifsTrain >> yBinTrain;
+    ifsTrain >> yMultiTrain;
+    ifsTrain.close();  
   }
   else 
   {
-    std::ifstream ifsTrain ( trainData.c_str() , ios::in );
-
-    if (ifsTrain.good() )
-    {
-      ifsTrain >> dataTrain;
-      ifsTrain >> yBinTrain;
-      ifsTrain >> yMultiTrain;
-      ifsTrain.close();  
-    }
-    else 
-    {
-      std::cerr << "Unable to read training data, aborting." << std::endl;
-      return -1;
-    }
-  }
+    std::cerr << "Unable to read training data, aborting." << std::endl;
+    return -1;
+  } 
   
   //----------------- convert data to sparse data structures ---------
   std::vector< const NICE::SparseVector *> examplesTrain;
@@ -77,20 +55,43 @@ int main (int argc, char* argv[])
   for (int i = 0; i < (int)dataTrain.rows(); i++, exTrainIt++)
   {
     *exTrainIt =  new NICE::SparseVector( dataTrain.getRow(i) );
-  }
+  }  
   
-  std::cerr << "Number of training examples: " << examplesTrain.size() << std::endl;
+  // TRAIN CLASSIFIER FROM SCRATCH
   
-  //----------------- train our classifier -------------
-//   conf.sB("GPHIKClassifier", "verbose", false);
-  GPHIKClassifier * classifier  = new GPHIKClassifier ( &conf );  
+  classifier = new GPHIKClassifier ( &conf );  
     
   classifier->train ( examplesTrain , yMultiTrain );
   
-  // ------------------------------------------
-  // ------------- CLASSIFICATION --------------
-  // ------------------------------------------
   
+  // TEST STORING ABILITIES
+  
+  std::string s_destination_save ( "/home/alex/code/nice/gp-hik-core/progs/myClassifier.txt" );
+  
+  std::filebuf fbOut;
+  fbOut.open ( s_destination_save.c_str(), ios::out );
+  std::ostream os (&fbOut);
+  //
+  classifier->store( os );
+  //   
+  fbOut.close(); 
+  
+  
+  // TEST RESTORING ABILITIES
+    
+  NICE::GPHIKClassifier * classifierRestored = new GPHIKClassifier;  
+      
+  std::string s_destination_load ( "/home/alex/code/nice/gp-hik-core/progs/myClassifier.txt" );
+  
+  std::filebuf fbIn;
+  fbIn.open ( s_destination_load.c_str(), ios::in );
+  std::istream is (&fbIn);
+  //
+  classifierRestored->restore( is );
+  //   
+  fbIn.close();   
+  
+  // TEST both classifiers to produce equal results
   
   //------------- read the test data --------------
   
@@ -98,32 +99,20 @@ int main (int argc, char* argv[])
   NICE::Matrix dataTest;
   NICE::Vector yBinTest;
   NICE::Vector yMultiTest; 
-    
-  if ( b_debug )
-  { 
-    dataTest.resize(1,3);
-    dataTest.set(0);
-    dataTest(0,0) = 0.3; dataTest(0,1) = 0.4; dataTest(0,2) = 0.3;
-    
-    yMultiTest.resize(1);
-    yMultiTest[0] = 1;
+
+  std::string testData = conf.gS( "main", "testData", "progs/toyExampleTest.data" );  
+  std::ifstream ifsTest ( testData.c_str(), ios::in );
+  if (ifsTest.good() )
+  {
+    ifsTest >> dataTest;
+    ifsTest >> yBinTest;
+    ifsTest >> yMultiTest;
+    ifsTest.close();  
   }
   else 
-  {  
-    std::string testData = conf.gS( "main", "testData", "progs/toyExampleTest.data" );  
-    std::ifstream ifsTest ( testData.c_str(), ios::in );
-    if (ifsTest.good() )
-    {
-      ifsTest >> dataTest;
-      ifsTest >> yBinTest;
-      ifsTest >> yMultiTest;
-      ifsTest.close();  
-    }
-    else 
-    {
-      std::cerr << "Unable to read test data, aborting." << std::endl;
-      return -1;
-    }
+  {
+    std::cerr << "Unable to read test data, aborting." << std::endl;
+    return -1;
   }
   
   // ------------------------------------------
@@ -163,7 +152,8 @@ int main (int argc, char* argv[])
       mapClNoToIdxTest.insert ( std::pair<int,int> ( *clTestIt, i )  ); 
           
   
-  NICE::Matrix confusionMatrix( noClassesKnownTraining, noClassesKnownTest, 0.0);
+  NICE::Matrix confusionMatrix         ( noClassesKnownTraining, noClassesKnownTest, 0.0);
+  NICE::Matrix confusionMatrixRestored ( noClassesKnownTraining, noClassesKnownTest, 0.0);
   
   NICE::Timer t;
   double testTime (0.0);
@@ -179,31 +169,35 @@ int main (int argc, char* argv[])
     NICE::SparseVector scores;
     int result;
     
-    // and classify
+    // classify with trained classifier 
     t.start();
     classifier->classify( &example, result, scores );
     t.stop();
     testTime += t.getLast();
-    
-    std::cerr << " scores.size(): " << scores.size() << std::endl;
-    scores.store(std::cerr);
-    
-    if ( b_debug )
-    {    
-      classifier->predictUncertainty( &example, uncertainty );
-      std::cerr << " uncertainty: " << uncertainty << std::endl;
-    }
+     
     
     confusionMatrix( mapClNoToIdxTrain.find(result)->second, mapClNoToIdxTest.find(yMultiTest[i])->second ) += 1.0;
-  }
-  
 
-  std::cerr << "Time for testing: " << testTime << std::endl;
+    // classify with restored classifier 
+    t.start();
+    classifierRestored->classify( &example, result, scores );
+    t.stop();
+    testTime += t.getLast();  
+    
+    confusionMatrixRestored( mapClNoToIdxTrain.find(result)->second, mapClNoToIdxTest.find(yMultiTest[i])->second ) += 1.0;
+    
+    
+  }  
   
   confusionMatrix.normalizeColumnsL1();
   std::cerr << confusionMatrix << std::endl;
 
   std::cerr << "average recognition rate: " << confusionMatrix.trace()/confusionMatrix.cols() << std::endl;
+
+  confusionMatrixRestored.normalizeColumnsL1();
+  std::cerr << confusionMatrixRestored << std::endl;
+
+  std::cerr << "average recognition rate of restored classifier: " << confusionMatrixRestored.trace()/confusionMatrixRestored.cols() << std::endl;
   
   
   return 0;

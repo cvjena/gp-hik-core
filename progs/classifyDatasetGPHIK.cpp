@@ -19,7 +19,7 @@
 #include "gp-hik-core/GPHIKClassifier.h"
 
 
-void readSparseExamples ( const std::string & fn,  std::vector< NICE::SparseVector * > & examples, NICE::Vector & labels )
+void readSparseExamples ( const std::string & fn,  std::vector< const NICE::SparseVector * > & examples, NICE::Vector & labels )
 {
   // initially cleaning of variables
   examples.clear();
@@ -103,7 +103,7 @@ int main (int argc, char* argv[])
   // ========================================================================  
    
   // read training data
-  std::vector< NICE::SparseVector * > examplesTrain;
+  std::vector< const NICE::SparseVector * > examplesTrain;
   NICE::Vector labelsTrain;
   
   std::string s_fn_trainingSet = conf.gS("main", "trainset");
@@ -125,7 +125,7 @@ int main (int argc, char* argv[])
   // ========================================================================
   
   // read test data
-  std::vector< NICE::SparseVector * > examplesTest;
+  std::vector< const NICE::SparseVector * > examplesTest;
   NICE::Vector labelsTest;
   
   std::string s_fn_testSet = conf.gS("main", "testset");
@@ -145,7 +145,7 @@ int main (int argc, char* argv[])
   
   NICE::Matrix confusion ( i_noClassesTest, i_noClassesTrain, 0.0 );
   
-  for (std::vector< NICE::SparseVector *>::const_iterator itTestExamples = examplesTest.begin(); itTestExamples != examplesTest.end(); itTestExamples++, idx++)
+  for (std::vector< const NICE::SparseVector *>::const_iterator itTestExamples = examplesTest.begin(); itTestExamples != examplesTest.end(); itTestExamples++, idx++)
   {
     int classno_groundtruth = labelsTest( idx );
     int classno_predicted;
@@ -171,13 +171,13 @@ int main (int argc, char* argv[])
   // ========================================================================
   
   // release memore of feature vectors from training set
-  for (std::vector< NICE::SparseVector *>::const_iterator itTrainExamples = examplesTrain.begin(); itTrainExamples != examplesTrain.end(); itTrainExamples++ )
+  for (std::vector< const NICE::SparseVector *>::const_iterator itTrainExamples = examplesTrain.begin(); itTrainExamples != examplesTrain.end(); itTrainExamples++ )
   {
     delete *itTrainExamples;
   }
   
   // release memore of feature vectors from test set
-  for (std::vector< NICE::SparseVector *>::const_iterator itTestExamples = examplesTest.begin(); itTestExamples != examplesTest.end(); itTestExamples++ )
+  for (std::vector< const NICE::SparseVector *>::const_iterator itTestExamples = examplesTest.begin(); itTestExamples != examplesTest.end(); itTestExamples++ )
   {
     delete *itTestExamples;
   }
