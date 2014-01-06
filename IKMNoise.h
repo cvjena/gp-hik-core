@@ -23,7 +23,6 @@ class IKMNoise : public ImplicitKernelMatrix
 {
 
   protected:
-    NICE::Vector labels;
 
     uint size;
 
@@ -31,9 +30,7 @@ class IKMNoise : public ImplicitKernelMatrix
 
     bool optimizeNoise;
 
-    uint np;
-    uint nn;
-    
+   
     /** give some debug outputs. There is not set function so far... */
     bool verbose;
   
@@ -43,7 +40,6 @@ class IKMNoise : public ImplicitKernelMatrix
     
     IKMNoise( uint size, double noise, bool optimizeNoise );
     
-    IKMNoise( const NICE::Vector & labels, double noise, bool optimizeNoise );
       
     virtual ~IKMNoise();
 
@@ -70,10 +66,26 @@ class IKMNoise : public ImplicitKernelMatrix
     virtual double approxFrobNorm() const;
     virtual void setApproximationScheme(const int & _approxScheme) {};
     
-    /** Persistent interface */
+    ///////////////////// INTERFACE PERSISTENT /////////////////////
+    // interface specific methods for store and restore
+    ///////////////////// INTERFACE PERSISTENT /////////////////////
     virtual void restore ( std::istream & is, int format = 0 );
     virtual void store ( std::ostream & os, int format = 0 ) const; 
     virtual void clear () {};
+    
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+    // interface specific methods for incremental extensions
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////    
+    
+    virtual void addExample( const NICE::SparseVector * example, 
+			     const double & label, 
+			     const bool & performOptimizationAfterIncrement = true
+			   );
+			   
+    virtual void addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
+				      const NICE::Vector & newLabels,
+				      const bool & performOptimizationAfterIncrement = true
+				    );        
     
 
 };

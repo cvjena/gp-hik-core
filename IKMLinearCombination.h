@@ -8,8 +8,12 @@
 #ifndef _NICE_IKMLINEARCOMBINATIONINCLUDE
 #define _NICE_IKMLINEARCOMBINATIONINCLUDE
 
+// STL includes
 #include <vector>
-#include "ImplicitKernelMatrix.h"
+
+// gp-hik-core includes
+#include "gp-hik-core/ImplicitKernelMatrix.h"
+#include "gp-hik-core/OnlineLearnable.h"
 
 namespace NICE {
 
@@ -67,10 +71,26 @@ class IKMLinearCombination : public ImplicitKernelMatrix
     ImplicitKernelMatrix * getModel(const uint & idx) const;
     inline int getNumberOfModels(){return matrices.size();};
     
-    /** Persistent interface */
+    ///////////////////// INTERFACE PERSISTENT /////////////////////
+    // interface specific methods for store and restore
+    ///////////////////// INTERFACE PERSISTENT /////////////////////
     virtual void restore ( std::istream & is, int format = 0 ) ;
     virtual void store ( std::ostream & os, int format = 0 ) const;  
     virtual void clear () {};
+    
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+    // interface specific methods for incremental extensions
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////    
+    
+    virtual void addExample( const NICE::SparseVector * example, 
+			     const double & label, 
+			     const bool & performOptimizationAfterIncrement = true
+			   );
+			   
+    virtual void addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
+				      const NICE::Vector & newLabels,
+				      const bool & performOptimizationAfterIncrement = true
+				    );      
 
 };
 

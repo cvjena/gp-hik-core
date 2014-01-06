@@ -72,6 +72,36 @@ FastMinKernel::~FastMinKernel()
 {
 }
 
+
+///////////////////// ///////////////////// /////////////////////
+//                         GET / SET
+///////////////////// ///////////////////// ///////////////////// 
+
+void FastMinKernel::setVerbose( const bool & _verbose)
+{
+  verbose = _verbose;
+}
+
+bool FastMinKernel::getVerbose( )   const
+{
+  return verbose;
+}
+
+void FastMinKernel::setDebug( const bool & _debug)
+{
+  debug = _debug;
+  X_sorted.setDebug( _debug );
+}
+
+bool FastMinKernel::getDebug( )   const
+{
+  return debug;
+}
+
+///////////////////// ///////////////////// /////////////////////
+//                      CLASSIFIER STUFF
+///////////////////// ///////////////////// /////////////////////
+
 void FastMinKernel::applyFunctionToFeatureMatrix ( const NICE::ParameterizedFunction *pf)
 {
   this->X_sorted.applyFunctionToFeatureMatrix(pf);
@@ -1375,7 +1405,9 @@ void FastMinKernel::hikComputeKernelVector( const NICE::Vector & xstar, NICE::Ve
   }  
 }
 
-// ---------------------- STORE AND RESTORE FUNCTIONS ----------------------
+///////////////////// INTERFACE PERSISTENT /////////////////////
+// interface specific methods for store and restore
+///////////////////// INTERFACE PERSISTENT ///////////////////// 
 
 void FastMinKernel::restore ( std::istream & is, int format )
 {
@@ -1507,23 +1539,47 @@ void FastMinKernel::clear ()
   std::cerr << "FastMinKernel clear-function called" << std::endl;
 }
 
-void FastMinKernel::setVerbose( const bool & _verbose)
+///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+// interface specific methods for incremental extensions
+///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+
+void FastMinKernel::addExample( const NICE::SparseVector * example, 
+			     const double & label, 
+			     const bool & performOptimizationAfterIncrement
+			   )
 {
-  verbose = _verbose;
+  // no parameterized function was given - use default 
+  this->addExample ( example );
 }
 
-bool FastMinKernel::getVerbose( )   const
+
+void FastMinKernel::addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
+				      const NICE::Vector & newLabels,
+				      const bool & performOptimizationAfterIncrement
+				    )
 {
-  return verbose;
+  // no parameterized function was given - use default   
+  this->addMultipleExamples ( newExamples );
 }
 
-void FastMinKernel::setDebug( const bool & _debug)
-{
-  debug = _debug;
-  X_sorted.setDebug( _debug );
+void FastMinKernel::addExample( const NICE::SparseVector * example, 
+			          const NICE::ParameterizedFunction *pf
+			        )
+{ 
+  X_sorted.add_feature( *example, pf );
+  n++;
 }
 
-bool FastMinKernel::getDebug( )   const
+void FastMinKernel::addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
+				           const NICE::ParameterizedFunction *pf
+				         )
 {
-  return debug;
+  for ( std::vector< const NICE::SparseVector * >::const_iterator exIt = newExamples.begin();
+        exIt != newExamples.end();
+        exIt++ )
+  {
+    X_sorted.add_feature( **exIt, pf );
+    n++;     
+  } 
 }
+

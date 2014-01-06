@@ -22,35 +22,11 @@
 using namespace std;
 using namespace NICE;
 
-
-GPHIKClassifier::GPHIKClassifier( const Config *conf, const string & s_confSection ) 
-{
-  //default settings, may be overwritten lateron
-  gphyper = NULL;
-  pf = NULL;
-  confCopy = NULL;
-  //just a default value
-  uncertaintyPredictionForClassification = false;
-  
-  this->confSection = s_confSection;
-  
-  // if no config file was given, we either restore the classifier from an external file, or run ::init with 
-  // an emtpy config (using default values thereby) when calling the train-method
-  if ( conf != NULL )
-    this->init(conf, confSection);
-}
-
-GPHIKClassifier::~GPHIKClassifier()
-{
-  if ( gphyper != NULL )
-    delete gphyper;
-  
-  if (pf != NULL)
-    delete pf;
-
-  if ( confCopy != NULL )
-    delete confCopy;
-}
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+//                 PROTECTED METHODS
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
 
 void GPHIKClassifier::init(const Config *conf, const string & s_confSection)
 {
@@ -114,6 +90,57 @@ void GPHIKClassifier::init(const Config *conf, const string & s_confSection)
   if ( this->verbose )
     std::cerr << "varianceApproximationStrategy: " << s_varianceApproximation  << std::endl;
 }
+
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+//                 PUBLIC METHODS
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+GPHIKClassifier::GPHIKClassifier( const Config *conf, const string & s_confSection ) 
+{
+  //default settings, may be overwritten lateron
+  gphyper = NULL;
+  pf = NULL;
+  confCopy = NULL;
+  //just a default value
+  uncertaintyPredictionForClassification = false;
+  
+  this->confSection = s_confSection;
+  
+  // if no config file was given, we either restore the classifier from an external file, or run ::init with 
+  // an emtpy config (using default values thereby) when calling the train-method
+  if ( conf != NULL )
+    this->init(conf, confSection);
+}
+
+GPHIKClassifier::~GPHIKClassifier()
+{
+  if ( gphyper != NULL )
+    delete gphyper;
+  
+  if (pf != NULL)
+    delete pf;
+
+  if ( confCopy != NULL )
+    delete confCopy;
+}
+
+///////////////////// ///////////////////// /////////////////////
+//                         GET / SET
+///////////////////// ///////////////////// ///////////////////// 
+
+std::set<int> GPHIKClassifier::getKnownClassNumbers ( ) const
+{
+  if (gphyper == NULL)
+     fthrow(Exception, "Classifier not trained yet -- aborting!" );  
+  
+  return gphyper->getKnownClassNumbers();
+}
+
+
+///////////////////// ///////////////////// /////////////////////
+//                      CLASSIFIER STUFF
+///////////////////// ///////////////////// /////////////////////
 
 void GPHIKClassifier::classify ( const SparseVector * example,  int & result, SparseVector & scores )
 {
@@ -220,6 +247,11 @@ void GPHIKClassifier::train ( const std::vector< NICE::SparseVector *> & example
   
   if (gphyper != NULL)
      delete gphyper;
+  
+  
+  if ( ( varianceApproximation != APPROXIMATE_FINE) )
+    confCopy->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 0);
+  
   gphyper = new FMKGPHyperparameterOptimization ( confCopy, pf, fmk, confSection ); 
 
   if (verbose)
@@ -328,27 +360,6 @@ void GPHIKClassifier::train ( const std::vector< SparseVector *> & examples, std
     std::cerr << "Learning finished" << std::endl;
 }
 
-void GPHIKClassifier::clear ()
-{
-  if ( gphyper != NULL )
-  {
-    delete gphyper;
-    gphyper = NULL;
-  }
-  
-  if (pf != NULL)
-  {
-    delete pf;
-    pf = NULL;
-  }
-
-  if ( confCopy != NULL )
-  {
-    delete confCopy; 
-    confCopy = NULL;
-  } 
-}
-
 GPHIKClassifier *GPHIKClassifier::clone () const
 {
   fthrow(Exception, "GPHIKClassifier: clone() not yet implemented" );
@@ -422,9 +433,10 @@ void GPHIKClassifier::predictUncertainty( const NICE::Vector * example, double &
   }
 }
 
-//---------------------------------------------------------------------
-//                           protected methods
-//---------------------------------------------------------------------
+///////////////////// INTERFACE PERSISTENT /////////////////////
+// interface specific methods for store and restore
+///////////////////// INTERFACE PERSISTENT ///////////////////// 
+
 void GPHIKClassifier::restore ( std::istream & is, int format )
 {
   //delete everything we knew so far...
@@ -609,10 +621,63 @@ void GPHIKClassifier::store ( std::ostream & os, int format ) const
   }
 }
 
-std::set<int> GPHIKClassifier::getKnownClassNumbers ( ) const
+void GPHIKClassifier::clear ()
 {
-  if (gphyper == NULL)
-     fthrow(Exception, "Classifier not trained yet -- aborting!" );  
+  if ( gphyper != NULL )
+  {
+    delete gphyper;
+    gphyper = NULL;
+  }
   
-  return gphyper->getKnownClassNumbers();
+  if (pf != NULL)
+  {
+    delete pf;
+    pf = NULL;
+  }
+
+  if ( confCopy != NULL )
+  {
+    delete confCopy; 
+    confCopy = NULL;
+  } 
+}
+
+///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+// interface specific methods for incremental extensions
+///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+
+void GPHIKClassifier::addExample( const NICE::SparseVector * example, 
+			     const double & label, 
+			     const bool & performOptimizationAfterIncrement
+			   )
+{
+  if ( this->gphyper == NULL )
+     fthrow(Exception, "Classifier not initially trained yet -- aborting!" );     
+  //TODO add option for starting with empty classifier!
+    // -> call train() with converted input here
+  //***done*** // TODO add option to go from 2 to 3 classes!  ***done***
+  // TODO add option going from 1 to 2 classes without adding new alpha vector
+  //***done*** // TODO check variance matrices in update ***done***
+  // TODO add check option for variance update
+  // TODO adapt code for addMultipleExamples
+
+  this->gphyper->addExample( example, label, performOptimizationAfterIncrement );
+
+  std::cerr << " --- GPHIKClassifierIL::addExample done --- " << std::endl;  
+}
+
+void GPHIKClassifier::addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
+				      const NICE::Vector & newLabels,
+				      const bool & performOptimizationAfterIncrement
+				    )
+{
+  //are new examples available? If not, nothing has to be done
+  if ( newExamples.size() < 1)
+    return;
+
+  if ( this->gphyper == NULL )
+     fthrow(Exception, "Classifier not initially trained yet -- aborting!" );     
+  //TODO add option for starting with empty classifier!
+  
+  this->gphyper->addMultipleExamples( newExamples, newLabels, performOptimizationAfterIncrement );  
 }

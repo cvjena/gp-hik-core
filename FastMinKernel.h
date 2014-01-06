@@ -11,16 +11,20 @@
 #include <iostream>
 
 // NICE-core includes
+#include <core/basics/Config.h>
 #include <core/basics/Exception.h>
 #include <core/basics/Persistent.h>
 // 
+// 
 #include <core/vector/MatrixT.h>
 #include <core/vector/SparseVectorT.h>
+#include <core/vector/VectorT.h>
 #include <core/vector/VVector.h>
 
 // gp-hik-core includes
-#include "FeatureMatrixT.h"
-#include "Quantization.h"
+#include "gp-hik-core/FeatureMatrixT.h"
+#include "gp-hik-core/OnlineLearnable.h"
+#include "gp-hik-core/Quantization.h"
 #include "gp-hik-core/parameterizedFunctions/ParameterizedFunction.h"
 
 namespace NICE {
@@ -33,7 +37,7 @@ namespace NICE {
  */  
   
   /** interface to FastMinKernel implementation*/
-  class FastMinKernel : NICE::Persistent
+  class FastMinKernel : public NICE::Persistent, public OnlineLearnable
   {
 
     protected:
@@ -436,6 +440,40 @@ namespace NICE {
       virtual void restore ( std::istream & is, int format = 0 );
       virtual void store ( std::ostream & os, int format = 0 ) const; 
       virtual void clear ();
+      
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+    // interface specific methods for incremental extensions
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+      
+    virtual void addExample( const NICE::SparseVector * example, 
+			     const double & label, 
+			     const bool & performOptimizationAfterIncrement = true
+			   );
+			   
+    virtual void addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
+				      const NICE::Vector & newLabels,
+				      const bool & performOptimizationAfterIncrement = true
+				    );  
+    
+
+      /**
+      * @brief Add a new example to the feature-storage. You have to update the corresponding variables explicitely after that.
+      * @author Alexander Freytag
+      * @date 02-01-2014 (dd-mm-yyyy)
+      *
+      * @param example new feature vector
+      */       
+      void addExample(const NICE::SparseVector * example, const NICE::ParameterizedFunction *pf = NULL);
+      
+      /**
+      * @brief Add multiple new example to the feature-storage. You have to update the corresponding variables explicitely after that.
+      * @author Alexander Freytag
+      * @date 02-01-2014 (dd-mm-yyyy)
+      *
+      * @param newExamples new feature vectors
+      */       
+      void addMultipleExamples(const std::vector<const NICE::SparseVector * > & newExamples, const NICE::ParameterizedFunction *pf = NULL);        
+      
       
      
 

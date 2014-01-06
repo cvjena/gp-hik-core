@@ -3,11 +3,13 @@
 * @brief Combination of several (implicit) kernel matrices, such as noise matrix and gp-hik kernel matrix (Implementation)
 * @author Erik Rodner, Alexander Freytag
 * @date 02/14/2012
-
 */
+
+// STL includes
 #include <iostream>
 
-#include "IKMLinearCombination.h"
+// gp-hik-core includes
+#include "gp-hik-core/IKMLinearCombination.h"
 
 using namespace NICE;
 using namespace std;
@@ -15,28 +17,31 @@ using namespace std;
 
 IKMLinearCombination::IKMLinearCombination()
 {
-  verbose = false;
+  this->verbose = false;
 }
 
 IKMLinearCombination::~IKMLinearCombination()
 {
-  if (matrices.size() != 0)
+  if ( this->matrices.size() != 0)
   {
-    for (int i = 0; i < matrices.size(); i++)
-      delete matrices[i];
+    for (int i = 0; i < this->matrices.size(); i++)
+      delete this->matrices[i];
   }
 }
 
+///////////////////// ///////////////////// /////////////////////
+//                         GET / SET
+///////////////////// ///////////////////// ///////////////////
 
 void IKMLinearCombination::getDiagonalElements ( Vector & diagonalElements ) const
 {
   diagonalElements.resize ( rows() );
   diagonalElements.set(0.0);
   
-  for ( vector<ImplicitKernelMatrix *>::const_iterator i = matrices.begin(); i != matrices.end(); i++ )
+  for ( std::vector<NICE::ImplicitKernelMatrix *>::const_iterator i = this->matrices.begin(); i != this->matrices.end(); i++ )
   {
-    ImplicitKernelMatrix *ikm = *i;
-    Vector diagonalElementsSingle;
+    NICE::ImplicitKernelMatrix *ikm = *i;
+    NICE::Vector diagonalElementsSingle;
     ikm->getDiagonalElements ( diagonalElementsSingle );
     diagonalElements += diagonalElementsSingle;
   }
@@ -45,9 +50,9 @@ void IKMLinearCombination::getDiagonalElements ( Vector & diagonalElements ) con
 void IKMLinearCombination::getFirstDiagonalElement ( double & diagonalElement ) const
 {
   diagonalElement = 0.0;
-  for ( vector<ImplicitKernelMatrix *>::const_iterator i = matrices.begin(); i != matrices.end(); i++ )
+  for ( std::vector<NICE::ImplicitKernelMatrix *>::const_iterator i = this->matrices.begin(); i != this->matrices.end(); i++ )
   {
-    ImplicitKernelMatrix *ikm = *i;
+    NICE::ImplicitKernelMatrix *ikm = *i;
     double firstElem;
     ikm->getFirstDiagonalElement(firstElem);
     diagonalElement += firstElem;
@@ -262,5 +267,31 @@ void IKMLinearCombination::store ( std::ostream & os, int format ) const
   else
   {
     std::cerr << "OutStream not initialized - storing not possible!" << std::endl;
+  }  
+}
+
+///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+// interface specific methods for incremental extensions
+///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+
+void IKMLinearCombination::addExample( const NICE::SparseVector * example, 
+			     const double & label, 
+			     const bool & performOptimizationAfterIncrement
+			   )
+{
+  for ( std::vector<NICE::ImplicitKernelMatrix *>::iterator i = matrices.begin(); i != matrices.end(); i++ )
+  {
+    (*i)->addExample( example, label);
+  }  
+}
+
+void IKMLinearCombination::addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
+				      const NICE::Vector & newLabels,
+				      const bool & performOptimizationAfterIncrement
+				    )
+{
+  for ( std::vector<NICE::ImplicitKernelMatrix *>::iterator i = matrices.begin(); i != matrices.end(); i++ )
+  {
+    (*i)->addMultipleExamples( newExamples, newLabels);
   }  
 }

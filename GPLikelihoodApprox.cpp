@@ -5,22 +5,28 @@
 * @date 02/09/2012
 
 */
+
+// STL includes
 #include <iostream>
 
+// NICE-core includes
 #include <core/algebra/CholeskyRobust.h>
+#include <core/algebra/ILSConjugateGradients.h>
+// 
+#include <core/basics/Timer.h>
+// 
 #include <core/vector/Algorithms.h>
 #include <core/vector/Eigen.h>
 
-#include <core/basics/Timer.h>
-#include <core/algebra/ILSConjugateGradients.h>
+//stuff used for verification only
 #include "kernels/GeneralizedIntersectionKernelFunction.h"
 #include "kernels/IntersectionKernelFunction.h"
 
-
-#include "GPLikelihoodApprox.h"
-#include "IKMLinearCombination.h"
-#include "GMHIKernel.h"
-#include "algebra/LogDetApproxBaiAndGolub.h"
+// gp-hik-core includes
+#include "gp-hik-core/GPLikelihoodApprox.h"
+#include "gp-hik-core/IKMLinearCombination.h"
+#include "gp-hik-core/GMHIKernel.h"
+#include "gp-hik-core/algebra/LogDetApproxBaiAndGolub.h"
 
 
 using namespace std;
@@ -28,7 +34,7 @@ using namespace NICE;
 using namespace OPTIMIZATION;
 
 
-GPLikelihoodApprox::GPLikelihoodApprox( const map<int, Vector> & binaryLabels,
+GPLikelihoodApprox::GPLikelihoodApprox( const std::map<int, NICE::Vector> & binaryLabels,
                                         ImplicitKernelMatrix *ikm,
                                         IterativeLinearSolver *linsolver, 
                                         EigValues *eig,
@@ -55,10 +61,34 @@ GPLikelihoodApprox::GPLikelihoodApprox( const map<int, Vector> & binaryLabels,
     
   this->verbose = false;
   this->debug = false;
+  
+  this->initialAlphaGuess = NULL;
 }
 
 GPLikelihoodApprox::~GPLikelihoodApprox()
 {
+  //we do not have to delete the memory here, since it will be handled externally...
+  // TODO however, if we should copy the whole vector, than we also have to delete it here accordingly! Check this!
+  if ( this->initialAlphaGuess != NULL )
+    this->initialAlphaGuess = NULL;
+}
+
+const std::map<int, Vector> & GPLikelihoodApprox::getBestAlphas () const
+{
+  if ( this->min_alphas.size() > 0 )
+  {
+  // did we already computed a local optimal solution?
+    return this->min_alphas;
+  }
+  else if ( this->initialAlphaGuess != NULL)
+  {
+    std::cerr << "no known alpha vectors so far, take initial guess instaed" << std::endl;
+    // computation not started, but initial guess was given, so use this one
+    return *(this->initialAlphaGuess);
+  }  
+  
+  // nothing known, min_alphas will be empty
+  return this->min_alphas;
 }
 
 void GPLikelihoodApprox::calculateLikelihood ( double mypara, const FeatureMatrix & f, const std::map< int, NICE::Vector > & yset, double noise, double lambdaMax )
@@ -275,8 +305,16 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
      *  This reduces the number of iterations by 5 or 8
      */
     NICE::Vector alpha;
+    if ( this->initialAlphaGuess != NULL )
+    {
+      alpha = this->initialAlphaGuess->find(classCnt)->second;
+    }
+    else
+    {
+      alpha = (binaryLabels[classCnt] * (1.0 / eigenmax[0]) );      
+    }
     
-    alpha = (binaryLabels[classCnt] * (1.0 / eigenmax[0]) );
+
     
     if ( verbose )
       cerr << "Using the standard solver ..." << endl;
@@ -355,6 +393,11 @@ void GPLikelihoodApprox::setParameterLowerBound(const double & _parameterLowerBo
 void GPLikelihoodApprox::setParameterUpperBound(const double & _parameterUpperBound)
 {
   parameterUpperBound = _parameterUpperBound;
+}
+
+void GPLikelihoodApprox::setInitialAlphaGuess(std::map< int, NICE::Vector >* _initialAlphaGuess)
+{
+  this->initialAlphaGuess = _initialAlphaGuess;
 }
 
 

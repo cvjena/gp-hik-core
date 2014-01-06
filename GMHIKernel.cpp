@@ -198,3 +198,23 @@ void GMHIKernel::setApproximationScheme(const int & _approxScheme)
 {
   this->fmk->setApproximationScheme(_approxScheme);
 }
+
+///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+// interface specific methods for incremental extensions
+///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+
+void GMHIKernel::addExample( const NICE::SparseVector * example, 
+			     const double & label, 
+			     const bool & performOptimizationAfterIncrement
+			   )
+{
+  //nothing has to be done here, the fmk-object got new examples already in outer struct (FMKGPHyperparameterOptimization)
+}
+
+void GMHIKernel::addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
+				      const NICE::Vector & newLabels,
+				      const bool & performOptimizationAfterIncrement
+				    )
+{
+  //nothing has to be done here, the fmk-object got new examples already in outer struct (FMKGPHyperparameterOptimization)
+}

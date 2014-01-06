@@ -73,12 +73,30 @@ class GMHIKernel : public ImplicitKernelMatrix
     virtual double approxFrobNorm() const;
     virtual void setApproximationScheme(const int & _approxScheme);
     
-    /** Persistent interface */
+    void setFastMinKernel(NICE::FastMinKernel * _fmk){fmk = _fmk;};
+    
+    ///////////////////// INTERFACE PERSISTENT /////////////////////
+    // interface specific methods for store and restore
+    ///////////////////// INTERFACE PERSISTENT /////////////////////
     virtual void restore ( std::istream & is, int format = 0 ) {};//fmk->restore( is, format );};
     virtual void store ( std::ostream & os, int format = 0 ) const {};//fmk->store( os, format );};
     virtual void clear () {};
     
-    void setFastMinKernel(NICE::FastMinKernel * _fmk){fmk = _fmk;};
+
+    
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+    // interface specific methods for incremental extensions
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////    
+    
+    virtual void addExample( const NICE::SparseVector * example, 
+			     const double & label, 
+			     const bool & performOptimizationAfterIncrement = true
+			   );
+			   
+    virtual void addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
+				      const NICE::Vector & newLabels,
+				      const bool & performOptimizationAfterIncrement = true
+				    );     
      
 };
 

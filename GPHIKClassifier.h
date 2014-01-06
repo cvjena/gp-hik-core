@@ -19,7 +19,8 @@
 #include <core/vector/SparseVectorT.h>
 
 // gp-hik-core includes
-#include "FMKGPHyperparameterOptimization.h"
+#include "gp-hik-core/FMKGPHyperparameterOptimization.h"
+#include "gp-hik-core/OnlineLearnable.h"
 #include "gp-hik-core/parameterizedFunctions/ParameterizedFunction.h"
 
 namespace NICE {
@@ -30,7 +31,7 @@ namespace NICE {
  * @author Erik Rodner, Alexander Freytag
  */
  
-class GPHIKClassifier : NICE::Persistent
+class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
 {
 
   protected:
@@ -72,8 +73,17 @@ class GPHIKClassifier : NICE::Persistent
       
     /** simple destructor */
     ~GPHIKClassifier();
+    
+    ///////////////////// ///////////////////// /////////////////////
+    //                         GET / SET
+    ///////////////////// ///////////////////// /////////////////////      
+    
+    std::set<int> getKnownClassNumbers ( ) const;    
    
-
+    ///////////////////// ///////////////////// /////////////////////
+    //                      CLASSIFIER STUFF
+    ///////////////////// ///////////////////// /////////////////////      
+    
     /** 
      * @brief classify a given example with the previously learnt model
      * @date 19-06-2012 (dd-mm-yyyy)
@@ -136,11 +146,6 @@ class GPHIKClassifier : NICE::Persistent
      */
     void train ( const std::vector< NICE::SparseVector *> & examples, std::map<int, NICE::Vector> & binLabels );
     
-    /** Persistent interface */
-    void restore ( std::istream & is, int format = 0 );
-    void store ( std::ostream & os, int format = 0 ) const;
-    void clear ();
-
     GPHIKClassifier *clone () const;
 
     /** 
@@ -161,7 +166,32 @@ class GPHIKClassifier : NICE::Persistent
      */       
     void predictUncertainty( const NICE::Vector * example, double & uncertainty );    
     
-    std::set<int> getKnownClassNumbers ( ) const;
+
+
+    ///////////////////// INTERFACE PERSISTENT /////////////////////
+    // interface specific methods for store and restore
+    ///////////////////// INTERFACE PERSISTENT /////////////////////   
+    
+    void restore ( std::istream & is, int format = 0 );
+    void store ( std::ostream & os, int format = 0 ) const;
+    void clear ();
+    
+    
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+    // interface specific methods for incremental extensions
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+    
+    virtual void addExample( const NICE::SparseVector * example, 
+			     const double & label, 
+			     const bool & performOptimizationAfterIncrement = true
+			   );
+			   
+    virtual void addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
+				      const NICE::Vector & newLabels,
+				      const bool & performOptimizationAfterIncrement = true
+				    );       
+
+
 
 };
 

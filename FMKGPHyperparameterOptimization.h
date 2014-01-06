@@ -25,10 +25,12 @@
 #endif
 
 // gp-hik-core includes
-#include "FastMinKernel.h"
-#include "GPLikelihoodApprox.h"
-#include "IKMLinearCombination.h"
-#include "Quantization.h"
+#include "gp-hik-core/FastMinKernel.h"
+#include "gp-hik-core/GPLikelihoodApprox.h"
+#include "gp-hik-core/IKMLinearCombination.h"
+#include "gp-hik-core/OnlineLearnable.h"
+#include "gp-hik-core/Quantization.h"
+
 
 #include "gp-hik-core/parameterizedFunctions/ParameterizedFunction.h"
 
@@ -40,7 +42,7 @@ namespace NICE {
  * @author Erik Rodner, Alexander Freytag
  */
   
-class FMKGPHyperparameterOptimization : NICE::Persistent
+class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::OnlineLearnable
 {
   protected:
     enum {
@@ -146,6 +148,24 @@ class FMKGPHyperparameterOptimization : NICE::Persistent
     
     //! contains all class numbers of the currently known classes
     std::set<int> knownClasses;
+    
+    bool b_usePreviousAlphas;
+    
+    //! we store the alpha vectors for good initializations in the IL setting
+    std::map<int, NICE::Vector> lastAlphas;  
+
+    //! Update matrices (A, B, LUTs) and optionally find optimal parameters after adding a new example.  
+    void updateAfterSingleIncrement (
+      const NICE::SparseVector & x, 
+      const std::set<int> newClasses,
+      const bool & performOptimizationAfterIncrement = false
+    );    
+    //! Update matrices (A, B, LUTs) and optionally find optimal parameters after adding multiple examples.  
+    void updateAfterMultipleIncrements (
+      const std::vector<const NICE::SparseVector*> & x, 
+      const std::set<int> newClasses,
+      const bool & performOptimizationAfterIncrement = false
+    );     
 
     
   public:  
@@ -165,13 +185,17 @@ class FMKGPHyperparameterOptimization : NICE::Persistent
     /** simple destructor */
     virtual ~FMKGPHyperparameterOptimization();
     
-    // get and set methods
+    ///////////////////// ///////////////////// /////////////////////
+    //                         GET / SET
+    ///////////////////// ///////////////////// ///////////////////// 
     void setParameterUpperBound(const double & _parameterUpperBound);
     void setParameterLowerBound(const double & _parameterLowerBound);  
     
     std::set<int> getKnownClassNumbers ( ) const;
     
-    //high level methods
+    ///////////////////// ///////////////////// /////////////////////
+    //                      CLASSIFIER STUFF
+    ///////////////////// ///////////////////// /////////////////////  
     
     void initialize( const Config *conf, ParameterizedFunction *pf, FastMinKernel *fmk = NULL, const std::string & confSection = "GPHIKClassifier" );
        
@@ -325,12 +349,27 @@ class FMKGPHyperparameterOptimization : NICE::Persistent
     
     
     
-    /** Persistent interface */
+    ///////////////////// INTERFACE PERSISTENT /////////////////////
+    // interface specific methods for store and restore
+    ///////////////////// INTERFACE PERSISTENT ///////////////////// 
+    
     void restore ( std::istream & is, int format = 0 );
     void store ( std::ostream & os, int format = 0 ) const;
     void clear ( ) ;
     
-        
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+    // interface specific methods for incremental extensions
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////    
+    
+    virtual void addExample( const NICE::SparseVector * example, 
+			     const double & label, 
+			     const bool & performOptimizationAfterIncrement = true
+			   );
+			   
+    virtual void addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
+				      const NICE::Vector & newLabels,
+				      const bool & performOptimizationAfterIncrement = true
+				    );         
 };
 
 }
