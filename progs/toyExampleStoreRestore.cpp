@@ -48,10 +48,10 @@ int main (int argc, char* argv[])
   } 
   
   //----------------- convert data to sparse data structures ---------
-  std::vector< NICE::SparseVector *> examplesTrain;
+  std::vector< const NICE::SparseVector *> examplesTrain;
   examplesTrain.resize( dataTrain.rows() );
   
-  std::vector< NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin();
+  std::vector< const NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin();
   for (int i = 0; i < (int)dataTrain.rows(); i++, exTrainIt++)
   {
     *exTrainIt =  new NICE::SparseVector( dataTrain.getRow(i) );

@@ -92,7 +92,7 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @param result (int) class number of most likely class
      * @param scores (SparseVector) classification scores for known classes
      */        
-    void classify ( const NICE::SparseVector * example,  int & result, NICE::SparseVector & scores );
+    void classify ( const NICE::SparseVector * example,  int & result, NICE::SparseVector & scores ) const;
     
     /** 
      * @brief classify a given example with the previously learnt model
@@ -103,7 +103,7 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @param scores (SparseVector) classification scores for known classes
      * @param uncertainty (double*) predictive variance of the classification result, if computed
      */    
-    void classify ( const NICE::SparseVector * example,  int & result, NICE::SparseVector & scores, double & uncertainty );
+    void classify ( const NICE::SparseVector * example,  int & result, NICE::SparseVector & scores, double & uncertainty ) const;
     
     /** 
      * @brief classify a given example with the previously learnt model
@@ -114,7 +114,7 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @param result (int) class number of most likely class
      * @param scores (SparseVector) classification scores for known classes
      */        
-    void classify ( const NICE::Vector * example,  int & result, NICE::SparseVector & scores );
+    void classify ( const NICE::Vector * example,  int & result, NICE::SparseVector & scores ) const;
     
     /** 
      * @brief classify a given example with the previously learnt model
@@ -126,7 +126,7 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @param scores (SparseVector) classification scores for known classes
      * @param uncertainty (double) predictive variance of the classification result, if computed
      */    
-    void classify ( const NICE::Vector * example,  int & result, NICE::SparseVector & scores, double & uncertainty );    
+    void classify ( const NICE::Vector * example,  int & result, NICE::SparseVector & scores, double & uncertainty ) const;    
 
     /**
      * @brief train this classifier using a given set of examples and a given set of binary label vectors 
@@ -135,7 +135,7 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @param examples (std::vector< NICE::SparseVector *>) training data given in a sparse representation
      * @param labels (Vector) class labels (multi-class)
      */
-    void train ( const std::vector< NICE::SparseVector *> & examples, const NICE::Vector & labels );
+    void train ( const std::vector< const NICE::SparseVector *> & examples, const NICE::Vector & labels );
     
     /** 
      * @brief train this classifier using a given set of examples and a given set of binary label vectors 
@@ -144,7 +144,7 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @param examples examples to use given in a sparse data structure
      * @param binLabels corresponding binary labels with class no. There is no need here that every examples has only on positive entry in this set (1,-1)
      */
-    void train ( const std::vector< NICE::SparseVector *> & examples, std::map<int, NICE::Vector> & binLabels );
+    void train ( const std::vector< const NICE::SparseVector *> & examples, std::map<int, NICE::Vector> & binLabels );
     
     GPHIKClassifier *clone () const;
 
@@ -155,7 +155,7 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @param examples example for which the classification uncertainty shall be predicted, given in a sparse representation
      * @param uncertainty contains the resulting classification uncertainty
      */       
-    void predictUncertainty( const NICE::SparseVector * example, double & uncertainty );
+    void predictUncertainty( const NICE::SparseVector * example, double & uncertainty ) const;
     
     /** 
      * @brief prediction of classification uncertainty
@@ -164,7 +164,7 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @param examples example for which the classification uncertainty shall be predicted, given in a non-sparse representation
      * @param uncertainty contains the resulting classification uncertainty
      */       
-    void predictUncertainty( const NICE::Vector * example, double & uncertainty );    
+    void predictUncertainty( const NICE::Vector * example, double & uncertainty ) const;    
     
 
 

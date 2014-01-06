@@ -13,7 +13,10 @@
 class TestGPHIKOnlineLearnable : public CppUnit::TestFixture {
 
     CPPUNIT_TEST_SUITE( TestGPHIKOnlineLearnable );
-	 CPPUNIT_TEST(testOnlineLearningMethods);
+      CPPUNIT_TEST(testOnlineLearningStartEmpty);
+      CPPUNIT_TEST(testOnlineLearningOCCtoBinary);
+      CPPUNIT_TEST(testOnlineLearningBinarytoMultiClass);
+      CPPUNIT_TEST(testOnlineLearningMultiClass);
       
     CPPUNIT_TEST_SUITE_END();
   
@@ -23,8 +26,13 @@ class TestGPHIKOnlineLearnable : public CppUnit::TestFixture {
     void setUp();
     void tearDown();
 
+    void testOnlineLearningStartEmpty();    
+    
+    void testOnlineLearningOCCtoBinary();
+    
+    void testOnlineLearningBinarytoMultiClass();
 
-    void testOnlineLearningMethods();
+    void testOnlineLearningMultiClass();
 };
 
 #endif // _TESTGPHIKONLINELEARNABLE_H

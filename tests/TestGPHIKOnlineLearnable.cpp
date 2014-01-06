@@ -33,63 +33,248 @@ void TestGPHIKOnlineLearnable::setUp() {
 
 void TestGPHIKOnlineLearnable::tearDown() {
 }
-void TestGPHIKOnlineLearnable::testOnlineLearningMethods()
+
+
+
+void readData ( const std::string filename, NICE::Matrix & data, NICE::Vector & yBin, NICE::Vector & yMulti )
 {
+ std::ifstream ifs ( filename.c_str() , ios::in );
+
+  if ( ifs.good() )
+  {
+    ifs >> data;
+    ifs >> yBin;
+    ifs >> yMulti;
+    ifs.close();  
+  }
+  else 
+  {
+    std::cerr << "Unable to read data from file " << filename << " -- aborting." << std::endl;
+    CPPUNIT_ASSERT ( ifs.good() );
+  }    
+}
+
+void prepareLabelMappings (std::map<int,int> mapClNoToIdxTrain, const GPHIKClassifier * classifier, std::map<int,int> mapClNoToIdxTest, const NICE::Vector & yMultiTest)
+{
+  // determine classes known during training and corresponding mapping
+  // thereby allow for non-continous class labels
+  std::set<int> classesKnownTraining = classifier->getKnownClassNumbers();
   
+  int noClassesKnownTraining ( classesKnownTraining.size() );
+  std::set<int>::const_iterator clTrIt = classesKnownTraining.begin();
+  for ( int i=0; i < noClassesKnownTraining; i++, clTrIt++ )
+      mapClNoToIdxTrain.insert ( std::pair<int,int> ( *clTrIt, i )  );
+  
+  // determine classes known during testing and corresponding mapping
+  // thereby allow for non-continous class labels
+  std::set<int> classesKnownTest;
+  classesKnownTest.clear();
+  
+
+  // determine which classes we have in our label vector
+  // -> MATLAB: myClasses = unique(y);
+  for ( NICE::Vector::const_iterator it = yMultiTest.begin(); it != yMultiTest.end(); it++ )
+  {
+    if ( classesKnownTest.find ( *it ) == classesKnownTest.end() )
+    {
+      classesKnownTest.insert ( *it );
+    }
+  }          
+  
+  int noClassesKnownTest ( classesKnownTest.size() );  
+  std::set<int>::const_iterator clTestIt = classesKnownTest.begin();
+  for ( int i=0; i < noClassesKnownTest; i++, clTestIt++ )
+      mapClNoToIdxTest.insert ( std::pair<int,int> ( *clTestIt, i )  );   
+}
+
+void evaluateClassifier ( NICE::Matrix & confusionMatrix, 
+                          const NICE::GPHIKClassifier * classifier, 
+                          const NICE::Matrix & data,
+                          const NICE::Vector & yMulti,
+                          const std::map<int,int> & mapClNoToIdxTrain,
+                          const std::map<int,int> & mapClNoToIdxTest
+                        ) 
+{
+  int i_loopEnd  ( (int)data.rows() );  
+  
+  for (int i = 0; i < i_loopEnd ; i++)
+  {
+    NICE::Vector example ( data.getRow(i) );
+    NICE::SparseVector scores;
+    int result;    
+    
+    // classify with incrementally trained classifier 
+    classifier->classify( &example, result, scores );
+    
+    confusionMatrix( mapClNoToIdxTrain.find(result)->second, mapClNoToIdxTest.find(yMulti[i])->second ) += 1.0;
+  }
+}
+
+void TestGPHIKOnlineLearnable::testOnlineLearningStartEmpty()
+{
   if (verboseStartEnd)
-    std::cerr << "================== TestGPHIKOnlineLearnable::testOnlineLearningMethods ===================== " << std::endl;  
+    std::cerr << "================== TestGPHIKOnlineLearnable::testOnlineLearningStartEmpty ===================== " << std::endl;  
   
   NICE::Config conf;
   
   conf.sB ( "GPHIKClassifier", "eig_verbose", false);
   conf.sS ( "GPHIKClassifier", "optimization_method", "downhillsimplex");
   
-  std::string trainData = conf.gS( "main", "trainData", "toyExampleSmallScaleTrain.data" );
-  NICE::GPHIKClassifier * classifier;  
+  std::string s_trainData = conf.gS( "main", "trainData", "toyExampleSmallScaleTrain.data" );
   
   //------------- read the training data --------------
   
   NICE::Matrix dataTrain;
   NICE::Vector yBinTrain;
   NICE::Vector yMultiTrain; 
-
-  std::ifstream ifsTrain ( trainData.c_str() , ios::in );
-
-  if ( ifsTrain.good() )
-  {
-    ifsTrain >> dataTrain;
-    ifsTrain >> yBinTrain;
-    ifsTrain >> yMultiTrain;
-    ifsTrain.close();  
-  }
-  else 
-  {
-    std::cerr << "Unable to read training data from file " << trainData << " -- aborting." << std::endl;
-    CPPUNIT_ASSERT ( ifsTrain.good() );
-  } 
+  
+  readData ( s_trainData, dataTrain, yBinTrain, yMultiTrain );
   
   //----------------- convert data to sparse data structures ---------
-  std::vector< NICE::SparseVector *> examplesTrain;
+  std::vector< const NICE::SparseVector *> examplesTrain;
+  examplesTrain.resize( dataTrain.rows() );
+  
+  std::vector< const NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin();
+  for (int i = 0; i < (int)dataTrain.rows(); i++, exTrainIt++)
+  {
+    *exTrainIt =  new NICE::SparseVector( dataTrain.getRow(i) );
+  }
+  
+  //create classifier object
+  NICE::GPHIKClassifier * classifier;
+  classifier = new NICE::GPHIKClassifier ( &conf );  
+  bool performOptimizationAfterIncrement ( false );
+
+  // add training samples, but without running training method first
+  classifier->addMultipleExamples ( examplesTrain,yMultiTrain, performOptimizationAfterIncrement );  
+  
+  // create second object trained in the standard way
+  NICE::GPHIKClassifier * classifierScratch = new NICE::GPHIKClassifier ( &conf );
+  classifierScratch->train ( examplesTrain, yMultiTrain );
+  
+    
+  // TEST both classifiers to produce equal results
+  
+  //------------- read the test data --------------
+  
+  
+  NICE::Matrix dataTest;
+  NICE::Vector yBinTest;
+  NICE::Vector yMultiTest; 
+  
+  std::string s_testData = conf.gS( "main", "testData", "toyExampleTest.data" );  
+  
+  readData ( s_testData, dataTest, yBinTest, yMultiTest );
+
+    
+  // ------------------------------------------
+  // ------------- PREPARATION --------------
+  // ------------------------------------------   
+  
+  // determine classes known during training/testing and corresponding mapping
+  // thereby allow for non-continous class labels  
+  std::map<int,int> mapClNoToIdxTrain;
+  std::map<int,int> mapClNoToIdxTest;
+  prepareLabelMappings (mapClNoToIdxTrain, classifier, mapClNoToIdxTest, yMultiTest);
+  
+  
+  NICE::Matrix confusionMatrix         ( mapClNoToIdxTrain.size(), mapClNoToIdxTest.size(), 0.0);
+  NICE::Matrix confusionMatrixScratch  ( mapClNoToIdxTrain.size(), mapClNoToIdxTest.size(), 0.0);
+  
+    
+  // ------------------------------------------
+  // ------------- CLASSIFICATION --------------
+  // ------------------------------------------  
+  evaluateClassifier ( confusionMatrix, classifier, dataTest, yMultiTest,
+                          mapClNoToIdxTrain,mapClNoToIdxTest ); 
+  
+  evaluateClassifier ( confusionMatrixScratch, classifierScratch, dataTest, yMultiTest,
+                          mapClNoToIdxTrain,mapClNoToIdxTest );  
+  
+    
+  // post-process confusion matrices
+  confusionMatrix.normalizeColumnsL1();
+  double arr ( confusionMatrix.trace()/confusionMatrix.cols() );
+
+  confusionMatrixScratch.normalizeColumnsL1();
+  double arrScratch ( confusionMatrixScratch.trace()/confusionMatrixScratch.cols() );
+
+  
+  CPPUNIT_ASSERT_DOUBLES_EQUAL( arr, arrScratch, 1e-8);
+  
+  // don't waste memory
+  
+  delete classifier;
+  delete classifierScratch;  
+  
+  for (std::vector< const NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin(); exTrainIt != examplesTrain.end(); exTrainIt++)
+  {
+    delete *exTrainIt;
+  }
+  
+  
+  if (verboseStartEnd)
+    std::cerr << "================== TestGPHIKOnlineLearnable::testOnlineLearningStartEmpty done ===================== " << std::endl;   
+}
+
+void TestGPHIKOnlineLearnable::testOnlineLearningOCCtoBinary()
+{
+  if (verboseStartEnd)
+    std::cerr << "================== TestGPHIKOnlineLearnable::testOnlineLearningOCCtoBinary ===================== " << std::endl;  
+  
+  if (verboseStartEnd)
+    std::cerr << "================== TestGPHIKOnlineLearnable::testOnlineLearningOCCtoBinary done ===================== " << std::endl;   
+}
+
+void TestGPHIKOnlineLearnable::testOnlineLearningBinarytoMultiClass()
+{
+  if (verboseStartEnd)
+    std::cerr << "================== TestGPHIKOnlineLearnable::testOnlineLearningBinarytoMultiClass ===================== " << std::endl;   
+  
+  if (verboseStartEnd)
+    std::cerr << "================== TestGPHIKOnlineLearnable::testOnlineLearningBinarytoMultiClass done ===================== " << std::endl;   
+}
+
+void TestGPHIKOnlineLearnable::testOnlineLearningMultiClass()
+{
+  
+  if (verboseStartEnd)
+    std::cerr << "================== TestGPHIKOnlineLearnable::testOnlineLearningMultiClass ===================== " << std::endl;  
+  
+  NICE::Config conf;
+  
+  conf.sB ( "GPHIKClassifier", "eig_verbose", false);
+  conf.sS ( "GPHIKClassifier", "optimization_method", "downhillsimplex");
+  
+  std::string s_trainData = conf.gS( "main", "trainData", "toyExampleSmallScaleTrain.data" );
+  
+  //------------- read the training data --------------
+  
+  NICE::Matrix dataTrain;
+  NICE::Vector yBinTrain;
+  NICE::Vector yMultiTrain; 
+  
+  readData ( s_trainData, dataTrain, yBinTrain, yMultiTrain );
+
+  //----------------- convert data to sparse data structures ---------
+  std::vector< const NICE::SparseVector *> examplesTrain;
   examplesTrain.resize( dataTrain.rows()-1 );
   
-  std::vector< NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin();
+  std::vector< const NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin();
   for (int i = 0; i < (int)dataTrain.rows()-1; i++, exTrainIt++)
   {
     *exTrainIt =  new NICE::SparseVector( dataTrain.getRow(i) );
   }  
   
   // TRAIN INITIAL CLASSIFIER FROM SCRATCH
-  
+  NICE::GPHIKClassifier * classifier;
   classifier = new NICE::GPHIKClassifier ( &conf );
 
   //use all but the first example for training and add the first one lateron
   NICE::Vector yMultiRelevantTrain  ( yMultiTrain.getRangeRef( 0, yMultiTrain.size()-2  ) );
-
-  std::cerr << "yMultiRelevantTrain: " << yMultiRelevantTrain << std::endl;
   
   classifier->train ( examplesTrain , yMultiRelevantTrain );
   
-  std::cerr << "Training done -- start incremental learning " << std::endl;
   
   // RUN INCREMENTAL LEARNING
   
@@ -139,94 +324,37 @@ void TestGPHIKOnlineLearnable::testOnlineLearningMethods()
   NICE::Matrix dataTest;
   NICE::Vector yBinTest;
   NICE::Vector yMultiTest; 
-
-  std::string testData = conf.gS( "main", "testData", "toyExampleTest.data" );  
-  std::ifstream ifsTest ( testData.c_str(), ios::in );
-  if ( ifsTest.good() )
-  {
-    ifsTest >> dataTest;
-    ifsTest >> yBinTest;
-    ifsTest >> yMultiTest;
-    ifsTest.close();  
-  }
-  else 
-  {
-    std::cerr << "Unable to read test data, aborting." << std::endl;
-    CPPUNIT_ASSERT ( ifsTest.good() );
-  }
   
+  std::string s_testData = conf.gS( "main", "testData", "toyExampleTest.data" );  
+  
+  readData ( s_testData, dataTest, yBinTest, yMultiTest );
+
+    
   // ------------------------------------------
   // ------------- PREPARATION --------------
   // ------------------------------------------   
   
-  // determine classes known during training and corresponding mapping
-  // thereby allow for non-continous class labels
-  std::set<int> classesKnownTraining = classifier->getKnownClassNumbers();
-  
-  int noClassesKnownTraining ( classesKnownTraining.size() );
+  // determine classes known during training/testing and corresponding mapping
+  // thereby allow for non-continous class labels  
   std::map<int,int> mapClNoToIdxTrain;
-  std::set<int>::const_iterator clTrIt = classesKnownTraining.begin();
-  for ( int i=0; i < noClassesKnownTraining; i++, clTrIt++ )
-      mapClNoToIdxTrain.insert ( std::pair<int,int> ( *clTrIt, i )  );
-  
-  // determine classes known during testing and corresponding mapping
-  // thereby allow for non-continous class labels
-  std::set<int> classesKnownTest;
-  classesKnownTest.clear();
-  
-
-  // determine which classes we have in our label vector
-  // -> MATLAB: myClasses = unique(y);
-  for ( NICE::Vector::const_iterator it = yMultiTest.begin(); it != yMultiTest.end(); it++ )
-  {
-    if ( classesKnownTest.find ( *it ) == classesKnownTest.end() )
-    {
-      classesKnownTest.insert ( *it );
-    }
-  }          
-  
-  int noClassesKnownTest ( classesKnownTest.size() );  
   std::map<int,int> mapClNoToIdxTest;
-  std::set<int>::const_iterator clTestIt = classesKnownTest.begin();
-  for ( int i=0; i < noClassesKnownTest; i++, clTestIt++ )
-      mapClNoToIdxTest.insert ( std::pair<int,int> ( *clTestIt, i )  ); 
-          
-  
-  NICE::Matrix confusionMatrix         ( noClassesKnownTraining, noClassesKnownTest, 0.0);
-  NICE::Matrix confusionMatrixScratch    ( noClassesKnownTraining, noClassesKnownTest, 0.0);
-  
-  std::cerr << "data preparation for testing is done "<< std::endl;
-  
-  int i_loopEnd  ( (int)dataTest.rows() );
+  prepareLabelMappings (mapClNoToIdxTrain, classifier, mapClNoToIdxTest, yMultiTest);
   
   
-  for (int i = 0; i < i_loopEnd ; i++)
-  {
-    NICE::Vector example ( dataTest.getRow(i) );
-    NICE::SparseVector scores;
-    int result;
+  NICE::Matrix confusionMatrix         ( mapClNoToIdxTrain.size(), mapClNoToIdxTest.size(), 0.0);
+  NICE::Matrix confusionMatrixScratch    ( mapClNoToIdxTrain.size(), mapClNoToIdxTest.size(), 0.0);
     
-    
-    // classify with incrementally trained classifier 
-    classifier->classify( &example, result, scores );
-    std::cerr << "results with IL classifier: " << std::endl;
-    scores.store ( std::cerr );   
-    
-    confusionMatrix( mapClNoToIdxTrain.find(result)->second, mapClNoToIdxTest.find(yMultiTest[i])->second ) += 1.0;
-
-    // classify with classifier learned from scratch
-    scores.clear();
-    classifierScratch->classify( &example, result, scores );
-    std::cerr << "Results with scratch classifier: " << std::endl;
-    scores.store( std::cerr );
-    std::cerr << std::endl;
-    
-    confusionMatrixScratch( mapClNoToIdxTrain.find(result)->second, mapClNoToIdxTest.find(yMultiTest[i])->second ) += 1.0;
-  }  
+  // ------------------------------------------
+  // ------------- CLASSIFICATION --------------
+  // ------------------------------------------  
+  evaluateClassifier ( confusionMatrix, classifier, dataTest, yMultiTest,
+                          mapClNoToIdxTrain,mapClNoToIdxTest ); 
   
-  //TODO also check that both classifiers result in the same store-files
+  evaluateClassifier ( confusionMatrixScratch, classifierScratch, dataTest, yMultiTest,
+                          mapClNoToIdxTrain,mapClNoToIdxTest );  
+  
     
-  std::cerr <<  "postprocess confusion matrices " << std::endl;
+  // post-process confusion matrices
   confusionMatrix.normalizeColumnsL1();
   double arr ( confusionMatrix.trace()/confusionMatrix.cols() );
 
@@ -237,13 +365,17 @@ void TestGPHIKOnlineLearnable::testOnlineLearningMethods()
   CPPUNIT_ASSERT_DOUBLES_EQUAL( arr, arrScratch, 1e-8);
   
   // don't waste memory
-  //TODO clean up of training data, also in TestGPHIKPersistent
   
   delete classifier;
   delete classifierScratch;
   
+  for (std::vector< const NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin(); exTrainIt != examplesTrain.end(); exTrainIt++)
+  {
+    delete *exTrainIt;
+  } 
+  
   if (verboseStartEnd)
-    std::cerr << "================== TestGPHIKOnlineLearnable::testOnlineLearningMethods done ===================== " << std::endl;  
+    std::cerr << "================== TestGPHIKOnlineLearnable::testOnlineLearningMultiClass done ===================== " << std::endl;  
   
 }
 

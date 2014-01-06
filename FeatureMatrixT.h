@@ -97,7 +97,7 @@ template<class T> class FeatureMatrixT : NICE::Persistent
 #endif
 
     /** just another constructor for sparse features */
-    FeatureMatrixT(const std::vector< SparseVector * > & X, const bool dimensionsOverExamples = false, const int & _dim = -1);
+    FeatureMatrixT(const std::vector< const NICE::SparseVector * > & X, const bool dimensionsOverExamples = false, const int & _dim = -1);
     
 #ifdef NICE_USELIB_MATIO
     /**
@@ -303,7 +303,7 @@ template<class T> class FeatureMatrixT : NICE::Persistent
     void set_features(const std::vector<std::vector<T> > & _features, std::vector<std::vector<int> > & permutations, const int & _dim = -1);
     void set_features(const std::vector<std::vector<T> > & _features, std::vector<std::map<int,int> > & permutations, const int & _dim = -1);
     void set_features(const std::vector<std::vector<T> > & _features, const int & _dim = -1);
-    void set_features(const std::vector< NICE::SparseVector * > & _features, const bool dimensionsOverExamples = false, const int & _dim = -1);
+    void set_features(const std::vector< const NICE::SparseVector * > & _features, const bool dimensionsOverExamples = false, const int & _dim = -1);
     
     /**
     * @brief get a permutation vector for each dimension

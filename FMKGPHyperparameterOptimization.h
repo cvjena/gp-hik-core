@@ -154,18 +154,12 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     //! we store the alpha vectors for good initializations in the IL setting
     std::map<int, NICE::Vector> lastAlphas;  
 
-    //! Update matrices (A, B, LUTs) and optionally find optimal parameters after adding a new example.  
-    void updateAfterSingleIncrement (
-      const NICE::SparseVector & x, 
+    //! Update matrices (A, B, LUTs) and optionally find optimal parameters after adding (a) new example(s).  
+    void updateAfterIncrement (
       const std::set<int> newClasses,
       const bool & performOptimizationAfterIncrement = false
     );    
-    //! Update matrices (A, B, LUTs) and optionally find optimal parameters after adding multiple examples.  
-    void updateAfterMultipleIncrements (
-      const std::vector<const NICE::SparseVector*> & x, 
-      const std::set<int> newClasses,
-      const bool & performOptimizationAfterIncrement = false
-    );     
+  
 
     
   public:  

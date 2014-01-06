@@ -65,10 +65,10 @@ void TestGPHIKPersistent::testPersistentMethods()
   } 
   
   //----------------- convert data to sparse data structures ---------
-  std::vector< NICE::SparseVector *> examplesTrain;
+  std::vector< const NICE::SparseVector *> examplesTrain;
   examplesTrain.resize( dataTrain.rows() );
   
-  std::vector< NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin();
+  std::vector< const NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin();
   for (int i = 0; i < (int)dataTrain.rows(); i++, exTrainIt++)
   {
     *exTrainIt =  new NICE::SparseVector( dataTrain.getRow(i) );
@@ -205,6 +205,17 @@ void TestGPHIKPersistent::testPersistentMethods()
 
   
   CPPUNIT_ASSERT_DOUBLES_EQUAL( arr, arrRestored, 1e-8);
+  
+  // don't waste memory
+  //TODO clean up of training data, also in TestGPHIKPersistent
+  
+  delete classifier;
+  delete classifierRestored;
+  
+  for (std::vector< const NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin(); exTrainIt != examplesTrain.end(); exTrainIt++)
+  {
+    delete *exTrainIt;
+  } 
   
   if (verboseStartEnd)
     std::cerr << "================== TestGPHIKPersistent::testPersistentMethods done ===================== " << std::endl;  

@@ -79,7 +79,7 @@ namespace NICE {
       */
       void hik_prepare_kernel_multiplications(const std::vector<std::vector<double> > & X, NICE::FeatureMatrixT<double> & X_sorted, const int & _dim = -1);
       
-      void hik_prepare_kernel_multiplications ( const std::vector< NICE::SparseVector * > & X, NICE::FeatureMatrixT<double> & X_sorted, const bool & dimensionsOverExamples, const int & _dim = -1);
+      void hik_prepare_kernel_multiplications ( const std::vector< const NICE::SparseVector * > & X, NICE::FeatureMatrixT<double> & X_sorted, const bool & dimensionsOverExamples, const int & _dim = -1);
       
       void randomPermutation(NICE::Vector & permutation, const std::vector<int> & oldIndices, const int & newSize) const;
       
@@ -113,7 +113,7 @@ namespace NICE {
       * @param X vector of sparse vector pointers
       * @param noise GP noise
       */
-      FastMinKernel( const std::vector< SparseVector * > & X, const double noise, const bool _debug = false, const bool & dimensionsOverExamples=false, const int & _dim = -1);
+      FastMinKernel( const std::vector< const NICE::SparseVector * > & X, const double noise, const bool _debug = false, const bool & dimensionsOverExamples=false, const int & _dim = -1);
 
 #ifdef NICE_USELIB_MATIO
       /**

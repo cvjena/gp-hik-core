@@ -57,7 +57,7 @@ FastMinKernel::FastMinKernel ( const sparse_t & X, const double noise, const std
 }
 #endif
 
-FastMinKernel::FastMinKernel ( const vector< SparseVector * > & X, const double noise, const bool _debug, const bool & dimensionsOverExamples, const int & _dim)
+FastMinKernel::FastMinKernel ( const std::vector< const NICE::SparseVector * > & X, const double noise, const bool _debug, const bool & dimensionsOverExamples, const int & _dim)
 {
   this->setDebug(_debug);
   this->hik_prepare_kernel_multiplications ( X, this->X_sorted, dimensionsOverExamples, _dim);
@@ -112,7 +112,7 @@ void FastMinKernel::hik_prepare_kernel_multiplications(const std::vector<std::ve
   X_sorted.set_features(X, _dim);
 }
 
-void FastMinKernel::hik_prepare_kernel_multiplications(const std::vector< NICE::SparseVector * > & X, NICE::FeatureMatrixT<double> & X_sorted, const bool & dimensionsOverExamples, const int & _dim)
+void FastMinKernel::hik_prepare_kernel_multiplications(const std::vector< const NICE::SparseVector * > & X, NICE::FeatureMatrixT<double> & X_sorted, const bool & dimensionsOverExamples, const int & _dim)
 {
   X_sorted.set_features(X, dimensionsOverExamples, _dim);
 }

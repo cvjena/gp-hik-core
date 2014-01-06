@@ -142,19 +142,19 @@ std::set<int> GPHIKClassifier::getKnownClassNumbers ( ) const
 //                      CLASSIFIER STUFF
 ///////////////////// ///////////////////// /////////////////////
 
-void GPHIKClassifier::classify ( const SparseVector * example,  int & result, SparseVector & scores )
+void GPHIKClassifier::classify ( const SparseVector * example,  int & result, SparseVector & scores ) const
 {
   double tmpUncertainty;
   this->classify( example, result, scores, tmpUncertainty );
 }
 
-void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, SparseVector & scores )
+void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, SparseVector & scores ) const
 {
   double tmpUncertainty;
   this->classify( example, result, scores, tmpUncertainty );
 }
 
-void GPHIKClassifier::classify ( const SparseVector * example,  int & result, SparseVector & scores, double & uncertainty )
+void GPHIKClassifier::classify ( const SparseVector * example,  int & result, SparseVector & scores, double & uncertainty ) const
 {
   if (gphyper == NULL)
      fthrow(Exception, "Classifier not trained yet -- aborting!" );
@@ -188,7 +188,7 @@ void GPHIKClassifier::classify ( const SparseVector * example,  int & result, Sp
   }    
 }
 
-void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, SparseVector & scores, double & uncertainty )
+void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, SparseVector & scores, double & uncertainty ) const
 {
   if (gphyper == NULL)
      fthrow(Exception, "Classifier not trained yet -- aborting!" );  
@@ -223,7 +223,7 @@ void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, Sp
 }
 
 /** training process */
-void GPHIKClassifier::train ( const std::vector< NICE::SparseVector *> & examples, const NICE::Vector & labels )
+void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & examples, const NICE::Vector & labels )
 {
   if (verbose)
   {
@@ -297,7 +297,7 @@ void GPHIKClassifier::train ( const std::vector< NICE::SparseVector *> & example
 }
 
 /** training process */
-void GPHIKClassifier::train ( const std::vector< SparseVector *> & examples, std::map<int, NICE::Vector> & binLabels )
+void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & examples, std::map<int, NICE::Vector> & binLabels )
 { 
   if (verbose)
     std::cerr << "GPHIKClassifier::train" << std::endl;
@@ -367,7 +367,7 @@ GPHIKClassifier *GPHIKClassifier::clone () const
   return NULL;
 }
   
-void GPHIKClassifier::predictUncertainty( const NICE::SparseVector * example, double & uncertainty )
+void GPHIKClassifier::predictUncertainty( const NICE::SparseVector * example, double & uncertainty ) const
 {  
   if (gphyper == NULL)
      fthrow(Exception, "Classifier not trained yet -- aborting!" );  
@@ -400,7 +400,7 @@ void GPHIKClassifier::predictUncertainty( const NICE::SparseVector * example, do
   }
 }
 
-void GPHIKClassifier::predictUncertainty( const NICE::Vector * example, double & uncertainty )
+void GPHIKClassifier::predictUncertainty( const NICE::Vector * example, double & uncertainty ) const
 {  
   if (gphyper == NULL)
      fthrow(Exception, "Classifier not trained yet -- aborting!" );  
@@ -651,19 +651,33 @@ void GPHIKClassifier::addExample( const NICE::SparseVector * example,
 			     const bool & performOptimizationAfterIncrement
 			   )
 {
-  if ( this->gphyper == NULL )
-     fthrow(Exception, "Classifier not initially trained yet -- aborting!" );     
-  //TODO add option for starting with empty classifier!
-    // -> call train() with converted input here
-  //***done*** // TODO add option to go from 2 to 3 classes!  ***done***
-  // TODO add option going from 1 to 2 classes without adding new alpha vector
+  //***done*** //TODO add option for starting with empty classifier!
+  //***done***   // -> call train() with converted input here
+  //***done***  // TODO add option to go from 2 to 3 classes!  ***done***
+  //***done*** // TODO add option going from 1 to 2 classes without adding new alpha vector
   //***done*** // TODO check variance matrices in update ***done***
   // TODO add check option for variance update
-  // TODO adapt code for addMultipleExamples
+  //***done*** // TODO adapt code for addMultipleExamples  
+  
+  
+  if ( this->gphyper == NULL )
+  {
+    //call train method instead
+     std::cerr << "Classifier not initially trained yet -- run initial training instead of incremental extension!"  << std::endl;
+     
+    std::vector< const NICE::SparseVector *> examplesVec;
+    examplesVec.push_back ( example );
+    
+    NICE::Vector labelsVec ( 1 , label );
+    
+    this->train ( examplesVec, labelsVec );
+  }
+  else
+  {
+    this->gphyper->addExample( example, label, performOptimizationAfterIncrement );
 
-  this->gphyper->addExample( example, label, performOptimizationAfterIncrement );
-
-  std::cerr << " --- GPHIKClassifierIL::addExample done --- " << std::endl;  
+    std::cerr << " --- GPHIKClassifierIL::addExample done --- " << std::endl;   
+  }
 }
 
 void GPHIKClassifier::addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
@@ -676,8 +690,15 @@ void GPHIKClassifier::addMultipleExamples( const std::vector< const NICE::Sparse
     return;
 
   if ( this->gphyper == NULL )
-     fthrow(Exception, "Classifier not initially trained yet -- aborting!" );     
-  //TODO add option for starting with empty classifier!
-  
-  this->gphyper->addMultipleExamples( newExamples, newLabels, performOptimizationAfterIncrement );  
+  {
+    //call train method instead
+    
+    this->train ( newExamples, newLabels );    
+    
+    std::cerr << "train method successfully called in add multiple examples" << std::endl;
+  }
+  else
+  {
+    this->gphyper->addMultipleExamples( newExamples, newLabels, performOptimizationAfterIncrement );     
+  }
 }

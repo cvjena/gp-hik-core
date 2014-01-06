@@ -51,7 +51,7 @@ namespace NICE {
     //Constructor reading data from a vector of sparse vector pointers
     template <typename T>
     FeatureMatrixT<T>::
-    FeatureMatrixT(const std::vector< SparseVector * > & X, const bool dimensionsOverExamples, const int & _dim)
+    FeatureMatrixT(const std::vector< const NICE::SparseVector * > & X, const bool dimensionsOverExamples, const int & _dim)
     {
       features.clear();
       
@@ -630,7 +630,7 @@ namespace NICE {
     }
     
     template <typename T>
-    void FeatureMatrixT<T>::set_features(const std::vector< NICE::SparseVector * > & _features, const bool dimensionsOverExamples, const int & _dim)
+    void FeatureMatrixT<T>::set_features(const std::vector< const NICE::SparseVector * > & _features, const bool dimensionsOverExamples, const int & _dim)
     {   
       features.clear();
       if (_features.size() == 0)
