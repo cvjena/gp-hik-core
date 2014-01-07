@@ -4,6 +4,7 @@ SET(nice_gp-hik-core_TESTFILES_SRC
 ./tests/TestFeatureMatrixT.cpp
 ./tests/TestFastHIK.cpp
 ./tests/TestGPHIKOnlineLearnable.cpp
+./tests/TestGPHIKPersistent.cpp
 )
 
 SET(nice_gp-hik-core_TESTFILES_HDR
