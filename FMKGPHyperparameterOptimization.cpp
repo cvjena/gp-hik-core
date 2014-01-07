@@ -584,7 +584,7 @@ void FMKGPHyperparameterOptimization::computeMatricesAndLUTs ( const GPLikelihoo
   {
     this->prepareVarianceApproximationRough();
   }
-  else if ( this->precomputedAForVarEst.size() > 0) 
+  else if ( this->nrOfEigenvaluesToConsiderForVarApprox > 0) 
   {
      this->prepareVarianceApproximationFine();
   }
@@ -837,9 +837,10 @@ void FMKGPHyperparameterOptimization::prepareVarianceApproximationRough()
 
 void FMKGPHyperparameterOptimization::prepareVarianceApproximationFine()
 {
-  if ( this->eigenMax.size() != (uint) this->nrOfEigenvaluesToConsiderForVarApprox) 
+  if ( this->eigenMax.size() < (uint) this->nrOfEigenvaluesToConsiderForVarApprox ) 
   {
-    std::cerr << "not enough eigenvectors computed for fine approximation of predictive variance. Compute missing ones!" << std::endl;
+    std::cerr << "not enough eigenvectors computed for fine approximation of predictive variance. " <<std::endl;
+    std::cerr << "Current number of EV: " <<  this->eigenMax.size() << " but required: " << (uint) this->nrOfEigenvaluesToConsiderForVarApprox << std::endl;
     this->updateEigenDecomposition(  this->nrOfEigenvaluesToConsiderForVarApprox ); 
   }
 }
@@ -1793,9 +1794,9 @@ void FMKGPHyperparameterOptimization::clear ( ) {};
 ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
 
 void FMKGPHyperparameterOptimization::addExample( const NICE::SparseVector * example, 
-			     const double & label, 
-			     const bool & performOptimizationAfterIncrement
-			   )
+                                                  const double & label, 
+                                                  const bool & performOptimizationAfterIncrement
+                                                )
 {
   if ( this->verbose )
     std::cerr << " --- FMKGPHyperparameterOptimization::addExample --- " << std::endl;  
@@ -1851,9 +1852,9 @@ void FMKGPHyperparameterOptimization::addExample( const NICE::SparseVector * exa
 }
 
 void FMKGPHyperparameterOptimization::addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
-				      const NICE::Vector & newLabels,
-				      const bool & performOptimizationAfterIncrement
-				    )
+                                                           const NICE::Vector & newLabels,
+                                                           const bool & performOptimizationAfterIncrement
+                                                         )
 {
   if ( this->verbose )
     std::cerr << " --- FMKGPHyperparameterOptimization::addMultipleExamples --- " << std::endl;  

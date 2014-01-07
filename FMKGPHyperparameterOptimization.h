@@ -356,14 +356,14 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////    
     
     virtual void addExample( const NICE::SparseVector * example, 
-			     const double & label, 
-			     const bool & performOptimizationAfterIncrement = true
-			   );
-			   
+                             const double & label, 
+                             const bool & performOptimizationAfterIncrement = true
+                           );
+                          
     virtual void addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
-				      const NICE::Vector & newLabels,
-				      const bool & performOptimizationAfterIncrement = true
-				    );         
+                                      const NICE::Vector & newLabels,
+                                      const bool & performOptimizationAfterIncrement = true
+                                    );         
 };
 
 }

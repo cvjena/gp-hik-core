@@ -30,12 +30,25 @@ using namespace NICE;
 
 void GPHIKClassifier::init(const Config *conf, const string & s_confSection)
 {
-  double parameterUpperBound = conf->gD(confSection, "parameter_upper_bound", 5.0 );
-  double parameterLowerBound = conf->gD(confSection, "parameter_lower_bound", 1.0 );  
+  //copy the given config to have it accessible lateron
+  if ( this->confCopy != conf )
+  {
+    if ( this->confCopy != NULL )
+      delete this->confCopy;
+    
+    this->confCopy = new Config ( *conf );
+    //we do not want to read until end of file for restoring    
+    this->confCopy->setIoUntilEndOfFile(false);        
+  }
+  
 
-  this->noise = conf->gD(confSection, "noise", 0.01);
+  
+  double parameterUpperBound = confCopy->gD(confSection, "parameter_upper_bound", 5.0 );
+  double parameterLowerBound = confCopy->gD(confSection, "parameter_lower_bound", 1.0 );  
 
-  string transform = conf->gS(confSection, "transform", "absexp" );
+  this->noise = confCopy->gD(confSection, "noise", 0.01);
+
+  string transform = confCopy->gS(confSection, "transform", "absexp" );
   
   if (pf == NULL)
   {
@@ -57,34 +70,41 @@ void GPHIKClassifier::init(const Config *conf, const string & s_confSection)
     //we already know the pf from the restore-function
   }
   this->confSection = confSection;
-  this->verbose = conf->gB(confSection, "verbose", false);
-  this->debug = conf->gB(confSection, "debug", false);
-  this->uncertaintyPredictionForClassification = conf->gB( confSection, "uncertaintyPredictionForClassification", false );
+  this->verbose = confCopy->gB(confSection, "verbose", false);
+  this->debug = confCopy->gB(confSection, "debug", false);
+  this->uncertaintyPredictionForClassification = confCopy->gB( confSection, "uncertaintyPredictionForClassification", false );
   
-  if (confCopy != conf)
-  {
-    this->confCopy = new Config ( *conf );
-    //we do not want to read until end of file for restoring    
-    confCopy->setIoUntilEndOfFile(false);    
-  }
+
    
   //how do we approximate the predictive variance for classification uncertainty?
-  string s_varianceApproximation = conf->gS(confSection, "varianceApproximation", "approximate_fine"); //default: fine approximative uncertainty prediction
+  string s_varianceApproximation = confCopy->gS(confSection, "varianceApproximation", "approximate_fine"); //default: fine approximative uncertainty prediction
   if ( (s_varianceApproximation.compare("approximate_rough") == 0) || ((s_varianceApproximation.compare("1") == 0)) )
   {
     this->varianceApproximation = APPROXIMATE_ROUGH;
+    
+    //no additional eigenvalue is needed here at all.
+    this->confCopy->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 0 );
   }
   else if ( (s_varianceApproximation.compare("approximate_fine") == 0) || ((s_varianceApproximation.compare("2") == 0)) )
   {
     this->varianceApproximation = APPROXIMATE_FINE;
+    
+    //security check - compute at least one eigenvalue for this approximation strategy
+    this->confCopy->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", std::max( confCopy->gI(confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 ), 1) );
   }
   else if ( (s_varianceApproximation.compare("exact") == 0)  || ((s_varianceApproximation.compare("3") == 0)) )
   {
     this->varianceApproximation = EXACT;
+    
+    //no additional eigenvalue is needed here at all.
+    this->confCopy->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 );    
   }
   else
   {
     this->varianceApproximation = NONE;
+    
+    //no additional eigenvalue is needed here at all.
+    this->confCopy->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 );
   } 
   
   if ( this->verbose )
@@ -110,7 +130,9 @@ GPHIKClassifier::GPHIKClassifier( const Config *conf, const string & s_confSecti
   // if no config file was given, we either restore the classifier from an external file, or run ::init with 
   // an emtpy config (using default values thereby) when calling the train-method
   if ( conf != NULL )
+  {
     this->init(conf, confSection);
+  }
 }
 
 GPHIKClassifier::~GPHIKClassifier()
@@ -407,7 +429,6 @@ void GPHIKClassifier::predictUncertainty( const NICE::Vector * example, double &
     }
     case APPROXIMATE_FINE:
     {
-        std::cerr << "predict uncertainty fine" << std::endl;
       gphyper->computePredictiveVarianceApproximateFine( *example, uncertainty );
       break;
     }    
@@ -449,8 +470,8 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
     
     if ( ! this->isStartTag( tmp, "GPHIKClassifier" ) )
     {
-        std::cerr << " WARNING - attempt to restore GPHIKClassifier, but start flag " << tmp << " does not match! Aborting... " << std::endl;
-	throw;
+      std::cerr << " WARNING - attempt to restore GPHIKClassifier, but start flag " << tmp << " does not match! Aborting... " << std::endl;
+      throw;
     }   
     
     if (pf != NULL)
@@ -486,77 +507,76 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
       tmp = this->removeStartTag ( tmp );
       
       if ( b_restoreVerbose )
-	std::cerr << " currently restore section " << tmp << " in GPHIKClassifier" << std::endl;
+        std::cerr << " currently restore section " << tmp << " in GPHIKClassifier" << std::endl;
       
       if ( tmp.compare("confSection") == 0 )
       {
         is >> confSection;        
-	is >> tmp; // end of block 
-	tmp = this->removeEndTag ( tmp );	
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
       }
       else if ( tmp.compare("pf") == 0 )
       {
-	
-	is >> tmp; // start of block 
-	if ( this->isEndTag( tmp, "pf" ) )
-	{
-	  std::cerr << " ParameterizedFunction object can not be restored. Aborting..." << std::endl;
-	  throw;
-	} 
-	
-	std::string transform = this->removeStartTag ( tmp );
-	
+      
+        is >> tmp; // start of block 
+        if ( this->isEndTag( tmp, "pf" ) )
+        {
+          std::cerr << " ParameterizedFunction object can not be restored. Aborting..." << std::endl;
+          throw;
+        } 
+        
+        std::string transform = this->removeStartTag ( tmp );
+        
 
-	if ( transform == "PFAbsExp" )
-	{
-	  this->pf = new PFAbsExp ();
-	} else if ( transform == "PFExp" ) {
-	  this->pf = new PFExp ();
-	} else {
-	  fthrow(Exception, "Transformation type is unknown " << transform);
-	}
-	
-	pf->restore(is, format);
-	
-	is >> tmp; // end of block 
-	tmp = this->removeEndTag ( tmp );	
+        if ( transform == "PFAbsExp" )
+        {
+          this->pf = new PFAbsExp ();
+        } else if ( transform == "PFExp" ) {
+          this->pf = new PFExp ();
+        } else {
+          fthrow(Exception, "Transformation type is unknown " << transform);
+        }
+        
+        pf->restore(is, format);
+        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
       } 
       else if ( tmp.compare("ConfigCopy") == 0 )
       {
-	// possibly obsolete safety checks
-	if ( confCopy == NULL )
-	  confCopy = new Config;
-	confCopy->clear();
-	
-	
-	//we do not want to read until the end of the file
-	confCopy->setIoUntilEndOfFile( false );
-	//load every options we determined explicitely
-	confCopy->restore(is, format);
-	
-	is >> tmp; // end of block 
-	tmp = this->removeEndTag ( tmp );	
+        // possibly obsolete safety checks
+        if ( confCopy == NULL )
+          confCopy = new Config;
+        confCopy->clear();
+        
+        
+        //we do not want to read until the end of the file
+        confCopy->setIoUntilEndOfFile( false );
+        //load every options we determined explicitely
+        confCopy->restore(is, format);
+        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
       }
       else if ( tmp.compare("gphyper") == 0 )
       {
-	if ( gphyper == NULL )
-	  gphyper = new NICE::FMKGPHyperparameterOptimization();
-	
-	//then, load everything that we stored explicitely,
-	// including precomputed matrices, LUTs, eigenvalues, ... and all that stuff
-	gphyper->restore(is, format);  
-		
-	is >> tmp; // end of block 
-	tmp = this->removeEndTag ( tmp );	
+        if ( gphyper == NULL )
+          gphyper = new NICE::FMKGPHyperparameterOptimization();
+        
+        //then, load everything that we stored explicitely,
+        // including precomputed matrices, LUTs, eigenvalues, ... and all that stuff
+        gphyper->restore(is, format);  
+          
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
       }       
       else
       {
-	std::cerr << "WARNING -- unexpected GPHIKClassifier object -- " << tmp << " -- for restoration... aborting" << std::endl;
-	throw;	
+      std::cerr << "WARNING -- unexpected GPHIKClassifier object -- " << tmp << " -- for restoration... aborting" << std::endl;
+      throw;
       }
     }
 
-	
     //load every settings as well as default options
     std::cerr << "run this->init" << std::endl;
     this->init(confCopy, confSection);    
