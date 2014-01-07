@@ -1,7 +1,14 @@
+/** 
+* @file GPHIK.cpp
+* @author Alexander Freytag
+* @date 07-01-2014 (dd-m-yyyy)
+* @brief Matlab-Interface of our GPHIKClassifier, allowing for training, classification, optimization, variance prediction, incremental learning, and  storing/re-storing.
+*/
+
+// STL includes
 #include <math.h>
 #include <matrix.h>
-#include "mex.h"
-#include "classHandleMtoC.h"
+#include <mex.h>
 
 // NICE-core includes
 #include <core/basics/Config.h>
@@ -12,34 +19,40 @@
 // gp-hik-core includes
 #include "gp-hik-core/GPHIKClassifier.h"
 
+// Interface for conversion between Matlab and C objects
+#include "classHandleMtoC.h"
+
+
 using namespace std; //C basics
 using namespace NICE;  // nice-core
 
-/* Pass analyze_sparse a pointer to a sparse mxArray.  A sparse mxArray
-   only stores its nonzero elements.  The values of the nonzero elements 
-   are stored in the pr and pi arrays.  The tricky part of analyzing
-   sparse mxArray's is figuring out the indices where the nonzero
-   elements are stored.  (See the mxSetIr and mxSetJc reference pages
-   for details. */  
-std::vector< NICE::SparseVector * > convertSparseMatrixToNice(const mxArray *array_ptr)
+/* A sparse mxArray only stores its nonzero elements.
+ * The values of the nonzero elements are stored in 
+ * the pr and pi arrays.  The tricky part of analyzing
+ * sparse mxArray's is figuring out the indices where 
+ * the nonzero elements are stored.
+ * (See the mxSetIr and mxSetJc reference pages for details. */  
+std::vector< const NICE::SparseVector * > convertSparseMatrixToNice(const mxArray *array_ptr)
 {
-  double  *pr;//, *pi;
+  double   *pr;//, *pi;
   mwIndex  *ir, *jc;
-  mwSize      col, total=0;
-  mwIndex   starting_row_index, stopping_row_index, current_row_index;
-  mwSize      i_numExamples, i_numDim;
+  mwSize   col, total=0;
+  mwIndex  starting_row_index, stopping_row_index, current_row_index;
+  mwSize   i_numExamples, i_numDim;
   
   /* Get the starting positions of all four data arrays. */ 
-  pr = mxGetPr(array_ptr);
-//   pi = mxGetPi(array_ptr);
-  ir = mxGetIr(array_ptr);
-  jc = mxGetJc(array_ptr);
+  pr = mxGetPr( array_ptr );
+  // no complex data supported here
+  // pi = mxGetPi(array_ptr);
+  ir = mxGetIr( array_ptr );
+  jc = mxGetJc( array_ptr );
   
   // dimenions of the matrix -> feature dimension and number of examples
-  i_numExamples = mxGetM(array_ptr);  
-  i_numDim = mxGetN(array_ptr);
+  i_numExamples = mxGetM( array_ptr );  
+  i_numDim = mxGetN( array_ptr );
     
-  // initialize output variable
+  // initialize output variable -- don't use const pointers here since the content of the vectors will change 
+  // in the following loop. We reinterprete the vector lateron into a const version
   std::vector< NICE::SparseVector * > sparseMatrix;
   sparseMatrix.resize ( i_numExamples );
     
@@ -50,7 +63,7 @@ std::vector< NICE::SparseVector * > convertSparseMatrixToNice(const mxArray *arr
   }  
   
   // now copy the data
-  for (col=0; col < i_numDim; col++)
+  for ( col = 0; col < i_numDim; col++ )
   { 
     starting_row_index = jc[col]; 
     stopping_row_index = jc[col+1]; 
@@ -62,7 +75,8 @@ std::vector< NICE::SparseVector * > convertSparseMatrixToNice(const mxArray *arr
     {
       for ( current_row_index = starting_row_index; 
             current_row_index < stopping_row_index; 
-	        current_row_index++)
+            current_row_index++
+          )
       {
           //note: no complex data supported her
           sparseMatrix[ ir[current_row_index] ]->insert( std::pair<int, double>( col, pr[total++] ) );
@@ -71,32 +85,37 @@ std::vector< NICE::SparseVector * > convertSparseMatrixToNice(const mxArray *arr
     }
   } // for-loop over columns
   
-  return sparseMatrix;
+  //NOTE
+  // Compiler doesn't know how to automatically convert
+  // std::vector<T*> to std::vector<T const*> because the way
+  // the template system works means that in theory the two may
+  // be specialised differently.  This is an explicit conversion.
+  return reinterpret_cast< std::vector< const NICE::SparseVector *> &>( sparseMatrix );
 }
 
 
 // b_adaptIndexMtoC: if true, dim k will be inserted as k, not as k-1 (which would be the default for  M->C)
 NICE::SparseVector convertSparseVectorToNice(const mxArray* array_ptr, const bool & b_adaptIndexMtoC = false )
 {
-  double  *pr, *pi;
+  double   *pr, *pi;
   mwIndex  *ir, *jc;
-  mwSize      col, total=0;
-  mwIndex   starting_row_index, stopping_row_index, current_row_index;
-  mwSize      dimy, dimx;
+  mwSize   col, total=0;
+  mwIndex  starting_row_index, stopping_row_index, current_row_index;
+  mwSize   dimy, dimx;
   
   /* Get the starting positions of all four data arrays. */ 
-  pr = mxGetPr(array_ptr);
-  pi = mxGetPi(array_ptr);
-  ir = mxGetIr(array_ptr);
-  jc = mxGetJc(array_ptr);
+  pr = mxGetPr( array_ptr );
+  pi = mxGetPi( array_ptr );
+  ir = mxGetIr( array_ptr );
+  jc = mxGetJc( array_ptr );
   
   // dimenions of the matrix -> feature dimension and number of examples
-  dimy = mxGetM(array_ptr);  
-  dimx = mxGetN(array_ptr);
+  dimy = mxGetM( array_ptr );  
+  dimx = mxGetN( array_ptr );
   
-  double* ptr = mxGetPr(array_ptr);
+  double* ptr = mxGetPr( array_ptr );
 
-  if(dimx != 1 && dimy != 1)
+  if( (dimx != 1) && (dimy != 1) )
     mexErrMsgIdAndTxt("mexnice:error","Vector expected");
   
 
@@ -181,30 +200,35 @@ mxArray* convertSparseVectorFromNice( const NICE::SparseVector & scores, const b
 
 mxArray* convertMatrixFromNice(NICE::Matrix & niceMatrix)
 {
-	mxArray *matlabMatrix = mxCreateDoubleMatrix(niceMatrix.rows(),niceMatrix.cols(),mxREAL);
-	double* matlabMatrixPtr = mxGetPr(matlabMatrix);
+  mxArray *matlabMatrix = mxCreateDoubleMatrix( niceMatrix.rows(), niceMatrix.cols(), mxREAL );
+  double* matlabMatrixPtr = mxGetPr( matlabMatrix );
 
-	for(int i=0; i<niceMatrix.rows(); i++)
+  for( int i = 0; i < niceMatrix.rows(); i++ )
+  {
+    for( int j = 0; j < niceMatrix.cols(); j++ )
     {
-		for(int j=0; j<niceMatrix.cols(); j++)
-		{
-			matlabMatrixPtr[i + j*niceMatrix.rows()] = niceMatrix(i,j);
-		}
+      matlabMatrixPtr[i + j*niceMatrix.rows()] = niceMatrix(i,j);
     }
-	return matlabMatrix;
+  }
+  
+  return matlabMatrix;
 }
 
-NICE::Matrix convertMatrixToNice(const mxArray* matlabMatrix)
+NICE::Matrix convertDoubleMatrixToNice(const mxArray* matlabMatrix)
 {
-	//todo: do not assume double
+  if( !mxIsDouble( matlabMatrix ) )
+    mexErrMsgIdAndTxt( "mexnice:error","Expected double in convertDoubleMatrixToNice" );
 
   const mwSize *dims;
   int dimx, dimy, numdims;
-    //figure out dimensions
-  dims = mxGetDimensions(matlabMatrix);
-  numdims = mxGetNumberOfDimensions(matlabMatrix);
-  dimy = (int)dims[0]; dimx = (int)dims[1];
-  double* ptr = mxGetPr(matlabMatrix);
+  
+  //figure out dimensions
+  dims = mxGetDimensions( matlabMatrix );
+  numdims = mxGetNumberOfDimensions( matlabMatrix );
+  dimy = (int)dims[0];
+  dimx = (int)dims[1];
+  
+  double* ptr = mxGetPr( matlabMatrix );
 
   NICE::Matrix niceMatrix(ptr, dimy, dimx, NICE::Matrix::external); 
 
@@ -213,37 +237,40 @@ NICE::Matrix convertMatrixToNice(const mxArray* matlabMatrix)
 
 mxArray* convertVectorFromNice(NICE::Vector & niceVector)
 {
-	//cout << "start convertVectorFromNice" << endl;
-	mxArray *matlabVector = mxCreateDoubleMatrix(niceVector.size(), 1, mxREAL);
-	double* matlabVectorPtr = mxGetPr(matlabVector);
+  mxArray *matlabVector = mxCreateDoubleMatrix( niceVector.size(), 1, mxREAL );
+  double* matlabVectorPtr = mxGetPr( matlabVector );
 
-	for(int i=0;i<niceVector.size(); i++)
-    {
-        matlabVectorPtr[i] = niceVector[i];
-    }
-	return matlabVector;
+  for( int i = 0; i < niceVector.size(); i++ )
+  {
+    matlabVectorPtr[i] = niceVector[i];
+  }
+  return matlabVector;
 }
 
-NICE::Vector convertVectorToNice(const mxArray* matlabMatrix)
+NICE::Vector convertDoubleVectorToNice( const mxArray* matlabMatrix )
 {
-	//todo: do not assume double
+  if( !mxIsDouble( matlabMatrix ) )
+    mexErrMsgIdAndTxt( "mexnice:error","Expected double in convertDoubleVectorToNice" );
 
   const mwSize *dims;
   int dimx, dimy, numdims;
-    //figure out dimensions
-  dims = mxGetDimensions(matlabMatrix);
-  numdims = mxGetNumberOfDimensions(matlabMatrix);
-  dimy = (int)dims[0]; dimx = (int)dims[1];
-  double* ptr = mxGetPr(matlabMatrix);
+  
+  //figure out dimensions
+  dims = mxGetDimensions( matlabMatrix );
+  numdims = mxGetNumberOfDimensions( matlabMatrix );
+  dimy = (int)dims[0];
+  dimx = (int)dims[1];
+  
+  double* ptr = mxGetPr( matlabMatrix );
 
-  if(dimx != 1 && dimy != 1)
+  if( (dimx != 1) && (dimy != 1) )
     mexErrMsgIdAndTxt("mexnice:error","Vector expected");
 
-  int dim = max(dimx, dimy);    
+  int dim = std::max(dimx, dimy);    
 
-  NICE::Vector niceVector(dim, 0.0);
+  NICE::Vector niceVector( dim, 0.0 );
   
-  for(int i=0;i<dim;i++)
+  for( int i = 0; i < dim; i++ )
   {
       niceVector(i) = ptr[i];
   }
@@ -253,33 +280,42 @@ NICE::Vector convertVectorToNice(const mxArray* matlabMatrix)
 
 
 
-std::string convertMatlabToString(const mxArray *matlabString)
+std::string convertMatlabToString( const mxArray *matlabString )
 {
-  if(!mxIsChar(matlabString))
+  if( !mxIsChar( matlabString ) )
     mexErrMsgIdAndTxt("mexnice:error","Expected string");
 
-  char *cstring = mxArrayToString(matlabString);
-  std::string s(cstring);
+  char *cstring = mxArrayToString( matlabString );
+  std::string s( cstring );
   mxFree(cstring);
   return s;
 }
 
 
-int convertMatlabToInt32(const mxArray *matlabInt32)
+int convertMatlabToInt32( const mxArray *matlabInt32 )
 {
-  if(!mxIsInt32(matlabInt32))
+  if( !mxIsInt32( matlabInt32 ) )
     mexErrMsgIdAndTxt("mexnice:error","Expected int32");
 
-  int* ptr = (int*)mxGetData(matlabInt32);
+  int* ptr = (int*) mxGetData( matlabInt32 );
   return ptr[0];
 }
 
-double convertMatlabToDouble(const mxArray *matlabDouble)
+double convertMatlabToDouble( const mxArray *matlabDouble )
 {
-  if(!mxIsDouble(matlabDouble))
+  if( !mxIsDouble(matlabDouble) )
     mexErrMsgIdAndTxt("mexnice:error","Expected double");
 
-  double* ptr = (double*)mxGetData(matlabDouble);
+  double* ptr = (double*) mxGetData( matlabDouble );
+  return ptr[0];
+}
+
+bool convertMatlabToBool(const mxArray *matlabBool)
+{
+  if( !mxIsLogical( matlabBool ) )
+    mexErrMsgIdAndTxt("mexnice:error","Expected bool");
+
+  bool* ptr = (bool*) mxGetData( matlabBool );
   return ptr[0];
 }
 
@@ -510,7 +546,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         
         //------------- read the data --------------
           
-        std::vector< NICE::SparseVector *> examplesTrain;
+        std::vector< const NICE::SparseVector *> examplesTrain;
         NICE::Vector yMultiTrain;  
 
         if ( mxIsSparse( prhs[2] ) )
@@ -520,44 +556,27 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         else
         {
             NICE::Matrix dataTrain;
-            dataTrain = convertMatrixToNice(prhs[2]);
+            dataTrain = convertDoubleMatrixToNice(prhs[2]);
             
             //----------------- convert data to sparse data structures ---------
             examplesTrain.resize( dataTrain.rows() );
 
                     
-            std::vector< NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin();
+            std::vector< const NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin();
             for (int i = 0; i < (int)dataTrain.rows(); i++, exTrainIt++)
             {
                 *exTrainIt =  new NICE::SparseVector( dataTrain.getRow(i) );
             }            
         }
           
-          yMultiTrain = convertVectorToNice(prhs[3]);
-          
-//           std::cerr << " DATA AFTER CONVERSION: \n" << std::endl;
-//           int lineIdx(0);
-//           for ( std::vector< NICE::SparseVector *>::const_iterator exTrainIt = examplesTrain.begin();
-//                 exTrainIt != examplesTrain.end(); exTrainIt++, lineIdx++)
-//           {
-//               std::cerr << "\n lineIdx: " << lineIdx << std::endl;
-//               (*exTrainIt)->store( std::cerr );
-//               
-//           }
+        yMultiTrain = convertDoubleVectorToNice(prhs[3]);
 
-          // test assumption
-          {
-            if( yMultiTrain.Min() < 0)
-              mexErrMsgIdAndTxt("mexnice:error","Class labels smaller 0 are not allowed");
-          }
+        //----------------- train our classifier -------------
+        classifier->train ( examplesTrain , yMultiTrain );
 
-
-          //----------------- train our classifier -------------
-          classifier->train ( examplesTrain , yMultiTrain );
-
-          //----------------- clean up -------------
-          for(int i=0;i<examplesTrain.size();i++)
-              delete examplesTrain[i];
+        //----------------- clean up -------------
+        for(int i=0;i<examplesTrain.size();i++)
+            delete examplesTrain[i];
         
         return;
     }
@@ -590,7 +609,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         else
         {
             NICE::Vector * example;
-            example = new NICE::Vector ( convertVectorToNice(prhs[2]) ); 
+            example = new NICE::Vector ( convertDoubleVectorToNice(prhs[2]) ); 
             classifier->classify ( example,  result, scores, uncertainty );
             
             //----------------- clean up -------------
@@ -614,7 +633,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
           return;
     }
     
-    // Classify    
+    // Uncertainty prediction    
     if ( !strcmp("uncertainty", cmd.c_str() ) )
     {
         // Check parameters
@@ -639,7 +658,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         else
         {
             NICE::Vector * example;
-            example = new NICE::Vector ( convertVectorToNice(prhs[2]) ); 
+            example = new NICE::Vector ( convertDoubleVectorToNice(prhs[2]) ); 
             classifier->predictUncertainty( example, uncertainty );
             
             //----------------- clean up -------------
@@ -665,7 +684,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         
         bool dataIsSparse ( mxIsSparse( prhs[2] ) );
         
-        std::vector< NICE::SparseVector *> dataTest_sparse;
+        std::vector< const NICE::SparseVector *> dataTest_sparse;
         NICE::Matrix dataTest_dense;
 
         if ( dataIsSparse )
@@ -674,133 +693,257 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         }
         else
         {    
-            dataTest_dense = convertMatrixToNice(prhs[2]);          
+            dataTest_dense = convertDoubleMatrixToNice(prhs[2]);          
         }        
 
-          NICE::Vector yMultiTest;
-          yMultiTest = convertVectorToNice(prhs[3]);
+        NICE::Vector yMultiTest;
+        yMultiTest = convertDoubleVectorToNice(prhs[3]);
 
-          
-          // ------------------------------------------
-          // ------------- PREPARATION --------------
-          // ------------------------------------------   
-          
-          // determine classes known during training and corresponding mapping
-          // thereby allow for non-continous class labels
-          std::set<int> classesKnownTraining = classifier->getKnownClassNumbers();
-          
-          int noClassesKnownTraining ( classesKnownTraining.size() );
-          std::map<int,int> mapClNoToIdxTrain;
-          std::set<int>::const_iterator clTrIt = classesKnownTraining.begin();
-          for ( int i=0; i < noClassesKnownTraining; i++, clTrIt++ )
-              mapClNoToIdxTrain.insert ( std::pair<int,int> ( *clTrIt, i )  );
-          
-          // determine classes known during testing and corresponding mapping
-          // thereby allow for non-continous class labels
-          std::set<int> classesKnownTest;
-          classesKnownTest.clear();
-          
-  
-          // determine which classes we have in our label vector
-          // -> MATLAB: myClasses = unique(y);
-          for ( NICE::Vector::const_iterator it = yMultiTest.begin(); it != yMultiTest.end(); it++ )
+        
+        // ------------------------------------------
+        // ------------- PREPARATION --------------
+        // ------------------------------------------   
+        
+        // determine classes known during training and corresponding mapping
+        // thereby allow for non-continous class labels
+        std::set<int> classesKnownTraining = classifier->getKnownClassNumbers();
+        
+        int noClassesKnownTraining ( classesKnownTraining.size() );
+        std::map<int,int> mapClNoToIdxTrain;
+        std::set<int>::const_iterator clTrIt = classesKnownTraining.begin();
+        for ( int i=0; i < noClassesKnownTraining; i++, clTrIt++ )
+            mapClNoToIdxTrain.insert ( std::pair<int,int> ( *clTrIt, i )  );
+        
+        // determine classes known during testing and corresponding mapping
+        // thereby allow for non-continous class labels
+        std::set<int> classesKnownTest;
+        classesKnownTest.clear();
+        
+
+        // determine which classes we have in our label vector
+        // -> MATLAB: myClasses = unique(y);
+        for ( NICE::Vector::const_iterator it = yMultiTest.begin(); it != yMultiTest.end(); it++ )
+        {
+          if ( classesKnownTest.find ( *it ) == classesKnownTest.end() )
           {
-            if ( classesKnownTest.find ( *it ) == classesKnownTest.end() )
-            {
-              classesKnownTest.insert ( *it );
+            classesKnownTest.insert ( *it );
+          }
+        }          
+        
+        int noClassesKnownTest ( classesKnownTest.size() );  
+        std::map<int,int> mapClNoToIdxTest;
+        std::set<int>::const_iterator clTestIt = classesKnownTest.begin();
+        for ( int i=0; i < noClassesKnownTest; i++, clTestIt++ )
+            mapClNoToIdxTest.insert ( std::pair<int,int> ( *clTestIt, i )  );          
+        
+
+
+        int i_numTestSamples;
+        
+        if ( dataIsSparse ) 
+            i_numTestSamples = dataTest_sparse.size();
+        else
+            i_numTestSamples = (int) dataTest_dense.rows();
+        
+        NICE::Matrix confusionMatrix( noClassesKnownTraining, noClassesKnownTest, 0.0);
+        NICE::Matrix scores( i_numTestSamples, noClassesKnownTraining, 0.0);
+          
+          
+
+        // ------------------------------------------
+        // ------------- CLASSIFICATION --------------
+        // ------------------------------------------          
+        
+        NICE::Timer t;
+        double testTime (0.0);
+        
+
+
+        for (int i = 0; i < i_numTestSamples; i++)
+        {
+            //----------------- convert data to sparse data structures ---------
+          
+
+            int result;
+            NICE::SparseVector exampleScoresSparse;
+
+            if ( dataIsSparse )
+            {                
+              // and classify
+              t.start();
+              classifier->classify( dataTest_sparse[ i ], result, exampleScoresSparse );
+              t.stop();
+              testTime += t.getLast();
             }
-          }          
-          
-          int noClassesKnownTest ( classesKnownTest.size() );  
-          std::map<int,int> mapClNoToIdxTest;
-          std::set<int>::const_iterator clTestIt = classesKnownTest.begin();
-          for ( int i=0; i < noClassesKnownTest; i++, clTestIt++ )
-              mapClNoToIdxTest.insert ( std::pair<int,int> ( *clTestIt, i )  );          
-          
+            else
+            {
+                NICE::Vector example ( dataTest_dense.getRow(i) );
+              // and classify
+              t.start();
+              classifier->classify( &example, result, exampleScoresSparse );
+              t.stop();
+              testTime += t.getLast();                
+            }
+
+            confusionMatrix(  mapClNoToIdxTrain.find(result)->second, mapClNoToIdxTest.find(yMultiTest[i])->second ) += 1.0;
+            int scoreCnt ( 0 );
+            for ( NICE::SparseVector::const_iterator scoreIt = exampleScoresSparse.begin(); scoreIt != exampleScoresSparse.end(); scoreIt++, scoreCnt++ )
+            {
+              scores(i,scoreCnt) = scoreIt->second;
+            }
+              
+        }
+        
+        std::cerr << "Time for testing: " << testTime << std::endl;          
+        
+        // clean up
+        if ( dataIsSparse )
+        {
+            for ( std::vector<const NICE::SparseVector *>::iterator it = dataTest_sparse.begin(); it != dataTest_sparse.end(); it++) 
+                delete *it;
+        }
+        
 
 
-          int i_numTestSamples;
-          
-          if ( dataIsSparse ) 
-              i_numTestSamples = dataTest_sparse.size();
-          else
-              i_numTestSamples = (int) dataTest_dense.rows();
-          
-          NICE::Matrix confusionMatrix( noClassesKnownTraining, noClassesKnownTest, 0.0);
-          NICE::Matrix scores( i_numTestSamples, noClassesKnownTraining, 0.0);
-          
-          
+        confusionMatrix.normalizeColumnsL1();
+        //std::cerr << confusionMatrix << std::endl;
 
-          // ------------------------------------------
-          // ------------- CLASSIFICATION --------------
-          // ------------------------------------------          
-          
-          NICE::Timer t;
-          double testTime (0.0);
-          
+        double recRate = confusionMatrix.trace()/confusionMatrix.rows();
+        //std::cerr << "average recognition rate: " << recRate << std::endl;
 
+        
+        plhs[0] = mxCreateDoubleScalar( recRate );
 
-          for (int i = 0; i < i_numTestSamples; i++)
-          {
-             //----------------- convert data to sparse data structures ---------
-            
-
-             int result;
-             NICE::SparseVector exampleScoresSparse;
-
-             if ( dataIsSparse )
-             {                
-                // and classify
-                t.start();
-                classifier->classify( dataTest_sparse[ i ], result, exampleScoresSparse );
-                t.stop();
-                testTime += t.getLast();
-             }
-             else
-             {
-                 NICE::Vector example ( dataTest_dense.getRow(i) );
-                // and classify
-                t.start();
-                classifier->classify( &example, result, exampleScoresSparse );
-                t.stop();
-                testTime += t.getLast();                
-             }
-
-             confusionMatrix(  mapClNoToIdxTrain.find(result)->second, mapClNoToIdxTest.find(yMultiTest[i])->second ) += 1.0;
-             int scoreCnt ( 0 );
-             for ( NICE::SparseVector::const_iterator scoreIt = exampleScoresSparse.begin(); scoreIt != exampleScoresSparse.end(); scoreIt++, scoreCnt++ )
-                scores(i,scoreCnt) = scoreIt->second;
-                
-          }
-          
-          std::cerr << "Time for testing: " << testTime << std::endl;          
-          
-          // clean up
-          if ( dataIsSparse )
-          {
-              for ( std::vector<NICE::SparseVector *>::iterator it = dataTest_sparse.begin(); it != dataTest_sparse.end(); it++) 
-                  delete *it;
-          }
-          
-
-
-          confusionMatrix.normalizeColumnsL1();
-          //std::cerr << confusionMatrix << std::endl;
-
-          double recRate = confusionMatrix.trace()/confusionMatrix.rows();
-          //std::cerr << "average recognition rate: " << recRate << std::endl;
-
-          
-          plhs[0] = mxCreateDoubleScalar( recRate );
-
-          if(nlhs >= 2)
-            plhs[1] = convertMatrixFromNice(confusionMatrix);
-          if(nlhs >= 3)
-            plhs[2] = convertMatrixFromNice(scores);          
+        if(nlhs >= 2)
+          plhs[1] = convertMatrixFromNice(confusionMatrix);
+        if(nlhs >= 3)
+          plhs[2] = convertMatrixFromNice(scores);          
           
           
         return;
     }
+    
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
+    // interface specific methods for incremental extensions
+    ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////      
+    
+    // addExample    
+    if ( !strcmp("addExample", cmd.c_str() ) )
+    {
+        // Check parameters
+        if ( (nlhs < 0) || (nrhs < 4) )
+        {
+            mexErrMsgTxt("Test: Unexpected arguments.");
+        }
+        
+        //------------- read the data --------------
+
+        NICE::SparseVector * newExample;
+        double newLabel;        
+
+        if ( mxIsSparse( prhs[2] ) )
+        {
+            newExample = new NICE::SparseVector ( convertSparseVectorToNice( prhs[2] ) );
+        }
+        else
+        {
+            NICE::Vector * example;
+            example = new NICE::Vector ( convertDoubleVectorToNice(prhs[2]) ); 
+            newExample = new NICE::SparseVector ( *example );
+            //----------------- clean up -------------
+            delete example;            
+        }
+        
+        newLabel = convertMatlabToDouble( prhs[3] );
+        
+        // setting performOptimizationAfterIncrement is optional
+        if ( nrhs > 4 )
+        {
+          bool performOptimizationAfterIncrement;          
+          performOptimizationAfterIncrement = convertMatlabToBool( prhs[4] );
+          
+          classifier->addExample ( newExample,  newLabel, performOptimizationAfterIncrement );
+        }
+        else
+        {
+          classifier->addExample ( newExample,  newLabel );
+        }
+          
+        
+        //----------------- clean up -------------
+        delete newExample;        
+
+        return;
+    }
+    
+    // addExample    
+    if ( !strcmp("addMultipleExamples", cmd.c_str() ) )
+    {
+        // Check parameters
+        if ( (nlhs < 0) || (nrhs < 4) )
+        {
+            mexErrMsgTxt("Test: Unexpected arguments.");
+        }
+        
+        //------------- read the data --------------
+
+        std::vector< const NICE::SparseVector *> newExamples;
+        NICE::Vector newLabels;
+
+        if ( mxIsSparse( prhs[2] ) )
+        {
+            newExamples = convertSparseMatrixToNice( prhs[2] );
+        }
+        else
+        {
+            NICE::Matrix newData;
+            newData = convertDoubleMatrixToNice(prhs[2]);
+            
+            //----------------- convert data to sparse data structures ---------
+            newExamples.resize( newData.rows() );
+
+                    
+            std::vector< const NICE::SparseVector *>::iterator exTrainIt = newExamples.begin();
+            for (int i = 0; i < (int)newData.rows(); i++, exTrainIt++)
+            {
+                *exTrainIt =  new NICE::SparseVector( newData.getRow(i) );
+            }            
+        }
+          
+        newLabels = convertDoubleVectorToNice(prhs[3]);
+        
+        // setting performOptimizationAfterIncrement is optional
+        if ( nrhs > 4 )
+        {
+          bool performOptimizationAfterIncrement;          
+          performOptimizationAfterIncrement = convertMatlabToBool( prhs[4] );
+          
+          classifier->addMultipleExamples ( newExamples,  newLabels, performOptimizationAfterIncrement );
+        }
+        else
+        {
+          classifier->addMultipleExamples ( newExamples,  newLabels );
+        }
+          
+        
+        //----------------- clean up -------------
+        for ( std::vector< const NICE::SparseVector *>::iterator exIt = newExamples.begin();
+              exIt != newExamples.end(); exIt++
+            ) 
+        {
+          delete *exIt;
+        }
+
+        return;
+    }    
+    
+
+    
+    ///////////////////// INTERFACE PERSISTENT /////////////////////
+    // interface specific methods for store and restore
+    ///////////////////// INTERFACE PERSISTENT /////////////////////    
+    
+  
     
     // store the classifier    
     if ( !strcmp("store", cmd.c_str() ) || !strcmp("save", cmd.c_str() ) )
