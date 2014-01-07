@@ -837,7 +837,7 @@ void FMKGPHyperparameterOptimization::prepareVarianceApproximationRough()
 
 void FMKGPHyperparameterOptimization::prepareVarianceApproximationFine()
 {
-  if ( this->eigenMax.size() != this->nrOfEigenvaluesToConsiderForVarApprox) 
+  if ( this->eigenMax.size() != (uint) this->nrOfEigenvaluesToConsiderForVarApprox) 
   {
     std::cerr << "not enough eigenvectors computed for fine approximation of predictive variance. Compute missing ones!" << std::endl;
     this->updateEigenDecomposition(  this->nrOfEigenvaluesToConsiderForVarApprox ); 

@@ -157,9 +157,7 @@ int main (int argc, char* argv[])
   
   NICE::Timer t;
   double testTime (0.0);
-  
-  double uncertainty;
-  
+    
   int i_loopEnd  ( (int)dataTest.rows() );
   
   

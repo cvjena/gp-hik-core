@@ -161,14 +161,12 @@ void GPHIKClassifier::classify ( const SparseVector * example,  int & result, Sp
   
   scores.clear();
   
-  int classno = gphyper->classify ( *example, scores );
+  result = gphyper->classify ( *example, scores );
 
   if ( scores.size() == 0 ) {
     fthrow(Exception, "Zero scores, something is likely to be wrong here: svec.size() = " << example->size() );
   }
   
-  result = scores.maxElement();
-   
   if (uncertaintyPredictionForClassification)
   {
     if (varianceApproximation != NONE)
@@ -195,14 +193,12 @@ void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, Sp
   
   scores.clear();
   
-  int classno = gphyper->classify ( *example, scores );
+  result = gphyper->classify ( *example, scores );
 
   if ( scores.size() == 0 ) {
     fthrow(Exception, "Zero scores, something is likely to be wrong here: svec.size() = " << example->size() );
   }
-  
-  result = scores.maxElement();
-  
+    
   if (uncertaintyPredictionForClassification)
   {
     if (varianceApproximation != NONE)

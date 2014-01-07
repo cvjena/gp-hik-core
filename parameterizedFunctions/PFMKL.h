@@ -55,7 +55,7 @@ class PFMKL : public ParameterizedFunction
     int dummyCnt ( 0 );
     for (std::set<int>::const_iterator it = steps.begin(); it != steps.end(); it++, dummyCnt++)
     {
-      if ( index < *it)
+      if ( (int)index < *it)
         return x * m_parameters[dummyCnt];
     }
     //default value, should never be reached

@@ -422,25 +422,24 @@ void FastMinKernel::hikUpdateLookupTable(double * T, const double & alphaNew, co
   double diffOfAlpha(alphaNew - alphaOld);
   
   // loop through all dimensions
-  for (int dim = 0; dim < this->d; dim++)
+  for ( int dim = 0; dim < this->d; dim++ )
   {  
     double x_i ( (X_sorted(dim,idx)) );
     
     //TODO we could also check wether x_i < tol, if we would store the tol explicitely
-    if (x_i == 0.0) //nothing to do in this dimension
+    if ( x_i == 0.0 ) //nothing to do in this dimension
       continue;
 
-    //TODO we could speed up this with first do a binary search for the position where the min changes, and then do two separate for-loops
+    //TODO we could speed up this by first doing a binary search for the position where the min changes, and then do two separate for-loops
     for (uint j = 0; j < hmax; j++)
     {
         double fval;
         int q_bin = q.quantize(x_i);
-        if (q_bin > j)
+        if ( (uint) q_bin > j )
           fval = prototypes[j];
         else
           fval = x_i;      
         
-//       double fval = std::min(prototypes[j],x_i);      
       T[ dim*hmax + j ] += diffOfAlpha*fval;
     }
   }

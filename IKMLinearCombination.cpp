@@ -24,7 +24,7 @@ IKMLinearCombination::~IKMLinearCombination()
 {
   if ( this->matrices.size() != 0)
   {
-    for (int i = 0; i < this->matrices.size(); i++)
+    for (int i = 0; (uint)i < this->matrices.size(); i++)
       delete this->matrices[i];
   }
 }
