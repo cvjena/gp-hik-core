@@ -1,9 +1,8 @@
 /** 
 * @file GPHIKClassifier.h
-* @author Erik Rodner, Alexander Freytag
 * @brief Main interface for our GP HIK classifier (similar to the feature pool classifier interface in vislearning) (Interface)
-* @date 02/01/2012
-
+* @author Alexander Freytag, Erik Rodner
+* @date 01-02-2012 (dd-mm-yyyy)
 */
 #ifndef _NICE_GPHIKCLASSIFIERINCLUDE
 #define _NICE_GPHIKCLASSIFIERINCLUDE
@@ -28,14 +27,46 @@ namespace NICE {
  /** 
  * @class GPHIKClassifier
  * @brief Main interface for our GP HIK classifier (similar to the feature pool classifier interface in vislearning)
- * @author Erik Rodner, Alexander Freytag
+ * @author Alexander Freytag, Erik Rodner
  */
  
 class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
 {
 
   protected:
+    
+    /////////////////////////
+    /////////////////////////
+    // PROTECTED VARIABLES //
+    /////////////////////////
+    /////////////////////////
+    
+    // output/debug related settings
+    
+    /** verbose flag for useful output*/
+    bool verbose;
+    /** debug flag for several outputs useful for debugging*/
+    bool debug;
+    
+    // general specifications
+    
+    /** Header in configfile where variable settings are stored */
     std::string confSection;
+    /** Configuration file specifying variable settings */
+    NICE::Config *confCopy; 
+    
+    // internal objects 
+    
+    /** Main object doing all the jobs: training, classification, optimization, ... */
+    NICE::FMKGPHyperparameterOptimization *gphyper;    
+    
+    /** Possibility for transforming feature values, parameters can be optimized */
+    NICE::ParameterizedFunction *pf;    
+    
+    
+    
+    
+    /** Gaussian label noise for model regularization */
     double noise;
 
     enum VarianceApproximation{
@@ -45,39 +76,49 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
       NONE
     };
     
+    /** Which technique for variance approximations shall be used */
     VarianceApproximation varianceApproximation;
     
     /**compute the uncertainty prediction during classification?*/
     bool uncertaintyPredictionForClassification;
     
-    NICE::Config *confCopy;
-    NICE::ParameterizedFunction *pf;
-    NICE::FMKGPHyperparameterOptimization *gphyper;
-    
-    /** verbose flag for useful output*/
-    bool verbose;
-    /** debug flag for several outputs useful for debugging*/
-    bool debug;
+    /////////////////////////
+    /////////////////////////
+    //  PROTECTED METHODS  //
+    /////////////////////////
+    /////////////////////////
     
     /** 
-    * @brief classify a given example with the previously learnt model
-    * @param pe example to be classified given in a sparse representation
+    * @brief Setup internal variables and objects used
+    * @author Alexander Freytag
+    * @param conf Config file to specify variable settings
+    * @param s_confSection
     */    
     void init(const NICE::Config *conf, const std::string & s_confSection);
        
 
   public:
 
-    /** simple constructor */
+    /** 
+     * @brief standard constructor
+     * @author Alexander Freytag
+     */
     GPHIKClassifier( const NICE::Config *conf = NULL, const std::string & s_confSection = "GPHIKClassifier" );
       
-    /** simple destructor */
+    /**
+     * @brief simple destructor
+     * @author Alexander Freytag
+     */
     ~GPHIKClassifier();
     
     ///////////////////// ///////////////////// /////////////////////
     //                         GET / SET
     ///////////////////// ///////////////////// /////////////////////      
     
+    /**
+     * @brief Return currently known class numbers
+     * @author Alexander Freytag
+     */    
     std::set<int> getKnownClassNumbers ( ) const;    
    
     ///////////////////// ///////////////////// /////////////////////
@@ -146,6 +187,10 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      */
     void train ( const std::vector< const NICE::SparseVector *> & examples, std::map<int, NICE::Vector> & binLabels );
     
+    /**
+     * @brief Clone classifier object
+     * @author Alexander Freytag
+     */    
     GPHIKClassifier *clone () const;
 
     /** 
@@ -172,8 +217,22 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
     // interface specific methods for store and restore
     ///////////////////// INTERFACE PERSISTENT /////////////////////   
     
+    /** 
+     * @brief Load classifier from external file (stream)
+     * @author Alexander Freytag
+     */     
     void restore ( std::istream & is, int format = 0 );
+    
+    /** 
+     * @brief Save classifier to external file (stream)
+     * @author Alexander Freytag
+     */     
     void store ( std::ostream & os, int format = 0 ) const;
+    
+    /** 
+     * @brief Clear classifier object
+     * @author Alexander Freytag
+     */     
     void clear ();
     
     
@@ -181,15 +240,23 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
     // interface specific methods for incremental extensions
     ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
     
+    /** 
+     * @brief add a new example
+     * @author Alexander Freytag
+     */    
     virtual void addExample( const NICE::SparseVector * example, 
-			     const double & label, 
-			     const bool & performOptimizationAfterIncrement = true
-			   );
-			   
+                              const double & label, 
+                              const bool & performOptimizationAfterIncrement = true
+                            );
+                          
+    /** 
+     * @brief add several new examples
+     * @author Alexander Freytag
+     */    
     virtual void addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
-				      const NICE::Vector & newLabels,
-				      const bool & performOptimizationAfterIncrement = true
-				    );       
+                                      const NICE::Vector & newLabels,
+                                      const bool & performOptimizationAfterIncrement = true
+                                    );       
 
 
 
