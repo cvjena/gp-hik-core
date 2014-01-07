@@ -1,7 +1,7 @@
 /** 
 * @file GPHIK.cpp
 * @author Alexander Freytag
-* @date 07-01-2014 (dd-m-yyyy)
+* @date 07-01-2014 (dd-mm-yyyy)
 * @brief Matlab-Interface of our GPHIKClassifier, allowing for training, classification, optimization, variance prediction, incremental learning, and  storing/re-storing.
 */
 
@@ -339,24 +339,124 @@ NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
   for( int i=i_start; i < nrhs; i+=2 )
   {
     std::string variable = convertMatlabToString(prhs[i]);
-    if(variable == "ils_verbose")
+    
+    /////////////////////////////////////////
+    // READ STANDARD BOOLEAN VARIABLES
+    /////////////////////////////////////////
+    if( (variable == "verboseTime") || (variable == "verbose") ||
+        (variable == "optimize_noise") || (variable == "uncertaintyPredictionForClassification") ||
+        (variable == "use_quantization") || (variable == "ils_verbose")
+      )
     {
-      string value = convertMatlabToString(prhs[i+1]);
-      if(value != "true" && value != "false")
-        mexErrMsgIdAndTxt("mexnice:error","Unexpected parameter value for \'ils_verbose\'. \'true\' or \'false\' expected.");
-      if(value == "true")
-        conf.sB("GPHIKClassifier", variable, true);
+      if ( mxIsChar( prhs[i+1] ) )
+      {
+        string value = convertMatlabToString( prhs[i+1] );
+        if ( (value != "true") && (value != "false") )
+        {
+          std::string errorMsg = "Unexpected parameter value for \'" +  variable + "\'. In string modus, \'true\' or \'false\' expected.";
+          mexErrMsgIdAndTxt( "mexnice:error", errorMsg.c_str() );
+        }
+        
+        if( value == "true" )
+          conf.sB("GPHIKClassifier", variable, true);
+        else
+          conf.sB("GPHIKClassifier", variable, false);
+      }
+      else if ( mxIsLogical( prhs[i+1] ) )
+      {
+        bool value = convertMatlabToBool( prhs[i+1] );
+        conf.sB("GPHIKClassifier", variable, value);
+      }
       else
-        conf.sB("GPHIKClassifier", variable, false);
+      {
+          std::string errorMsg = "Unexpected parameter value for \'" +  variable + "\'. \'true\', \'false\', or logical expected.";
+          mexErrMsgIdAndTxt( "mexnice:error", errorMsg.c_str() );        
+      }
     }
-
-    if(variable == "ils_max_iterations")
+    
+    /////////////////////////////////////////
+    // READ STANDARD INT VARIABLES
+    /////////////////////////////////////////
+    if ( (variable == "nrOfEigenvaluesToConsiderForVarApprox")
+       )
     {
-      int value = convertMatlabToInt32(prhs[i+1]);
-      if(value < 1)
-        mexErrMsgIdAndTxt("mexnice:error","Expected parameter value larger than 0 for \'ils_max_iterations\'.");
-      conf.sI("GPHIKClassifier", variable, value);
+      if ( mxIsDouble( prhs[i+1] ) )
+      {
+        double value = convertMatlabToDouble(prhs[i+1]);
+        conf.sI("GPHIKClassifier", variable, (int) value);        
+      }
+      else if ( mxIsInt32( prhs[i+1] ) )
+      {
+        int value = convertMatlabToInt32(prhs[i+1]);
+        conf.sI("GPHIKClassifier", variable, value);          
+      }
+      else
+      {
+          std::string errorMsg = "Unexpected parameter value for \'" +  variable + "\'. Int32 or Double expected.";
+          mexErrMsgIdAndTxt( "mexnice:error", errorMsg.c_str() );         
+      }     
     }
+    
+    /////////////////////////////////////////
+    // READ STRICT POSITIVE INT VARIABLES
+    /////////////////////////////////////////
+    if ( (variable == "num_bins") || (variable == "ils_max_iterations")
+       )
+    {
+      if ( mxIsDouble( prhs[i+1] ) )
+      {
+        double value = convertMatlabToDouble(prhs[i+1]);
+        if( value < 1 )
+        {
+          std::string errorMsg = "Expected parameter value larger than 0 for \'" +  variable + "\'.";
+          mexErrMsgIdAndTxt( "mexnice:error", errorMsg.c_str() );     
+        }
+        conf.sI("GPHIKClassifier", variable, (int) value);        
+      }
+      else if ( mxIsInt32( prhs[i+1] ) )
+      {
+        int value = convertMatlabToInt32(prhs[i+1]);
+        if( value < 1 )
+        {
+          std::string errorMsg = "Expected parameter value larger than 0 for \'" +  variable + "\'.";
+          mexErrMsgIdAndTxt( "mexnice:error", errorMsg.c_str() );     
+        }        
+        conf.sI("GPHIKClassifier", variable, value);          
+      }
+      else
+      {
+          std::string errorMsg = "Unexpected parameter value for \'" +  variable + "\'. Int32 or Double expected.";
+          mexErrMsgIdAndTxt( "mexnice:error", errorMsg.c_str() );         
+      }     
+    }
+    
+    /////////////////////////////////////////
+    // READ POSITIVE DOUBLE VARIABLES
+    /////////////////////////////////////////
+    if ( (variable == "ils_min_delta") || (variable == "ils_min_residual") ||
+         (variable == "noise")
+       )
+    {
+      if ( mxIsDouble( prhs[i+1] ) )
+      {
+        double value = convertMatlabToDouble(prhs[i+1]);
+        if( value < 0.0 )
+        {
+          std::string errorMsg = "Expected parameter value larger than 0 for \'" +  variable + "\'.";
+          mexErrMsgIdAndTxt( "mexnice:error", errorMsg.c_str() );     
+        }
+        conf.sD("GPHIKClassifier", variable, value);        
+      }
+      else
+      {
+          std::string errorMsg = "Unexpected parameter value for \'" +  variable + "\'. Double expected.";
+          mexErrMsgIdAndTxt( "mexnice:error", errorMsg.c_str() );         
+      }     
+    }    
+    
+    /////////////////////////////////////////
+    // READ REMAINING SPECIFIC VARIABLES
+    /////////////////////////////////////////  
 
     if(variable == "ils_method")
     {
@@ -364,22 +464,6 @@ NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
       if(value != "CG" && value != "CGL" && value != "SYMMLQ" && value != "MINRES")
         mexErrMsgIdAndTxt("mexnice:error","Unexpected parameter value for \'ils_method\'. \'CG\', \'CGL\', \'SYMMLQ\' or \'MINRES\' expected.");
         conf.sS("GPHIKClassifier", variable, value);
-    }
-
-    if(variable == "ils_min_delta")
-    {
-      double value = convertMatlabToDouble(prhs[i+1]);
-      if(value < 0.0)
-        mexErrMsgIdAndTxt("mexnice:error","Expected parameter value larger than 0 for \'ils_min_delta\'.");
-      conf.sD("GPHIKClassifier", variable, value);
-    }
-
-    if(variable == "ils_min_residual")
-    {
-      double value = convertMatlabToDouble(prhs[i+1]);
-      if(value < 0.0)
-        mexErrMsgIdAndTxt("mexnice:error","Expected parameter value larger than 0 for \'ils_min_residual\'.");
-      conf.sD("GPHIKClassifier", variable, value);
     }
 
 
@@ -391,75 +475,15 @@ NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
         conf.sS("GPHIKClassifier", variable, value);
     }
 
-    if(variable == "use_quantization")
-    {
-      string value = convertMatlabToString(prhs[i+1]);
-      if(value != "true" && value != "false")
-        mexErrMsgIdAndTxt("mexnice:error","Unexpected parameter value for \'use_quantization\'. \'true\' or \'false\' expected.");
-      if(value == "true")
-        conf.sB("GPHIKClassifier", variable, true);
-      else
-        conf.sB("GPHIKClassifier", variable, false);
-    }
-
-    if(variable == "num_bins")
-    {
-      int value = convertMatlabToInt32(prhs[i+1]);
-      if(value < 1)
-        mexErrMsgIdAndTxt("mexnice:error","Expected parameter value larger than 0 for \'num_bins\'.");
-      conf.sI("GPHIKClassifier", variable, value);
-    }
-
     if(variable == "transform")
     {
-      string value = convertMatlabToString(prhs[i+1]);
+      string value = convertMatlabToString( prhs[i+1] );
       if(value != "absexp" && value != "exp" && value != "MKL" && value != "WeightedDim")
         mexErrMsgIdAndTxt("mexnice:error","Unexpected parameter value for \'transform\'. \'absexp\', \'exp\' , \'MKL\' or \'WeightedDim\' expected.");
         conf.sS("GPHIKClassifier", variable, value);
     }
 
-    if(variable == "verboseTime")
-    {
-      string value = convertMatlabToString(prhs[i+1]);
-      if(value != "true" && value != "false")
-        mexErrMsgIdAndTxt("mexnice:error","Unexpected parameter value for \'verboseTime\'. \'true\' or \'false\' expected.");
-      if(value == "true")
-        conf.sB("GPHIKClassifier", variable, true);
-      else
-        conf.sB("GPHIKClassifier", variable, false);
-    }
-
-    if(variable == "verbose")
-    {
-      string value = convertMatlabToString(prhs[i+1]);
-      if(value != "true" && value != "false")
-        mexErrMsgIdAndTxt("mexnice:error","Unexpected parameter value for \'verbose\'. \'true\' or \'false\' expected.");
-      if(value == "true")
-        conf.sB("GPHIKClassifier", variable, true);
-      else
-        conf.sB("GPHIKClassifier", variable, false);
-    }
-
-    if(variable == "noise")
-    {
-      double value = convertMatlabToDouble(prhs[i+1]);
-      if(value < 0.0)
-        mexErrMsgIdAndTxt("mexnice:error","Unexpected parameter value larger than 0 for \'noise\'.");
-      conf.sD("GPHIKClassifier", variable, value);
-    }
-
-
-    if(variable == "optimize_noise")
-    {
-      string value = convertMatlabToString(prhs[i+1]);
-      if(value != "true" && value != "false")
-        mexErrMsgIdAndTxt("mexnice:error","Unexpected parameter value for \'optimize_noise\'. \'true\' or \'false\' expected.");
-      if(value == "true")
-        conf.sB("GPHIKClassifier", variable, true);
-      else
-        conf.sB("GPHIKClassifier", variable, false);
-    }
-    
+  
     if(variable == "varianceApproximation")
     {
       string value = convertMatlabToString(prhs[i+1]);
@@ -468,11 +492,7 @@ NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
         conf.sS("GPHIKClassifier", variable, value);
     }
     
-    if(variable == "nrOfEigenvaluesToConsiderForVarApprox")
-    {
-      double value = convertMatlabToDouble(prhs[i+1]);
-      conf.sI("GPHIKClassifier", variable, (int) value);
-    }    
+
     
   }
 
@@ -504,7 +524,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         NICE::Config conf = parseParameters(prhs+1,nrhs-1);
         
         // create class instance
-        NICE::GPHIKClassifier * classifier = new NICE::GPHIKClassifier ( &conf );
+        NICE::GPHIKClassifier * classifier = new NICE::GPHIKClassifier ( &conf, "GPHIKClassifier" /*sectionName in config*/ );
         
          
         // handle to the C++ instance
@@ -806,10 +826,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
 
         confusionMatrix.normalizeColumnsL1();
-        //std::cerr << confusionMatrix << std::endl;
 
-        double recRate = confusionMatrix.trace()/confusionMatrix.rows();
-        //std::cerr << "average recognition rate: " << recRate << std::endl;
+        double recRate = confusionMatrix.trace()/confusionMatrix.cols();
 
         
         plhs[0] = mxCreateDoubleScalar( recRate );
