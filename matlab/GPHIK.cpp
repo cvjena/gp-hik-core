@@ -693,7 +693,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     }    
     
     
-    // Test    
+    // Test - evaluate classifier on whole test set  
     if ( !strcmp("test", cmd.c_str() ) )
     {        
         // Check parameters
@@ -894,7 +894,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         return;
     }
     
-    // addExample    
+    // addMultipleExamples    
     if ( !strcmp("addMultipleExamples", cmd.c_str() ) )
     {
         // Check parameters
@@ -963,7 +963,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     
   
     
-    // store the classifier    
+    // store the classifier  to an external file
     if ( !strcmp("store", cmd.c_str() ) || !strcmp("save", cmd.c_str() ) )
     {
         // Check parameters
