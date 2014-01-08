@@ -243,6 +243,12 @@ void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, Sp
 /** training process */
 void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & examples, const NICE::Vector & labels )
 {
+  // security-check: examples and labels have to be of same size
+  if ( examples.size() != labels.size() ) 
+  {
+    fthrow(Exception, "Given examples do not match label vector in size -- aborting!" );  
+  }  
+  
   if (verbose)
   {
     std::cerr << "GPHIKClassifier::train" << std::endl;
@@ -315,6 +321,18 @@ void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & e
 /** training process */
 void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & examples, std::map<int, NICE::Vector> & binLabels )
 { 
+  // security-check: examples and labels have to be of same size
+  for ( std::map< int, NICE::Vector >::const_iterator binLabIt = binLabels.begin();
+        binLabIt != binLabels.end();
+        binLabIt++ 
+      )
+  {
+    if ( examples.size() != binLabIt->second.size() ) 
+    {
+      fthrow(Exception, "Given examples do not match label vector in size -- aborting!" );  
+    }
+  }
+  
   if (verbose)
     std::cerr << "GPHIKClassifier::train" << std::endl;
   

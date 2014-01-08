@@ -57,3 +57,5 @@ uncertainty = myGPHIKClassifier.uncertainty( myDataTest )
 
 % clean up and delete object
 myGPHIKClassifier.delete();
+
+clear ( 'myGPHIKClassifier' );
