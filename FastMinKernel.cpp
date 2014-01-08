@@ -435,7 +435,8 @@ void FastMinKernel::hikUpdateLookupTable(double * T, const double & alphaNew, co
     {
         double fval;
         int q_bin = q.quantize(x_i);
-        if ( (uint) q_bin > j )
+        
+        if ( q_bin > (int) j )
           fval = prototypes[j];
         else
           fval = x_i;      
@@ -899,7 +900,7 @@ double FastMinKernel::getFrobNormApprox()
       }
       secondTerm /= 3.0;
       secondTerm = pow(secondTerm, 2);
-      secondTerm *= (pow(this->n,2) - this->n);
+      secondTerm *= (this->n * ( this->n - 1 ));
       frobNormApprox += secondTerm;
       
       
