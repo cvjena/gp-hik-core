@@ -19,305 +19,19 @@
 // gp-hik-core includes
 #include "gp-hik-core/GPHIKClassifier.h"
 
+
 // Interface for conversion between Matlab and C objects
-#include "classHandleMtoC.h"
+#include "gp-hik-core/matlab/classHandleMtoC.h"
+#include "gp-hik-core/matlab/ConverterMatlabToNICE.h"
+#include "gp-hik-core/matlab/ConverterNICEToMatlab.h"
+
+const NICE::ConverterMatlabToNICE converterMtoNICE;
+const NICE::ConverterNICEToMatlab converterNICEtoM;
 
 
 using namespace std; //C basics
 using namespace NICE;  // nice-core
 
-/* A sparse mxArray only stores its nonzero elements.
- * The values of the nonzero elements are stored in 
- * the pr and pi arrays.  The tricky part of analyzing
- * sparse mxArray's is figuring out the indices where 
- * the nonzero elements are stored.
- * (See the mxSetIr and mxSetJc reference pages for details. */  
-std::vector< const NICE::SparseVector * > convertSparseMatrixToNice(const mxArray *array_ptr)
-{
-  double   *pr;//, *pi;
-  mwIndex  *ir, *jc;
-  mwSize   col, total=0;
-  mwIndex  starting_row_index, stopping_row_index, current_row_index;
-  mwSize   i_numExamples, i_numDim;
-  
-  /* Get the starting positions of all four data arrays. */ 
-  pr = mxGetPr( array_ptr );
-  // no complex data supported here
-  // pi = mxGetPi(array_ptr);
-  ir = mxGetIr( array_ptr );
-  jc = mxGetJc( array_ptr );
-  
-  // dimenions of the matrix -> feature dimension and number of examples
-  i_numExamples = mxGetM( array_ptr );  
-  i_numDim = mxGetN( array_ptr );
-    
-  // initialize output variable -- don't use const pointers here since the content of the vectors will change 
-  // in the following loop. We reinterprete the vector lateron into a const version
-  std::vector< NICE::SparseVector * > sparseMatrix;
-  sparseMatrix.resize ( i_numExamples );
-    
-  for ( std::vector< NICE::SparseVector * >::iterator matIt = sparseMatrix.begin(); 
-        matIt != sparseMatrix.end(); matIt++)
-  {
-      *matIt = new NICE::SparseVector( i_numDim );
-  }  
-  
-  // now copy the data
-  for ( col = 0; col < i_numDim; col++ )
-  { 
-    starting_row_index = jc[col]; 
-    stopping_row_index = jc[col+1]; 
-    
-    // empty column?
-    if (starting_row_index == stopping_row_index)
-      continue;
-    else
-    {
-      for ( current_row_index = starting_row_index; 
-            current_row_index < stopping_row_index; 
-            current_row_index++
-          )
-      {
-          //note: no complex data supported her
-          sparseMatrix[ ir[current_row_index] ]->insert( std::pair<int, double>( col, pr[total++] ) );
-      } // for-loop
-      
-    }
-  } // for-loop over columns
-  
-  //NOTE
-  // Compiler doesn't know how to automatically convert
-  // std::vector<T*> to std::vector<T const*> because the way
-  // the template system works means that in theory the two may
-  // be specialised differently.  This is an explicit conversion.
-  return reinterpret_cast< std::vector< const NICE::SparseVector *> &>( sparseMatrix );
-}
-
-
-// b_adaptIndexMtoC: if true, dim k will be inserted as k, not as k-1 (which would be the default for  M->C)
-NICE::SparseVector convertSparseVectorToNice(const mxArray* array_ptr, const bool & b_adaptIndexMtoC = false )
-{
-  double   *pr, *pi;
-  mwIndex  *ir, *jc;
-  mwSize   col, total=0;
-  mwIndex  starting_row_index, stopping_row_index, current_row_index;
-  mwSize   dimy, dimx;
-  
-  /* Get the starting positions of all four data arrays. */ 
-  pr = mxGetPr( array_ptr );
-  pi = mxGetPi( array_ptr );
-  ir = mxGetIr( array_ptr );
-  jc = mxGetJc( array_ptr );
-  
-  // dimenions of the matrix -> feature dimension and number of examples
-  dimy = mxGetM( array_ptr );  
-  dimx = mxGetN( array_ptr );
-  
-  double* ptr = mxGetPr( array_ptr );
-
-  if( (dimx != 1) && (dimy != 1) )
-    mexErrMsgIdAndTxt("mexnice:error","Vector expected");
-  
-
-  NICE::SparseVector svec( std::max(dimx, dimy) );
-   
-  
-  if ( dimx > 1)
-  {
-    for ( mwSize row=0; row < dimx; row++)
-    { 
-        // empty column?
-        if (jc[row] == jc[row+1])
-        {
-          continue;
-        }
-        else
-        {
-          //note: no complex data supported her
-            double value ( pr[total++] );
-            if ( b_adaptIndexMtoC ) 
-                svec.insert( std::pair<int, double>( row+1,  value ) );
-            else
-                svec.insert( std::pair<int, double>( row,  value ) );
-        }
-    } // for loop over cols      
-  }
-  else
-  {
-    mwSize numNonZero = jc[1]-jc[0];
-    
-    for ( mwSize colNonZero=0; colNonZero < numNonZero; colNonZero++)
-    {
-        //note: no complex data supported her
-        double value ( pr[total++] );
-        if ( b_adaptIndexMtoC ) 
-            svec.insert( std::pair<int, double>( ir[colNonZero]+1, value  ) );
-        else
-            svec.insert( std::pair<int, double>( ir[colNonZero], value  ) );
-    }          
-  }
-
-  return svec;
-}
-
-// b_adaptIndexCtoM: if true, dim k will be inserted as k, not as k+1 (which would be the default for C->M)
-mxArray* convertSparseVectorFromNice( const NICE::SparseVector & scores, const bool & b_adaptIndexCtoM = false)
-{
-    mxArray * matlabSparseVec = mxCreateSparse( scores.getDim() /*m*/, 1/*n*/, scores.size()/*nzmax*/, mxREAL);
-    
-    // To make the returned sparse mxArray useful, you must initialize the pr, ir, jc, and (if it exists) pi arrays.    
-    // mxCreateSparse allocates space for:
-    // 
-    // A pr array of length nzmax.
-    // A pi array of length nzmax, but only if ComplexFlag is mxCOMPLEX in C (1 in Fortran).
-    // An ir array of length nzmax.
-    // A jc array of length n+1.  
-  
-    double* prPtr = mxGetPr(matlabSparseVec);
-    mwIndex * ir = mxGetIr( matlabSparseVec );
-    
-    mwIndex * jc = mxGetJc( matlabSparseVec );
-    jc[1] = scores.size(); jc[0] = 0; 
-    
-    
-    mwSize cnt = 0;
-        
-    for ( NICE::SparseVector::const_iterator myIt = scores.begin(); myIt != scores.end(); myIt++, cnt++ )
-    {
-        // set index
-        if ( b_adaptIndexCtoM ) 
-            ir[cnt] = myIt->first-1;
-        else
-            ir[cnt] = myIt->first;
-        
-        // set value
-        prPtr[cnt] = myIt->second;
-    }
-    
-    return matlabSparseVec;
-}
-
-
-mxArray* convertMatrixFromNice(NICE::Matrix & niceMatrix)
-{
-  mxArray *matlabMatrix = mxCreateDoubleMatrix( niceMatrix.rows(), niceMatrix.cols(), mxREAL );
-  double* matlabMatrixPtr = mxGetPr( matlabMatrix );
-
-  for( int i = 0; i < niceMatrix.rows(); i++ )
-  {
-    for( int j = 0; j < niceMatrix.cols(); j++ )
-    {
-      matlabMatrixPtr[i + j*niceMatrix.rows()] = niceMatrix(i,j);
-    }
-  }
-  
-  return matlabMatrix;
-}
-
-NICE::Matrix convertDoubleMatrixToNice(const mxArray* matlabMatrix)
-{
-  if( !mxIsDouble( matlabMatrix ) )
-    mexErrMsgIdAndTxt( "mexnice:error","Expected double in convertDoubleMatrixToNice" );
-
-  const mwSize *dims;
-  int dimx, dimy, numdims;
-  
-  //figure out dimensions
-  dims = mxGetDimensions( matlabMatrix );
-  numdims = mxGetNumberOfDimensions( matlabMatrix );
-  dimy = (int)dims[0];
-  dimx = (int)dims[1];
-  
-  double* ptr = mxGetPr( matlabMatrix );
-
-  NICE::Matrix niceMatrix(ptr, dimy, dimx, NICE::Matrix::external); 
-
-  return niceMatrix;
-}
-
-mxArray* convertVectorFromNice(NICE::Vector & niceVector)
-{
-  mxArray *matlabVector = mxCreateDoubleMatrix( niceVector.size(), 1, mxREAL );
-  double* matlabVectorPtr = mxGetPr( matlabVector );
-
-  for( int i = 0; i < niceVector.size(); i++ )
-  {
-    matlabVectorPtr[i] = niceVector[i];
-  }
-  return matlabVector;
-}
-
-NICE::Vector convertDoubleVectorToNice( const mxArray* matlabMatrix )
-{
-  if( !mxIsDouble( matlabMatrix ) )
-    mexErrMsgIdAndTxt( "mexnice:error","Expected double in convertDoubleVectorToNice" );
-
-  const mwSize *dims;
-  int dimx, dimy, numdims;
-  
-  //figure out dimensions
-  dims = mxGetDimensions( matlabMatrix );
-  numdims = mxGetNumberOfDimensions( matlabMatrix );
-  dimy = (int)dims[0];
-  dimx = (int)dims[1];
-  
-  double* ptr = mxGetPr( matlabMatrix );
-
-  if( (dimx != 1) && (dimy != 1) )
-    mexErrMsgIdAndTxt("mexnice:error","Vector expected");
-
-  int dim = std::max(dimx, dimy);    
-
-  NICE::Vector niceVector( dim, 0.0 );
-  
-  for( int i = 0; i < dim; i++ )
-  {
-      niceVector(i) = ptr[i];
-  }
-
-  return niceVector;
-}
-
-
-
-std::string convertMatlabToString( const mxArray *matlabString )
-{
-  if( !mxIsChar( matlabString ) )
-    mexErrMsgIdAndTxt("mexnice:error","Expected string");
-
-  char *cstring = mxArrayToString( matlabString );
-  std::string s( cstring );
-  mxFree(cstring);
-  return s;
-}
-
-
-int convertMatlabToInt32( const mxArray *matlabInt32 )
-{
-  if( !mxIsInt32( matlabInt32 ) )
-    mexErrMsgIdAndTxt("mexnice:error","Expected int32");
-
-  int* ptr = (int*) mxGetData( matlabInt32 );
-  return ptr[0];
-}
-
-double convertMatlabToDouble( const mxArray *matlabDouble )
-{
-  if( !mxIsDouble(matlabDouble) )
-    mexErrMsgIdAndTxt("mexnice:error","Expected double");
-
-  double* ptr = (double*) mxGetData( matlabDouble );
-  return ptr[0];
-}
-
-bool convertMatlabToBool(const mxArray *matlabBool)
-{
-  if( !mxIsLogical( matlabBool ) )
-    mexErrMsgIdAndTxt("mexnice:error","Expected bool");
-
-  bool* ptr = (bool*) mxGetData( matlabBool );
-  return ptr[0];
-}
 
 NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
 {
@@ -327,10 +41,10 @@ NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
   // read the config accordingly
   
   int i_start ( 0 );
-  std::string variable = convertMatlabToString(prhs[i_start]);
+  std::string variable = converterMtoNICE.convertMatlabToString(prhs[i_start]);
   if(variable == "conf")
   {
-      conf = NICE::Config ( convertMatlabToString( prhs[i_start+1] )  );
+      conf = NICE::Config ( converterMtoNICE.convertMatlabToString( prhs[i_start+1] )  );
       i_start = i_start+2;
   }
   
@@ -338,7 +52,7 @@ NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
   // and add them to the config
   for( int i=i_start; i < nrhs; i+=2 )
   {
-    std::string variable = convertMatlabToString(prhs[i]);
+    std::string variable = converterMtoNICE.convertMatlabToString(prhs[i]);
     
     /////////////////////////////////////////
     // READ STANDARD BOOLEAN VARIABLES
@@ -350,7 +64,7 @@ NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
     {
       if ( mxIsChar( prhs[i+1] ) )
       {
-        string value = convertMatlabToString( prhs[i+1] );
+        string value = converterMtoNICE.convertMatlabToString( prhs[i+1] );
         if ( (value != "true") && (value != "false") )
         {
           std::string errorMsg = "Unexpected parameter value for \'" +  variable + "\'. In string modus, \'true\' or \'false\' expected.";
@@ -364,7 +78,7 @@ NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
       }
       else if ( mxIsLogical( prhs[i+1] ) )
       {
-        bool value = convertMatlabToBool( prhs[i+1] );
+        bool value = converterMtoNICE.convertMatlabToBool( prhs[i+1] );
         conf.sB("GPHIKClassifier", variable, value);
       }
       else
@@ -382,12 +96,12 @@ NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
     {
       if ( mxIsDouble( prhs[i+1] ) )
       {
-        double value = convertMatlabToDouble(prhs[i+1]);
+        double value = converterMtoNICE.convertMatlabToDouble(prhs[i+1]);
         conf.sI("GPHIKClassifier", variable, (int) value);        
       }
       else if ( mxIsInt32( prhs[i+1] ) )
       {
-        int value = convertMatlabToInt32(prhs[i+1]);
+        int value = converterMtoNICE.convertMatlabToInt32(prhs[i+1]);
         conf.sI("GPHIKClassifier", variable, value);          
       }
       else
@@ -405,7 +119,7 @@ NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
     {
       if ( mxIsDouble( prhs[i+1] ) )
       {
-        double value = convertMatlabToDouble(prhs[i+1]);
+        double value = converterMtoNICE.convertMatlabToDouble(prhs[i+1]);
         if( value < 1 )
         {
           std::string errorMsg = "Expected parameter value larger than 0 for \'" +  variable + "\'.";
@@ -415,7 +129,7 @@ NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
       }
       else if ( mxIsInt32( prhs[i+1] ) )
       {
-        int value = convertMatlabToInt32(prhs[i+1]);
+        int value = converterMtoNICE.convertMatlabToInt32(prhs[i+1]);
         if( value < 1 )
         {
           std::string errorMsg = "Expected parameter value larger than 0 for \'" +  variable + "\'.";
@@ -439,7 +153,7 @@ NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
     {
       if ( mxIsDouble( prhs[i+1] ) )
       {
-        double value = convertMatlabToDouble(prhs[i+1]);
+        double value = converterMtoNICE.convertMatlabToDouble(prhs[i+1]);
         if( value < 0.0 )
         {
           std::string errorMsg = "Expected parameter value larger than 0 for \'" +  variable + "\'.";
@@ -460,7 +174,7 @@ NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
 
     if(variable == "ils_method")
     {
-      string value = convertMatlabToString(prhs[i+1]);
+      string value = converterMtoNICE.convertMatlabToString(prhs[i+1]);
       if(value != "CG" && value != "CGL" && value != "SYMMLQ" && value != "MINRES")
         mexErrMsgIdAndTxt("mexnice:error","Unexpected parameter value for \'ils_method\'. \'CG\', \'CGL\', \'SYMMLQ\' or \'MINRES\' expected.");
         conf.sS("GPHIKClassifier", variable, value);
@@ -469,7 +183,7 @@ NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
 
     if(variable == "optimization_method")
     {
-      string value = convertMatlabToString(prhs[i+1]);
+      string value = converterMtoNICE.convertMatlabToString(prhs[i+1]);
       if(value != "greedy" && value != "downhillsimplex" && value != "none")
         mexErrMsgIdAndTxt("mexnice:error","Unexpected parameter value for \'optimization_method\'. \'greedy\', \'downhillsimplex\' or \'none\' expected.");
         conf.sS("GPHIKClassifier", variable, value);
@@ -477,7 +191,7 @@ NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
 
     if(variable == "transform")
     {
-      string value = convertMatlabToString( prhs[i+1] );
+      string value = converterMtoNICE.convertMatlabToString( prhs[i+1] );
       if(value != "absexp" && value != "exp" && value != "MKL" && value != "WeightedDim")
         mexErrMsgIdAndTxt("mexnice:error","Unexpected parameter value for \'transform\'. \'absexp\', \'exp\' , \'MKL\' or \'WeightedDim\' expected.");
         conf.sS("GPHIKClassifier", variable, value);
@@ -486,7 +200,7 @@ NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
   
     if(variable == "varianceApproximation")
     {
-      string value = convertMatlabToString(prhs[i+1]);
+      string value = converterMtoNICE.convertMatlabToString(prhs[i+1]);
       if(value != "approximate_fine" && value != "approximate_rough" && value != "exact" && value != "none")
         mexErrMsgIdAndTxt("mexnice:error","Unexpected parameter value for \'varianceApproximation\'. \'approximate_fine\', \'approximate_rough\', \'none\' or \'exact\' expected.");
         conf.sS("GPHIKClassifier", variable, value);
@@ -510,7 +224,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     if( !mxIsChar( prhs[0] ) )
         mexErrMsgTxt("First argument needs to be the command, ie.e, the class method to call... Aborting!");        
     
-    std::string cmd = convertMatlabToString( prhs[0] );
+    std::string cmd = converterMtoNICE.convertMatlabToString( prhs[0] );
       
         
     // create object
@@ -571,12 +285,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
         if ( mxIsSparse( prhs[2] ) )
         {
-            examplesTrain = convertSparseMatrixToNice( prhs[2] );
+            examplesTrain = converterMtoNICE.convertSparseMatrixToNice( prhs[2] );
         }
         else
         {
             NICE::Matrix dataTrain;
-            dataTrain = convertDoubleMatrixToNice(prhs[2]);
+            dataTrain = converterMtoNICE.convertDoubleMatrixToNice(prhs[2]);
             
             //----------------- convert data to sparse data structures ---------
             examplesTrain.resize( dataTrain.rows() );
@@ -589,7 +303,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             }            
         }
           
-        yMultiTrain = convertDoubleVectorToNice(prhs[3]);
+        yMultiTrain = converterMtoNICE.convertDoubleVectorToNice(prhs[3]);
 
         //----------------- train our classifier -------------
         classifier->train ( examplesTrain , yMultiTrain );
@@ -620,7 +334,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         if ( mxIsSparse( prhs[2] ) )
         {
             NICE::SparseVector * example;
-            example = new NICE::SparseVector ( convertSparseVectorToNice( prhs[2] ) );
+            example = new NICE::SparseVector ( converterMtoNICE.convertSparseVectorToNice( prhs[2] ) );
             classifier->classify ( example,  result, scores, uncertainty );
             
             //----------------- clean up -------------
@@ -629,7 +343,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         else
         {
             NICE::Vector * example;
-            example = new NICE::Vector ( convertDoubleVectorToNice(prhs[2]) ); 
+            example = new NICE::Vector ( converterMtoNICE.convertDoubleVectorToNice(prhs[2]) ); 
             classifier->classify ( example,  result, scores, uncertainty );
             
             //----------------- clean up -------------
@@ -644,7 +358,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
           
           if(nlhs >= 2)
           {
-            plhs[1] = convertSparseVectorFromNice( scores, true  /*b_adaptIndex*/);
+            plhs[1] = converterNICEtoM.convertSparseVectorFromNice( scores, true  /*b_adaptIndex*/);
           }
           if(nlhs >= 3)
           {
@@ -669,7 +383,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         if ( mxIsSparse( prhs[2] ) )
         {
             NICE::SparseVector * example;
-            example = new NICE::SparseVector ( convertSparseVectorToNice( prhs[2] ) );
+            example = new NICE::SparseVector ( converterMtoNICE.convertSparseVectorToNice( prhs[2] ) );
             classifier->predictUncertainty( example, uncertainty );
             
             //----------------- clean up -------------
@@ -678,7 +392,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         else
         {
             NICE::Vector * example;
-            example = new NICE::Vector ( convertDoubleVectorToNice(prhs[2]) ); 
+            example = new NICE::Vector ( converterMtoNICE.convertDoubleVectorToNice(prhs[2]) ); 
             classifier->predictUncertainty( example, uncertainty );
             
             //----------------- clean up -------------
@@ -709,15 +423,15 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
         if ( dataIsSparse )
         {
-            dataTest_sparse = convertSparseMatrixToNice( prhs[2] );
+            dataTest_sparse = converterMtoNICE.convertSparseMatrixToNice( prhs[2] );
         }
         else
         {    
-            dataTest_dense = convertDoubleMatrixToNice(prhs[2]);          
+            dataTest_dense = converterMtoNICE.convertDoubleMatrixToNice(prhs[2]);          
         }        
 
         NICE::Vector yMultiTest;
-        yMultiTest = convertDoubleVectorToNice(prhs[3]);
+        yMultiTest = converterMtoNICE.convertDoubleVectorToNice(prhs[3]);
 
         
         // ------------------------------------------
@@ -833,9 +547,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         plhs[0] = mxCreateDoubleScalar( recRate );
 
         if(nlhs >= 2)
-          plhs[1] = convertMatrixFromNice(confusionMatrix);
+          plhs[1] = converterNICEtoM.convertMatrixFromNice(confusionMatrix);
         if(nlhs >= 3)
-          plhs[2] = convertMatrixFromNice(scores);          
+          plhs[2] = converterNICEtoM.convertMatrixFromNice(scores);          
           
           
         return;
@@ -861,24 +575,24 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
         if ( mxIsSparse( prhs[2] ) )
         {
-            newExample = new NICE::SparseVector ( convertSparseVectorToNice( prhs[2] ) );
+            newExample = new NICE::SparseVector ( converterMtoNICE.convertSparseVectorToNice( prhs[2] ) );
         }
         else
         {
             NICE::Vector * example;
-            example = new NICE::Vector ( convertDoubleVectorToNice(prhs[2]) ); 
+            example = new NICE::Vector ( converterMtoNICE.convertDoubleVectorToNice(prhs[2]) ); 
             newExample = new NICE::SparseVector ( *example );
             //----------------- clean up -------------
             delete example;            
         }
         
-        newLabel = convertMatlabToDouble( prhs[3] );
+        newLabel = converterMtoNICE.convertMatlabToDouble( prhs[3] );
         
         // setting performOptimizationAfterIncrement is optional
         if ( nrhs > 4 )
         {
           bool performOptimizationAfterIncrement;          
-          performOptimizationAfterIncrement = convertMatlabToBool( prhs[4] );
+          performOptimizationAfterIncrement = converterMtoNICE.convertMatlabToBool( prhs[4] );
           
           classifier->addExample ( newExample,  newLabel, performOptimizationAfterIncrement );
         }
@@ -910,12 +624,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
         if ( mxIsSparse( prhs[2] ) )
         {
-            newExamples = convertSparseMatrixToNice( prhs[2] );
+            newExamples = converterMtoNICE.convertSparseMatrixToNice( prhs[2] );
         }
         else
         {
             NICE::Matrix newData;
-            newData = convertDoubleMatrixToNice(prhs[2]);
+            newData = converterMtoNICE.convertDoubleMatrixToNice(prhs[2]);
             
             //----------------- convert data to sparse data structures ---------
             newExamples.resize( newData.rows() );
@@ -928,13 +642,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             }            
         }
           
-        newLabels = convertDoubleVectorToNice(prhs[3]);
+        newLabels = converterMtoNICE.convertDoubleVectorToNice(prhs[3]);
         
         // setting performOptimizationAfterIncrement is optional
         if ( nrhs > 4 )
         {
           bool performOptimizationAfterIncrement;          
-          performOptimizationAfterIncrement = convertMatlabToBool( prhs[4] );
+          performOptimizationAfterIncrement = converterMtoNICE.convertMatlabToBool( prhs[4] );
           
           classifier->addMultipleExamples ( newExamples,  newLabels, performOptimizationAfterIncrement );
         }
@@ -970,7 +684,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         if ( nrhs < 3 )
             mexErrMsgTxt("store: no destination given.");        
                
-        std::string s_destination = convertMatlabToString( prhs[2] );
+        std::string s_destination = converterMtoNICE.convertMatlabToString( prhs[2] );
           
         std::filebuf fb;
         fb.open ( s_destination.c_str(), ios::out );
@@ -990,7 +704,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         if ( nrhs < 3 )
             mexErrMsgTxt("restore: no destination given.");        
                
-        std::string s_destination = convertMatlabToString( prhs[2] );
+        std::string s_destination = converterMtoNICE.convertMatlabToString( prhs[2] );
         
         std::cerr << " aim at restoring the classifier from " << s_destination << std::endl;
           
