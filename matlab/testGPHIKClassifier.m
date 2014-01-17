@@ -14,13 +14,17 @@ myLabels = [1,1,2,2,3,3];
 
 % init new GPHIKClassifier object
 myGPHIKClassifier = GPHIKClassifier ( 'verbose', 'false', ...
-    'optimization_method', 'none', 'varianceApproximation', 'approximate_rough',...
+    'optimization_method', 'none', 'varianceApproximation', 'approximate_fine',...
     'nrOfEigenvaluesToConsiderForVarApprox',4,...
     'uncertaintyPredictionForClassification', false ...
     );
 
 % run train method
 myGPHIKClassifier.train( myData, myLabels );
+
+% check the reclassification is working!
+[ arrReCl, confMatReCl, scoresReCl] = myGPHIKClassifier.test( myData, myLabels )
+uncertainty = myGPHIKClassifier.uncertainty( myData(1,:) )
 
 myDataTest = [ 0.3 0.4 0.3
              ];
