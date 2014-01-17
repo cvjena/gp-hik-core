@@ -206,7 +206,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
 
-FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization()
+FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization( const bool & b_performRegression )
 {
   // initialize pointer variables
   pf = NULL;
@@ -227,6 +227,7 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization()
   binaryLabelNegative = -2;
   
   this->b_usePreviousAlphas = false;
+  this->b_performRegression = b_performRegression;
 }
 
 FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config *_conf, ParameterizedFunction *_pf, FastMinKernel *_fmk, const string & _confSection )
@@ -244,7 +245,7 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config 
   binaryLabelPositive = -1;
   binaryLabelNegative = -2;  
   knownClasses.clear();
-
+  
   if ( _fmk == NULL )
     this->initialize ( _conf, _pf ); //then the confSection is also the default value
   else
@@ -287,6 +288,7 @@ void FMKGPHyperparameterOptimization::initialize ( const Config *_conf, Paramete
   }
   
   this->pf = _pf;
+ 
   
   this->verbose = _conf->gB ( _confSection, "verbose", false );
   this->verboseTime = _conf->gB ( _confSection, "verboseTime", false );
@@ -298,6 +300,9 @@ void FMKGPHyperparameterOptimization::initialize ( const Config *_conf, Paramete
     std::cerr << "|  set-up  |" << std::endl;
     std::cerr << "------------" << std::endl;
   }
+  
+  this->b_performRegression = _conf->gB ( _confSection, "b_performRegression", false );
+
 
   // this->eig = new EigValuesTRLAN();
   // My time measurements show that both methods use equal time, a comparision
@@ -713,11 +718,23 @@ void FMKGPHyperparameterOptimization::optimize ( const NICE::Vector & y )
   this->labels  = y;
   
   std::map<int, NICE::Vector> binaryLabels;
-  prepareBinaryLabels ( binaryLabels, y , knownClasses );
+  
+  if ( this->b_performRegression )
+  {
+    int regressionLabel ( 1 );    
+    binaryLabels.insert ( std::pair< int, NICE::Vector> ( regressionLabel, y ) );
+    this->knownClasses.clear();
+    this->knownClasses.insert ( regressionLabel );
+  }
+  else
+  {
+    this->prepareBinaryLabels ( binaryLabels, y , knownClasses );    
+  }
   
   //now call the main function :)
   this->optimize(binaryLabels);
 }
+
   
 void FMKGPHyperparameterOptimization::optimize ( std::map<int, NICE::Vector> & binaryLabels )
 {
@@ -887,10 +904,14 @@ int FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & xstar
   { // multi-class classification
     return scores.maxElement();
   }
-  else
-  {  // binary setting    
+  else if ( this->knownClasses.size() == 2 ) // binary setting
+  {      
     scores[binaryLabelNegative] = -scores[binaryLabelPositive];     
     return scores[ binaryLabelPositive ] <= 0.0 ? binaryLabelNegative : binaryLabelPositive;
+  }
+  else //OCC or regression setting
+  {
+    return 1;
   }
 }
 
@@ -936,11 +957,14 @@ int FMKGPHyperparameterOptimization::classify ( const NICE::Vector & xstar, NICE
   { // multi-class classification
     return scores.maxElement();
   }
-  else 
-  { // binary setting
-   
+  else if ( this->knownClasses.size() == 2 ) // binary setting
+  {      
     scores[binaryLabelNegative] = -scores[binaryLabelPositive];     
     return scores[ binaryLabelPositive ] <= 0.0 ? binaryLabelNegative : binaryLabelPositive;
+  }
+  else //OCC or regression setting
+  {
+    return 1;
   }
 }
 
@@ -1808,7 +1832,7 @@ void FMKGPHyperparameterOptimization::addExample( const NICE::SparseVector * exa
   
   this->labels.append ( label );
   //have we seen this class already?
-  if ( this->knownClasses.find( label ) == this->knownClasses.end() )
+  if ( !this->b_performRegression && ( this->knownClasses.find( label ) == this->knownClasses.end() ) )
   {
     this->knownClasses.insert( label );
     newClasses.insert( label );
@@ -1823,10 +1847,12 @@ void FMKGPHyperparameterOptimization::addExample( const NICE::SparseVector * exa
   if ( this->verboseTime)
     std::cerr << "Time used for adding the data to the fmk object: " << tFmk.getLast() << std::endl;
 
+  //TODO check that nothing serious happens here for regression setting!
   
   // add examples to all implicite kernel matrices we currently use
   this->ikmsum->addExample ( example, label, performOptimizationAfterIncrement );
   
+  //TODO check that nothing serious happens here for regression setting!
   
   // update the corresponding matrices A, B and lookup tables T  
   // optional: do the optimization again using the previously known solutions as initialization

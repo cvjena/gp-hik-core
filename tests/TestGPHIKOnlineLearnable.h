@@ -8,7 +8,7 @@
  * CppUnit-Testcase. 
  * @brief CppUnit-Testcase to verify that GPHIKClassifierIL methods herited from OnlineLearnable (addExample and addMultipleExamples) work as desired.
  * @author Alexander Freytag
- * @date 03-11-2014 (dd-mm-yyyy)
+ * @date 03-01-2014 (dd-mm-yyyy)
  */
 class TestGPHIKOnlineLearnable : public CppUnit::TestFixture {
 
