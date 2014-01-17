@@ -66,6 +66,9 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     // classification related variables //
     //////////////////////////////////////
     
+    /** per default, we perform classification, if not stated otherwise */
+    bool b_performRegression;
+    
     /** object storing sorted data and providing fast hik methods */
     NICE::FastMinKernel *fmk;
 
@@ -248,8 +251,8 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     * @brief simple constructor
     * @author Alexander Freytag
     */
-    FMKGPHyperparameterOptimization();
-    
+    FMKGPHyperparameterOptimization( const bool & b_performRegression = false);
+        
     /**
     * @brief standard constructor
     *
@@ -299,7 +302,8 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
 #ifdef NICE_USELIB_MATIO
     /**
     * @brief Perform hyperparameter optimization
-    *
+    * @author Alexander Freytag
+    * 
     * @param data MATLAB data structure, like a feature matrix loaded from ImageNet
     * @param y label vector (arbitrary), will be converted into a binary label vector
     * @param positives set of positive examples (indices)
@@ -309,7 +313,8 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
 
     /**
     * @brief Perform hyperparameter optimization for GP multi-class or binary problems
-    *
+    * @author Alexander Freytag
+    * 
     * @param data MATLAB data structure, like a feature matrix loaded from ImageNet
     * @param y label vector with multi-class labels
     * @param examples mapping of example index to new index
@@ -319,6 +324,7 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
 
     /**
     * @brief Perform hyperparameter optimization (multi-class or binary) assuming an already initialized fmk object
+    * @author Alexander Freytag
     *
     * @param y label vector (multi-class as well as binary labels supported)
     */
@@ -329,8 +335,8 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     *
     * @param binLabels vector of binary label vectors (1,-1) and corresponding class no.
     */
-    void optimize ( std::map<int, NICE::Vector> & binaryLabels );    
-    
+    void optimize ( std::map<int, NICE::Vector> & binaryLabels );  
+   
     /**
     * @brief Compute the necessary variables for appxorimations of predictive variance (LUTs), assuming an already initialized fmk object
     * @author Alexander Freytag
@@ -425,7 +431,7 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     * @author Alexander Freytag
     * @date 19-12-2013 (dd-mm-yyyy)
     * @param x input example
-     * @param predVariance contains the approximation of the predictive variance
+    * @param predVariance contains the approximation of the predictive variance
     *
     */    
     void computePredictiveVarianceApproximateFine(const NICE::Vector & x, double & predVariance ) const;      
