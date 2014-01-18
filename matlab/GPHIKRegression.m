@@ -1,7 +1,7 @@
-% brief:    MATLAB class wrapper for the underlying Matlab-C++ Interface (GPHIKClassifierMex.cpp)
+% brief:    MATLAB class wrapper for the underlying Matlab-C++ Interface (GPHIKRegressionMex.cpp)
 % author:   Alexander Freytag
-% date:     07-01-2014 (dd-mm-yyyy)
-classdef GPHIKClassifier < handle
+% date:     17-01-2014 (dd-mm-yyyy)
+classdef GPHIKRegression < handle
     
     properties (SetAccess = private, Hidden = true)
         % Handle to the underlying C++ class instance
@@ -14,36 +14,36 @@ classdef GPHIKClassifier < handle
         %%      Constructor / Destructor    %%
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        
         %% constructor - create object
-        function this = GPHIKClassifier(varargin)
-            this.objectHandle = GPHIKClassifierMex('new', varargin{:});
+        function this = GPHIKRegression(varargin)
+            this.objectHandle = GPHIKRegressionMex('new', varargin{:});
         end
         
         %% destructor - delete object
         function delete(this)
-            GPHIKClassifierMex('delete', this.objectHandle);
+            GPHIKRegressionMex('delete', this.objectHandle);
         end
 
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        %%       Classification stuff       %%
+        %%          Regression stuff        %%
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%         
         %% train - standard train - assumes initialized object
         function varargout = train(this, varargin)
-            [varargout{1:nargout}] = GPHIKClassifierMex('train', this.objectHandle, varargin{:});
+            [varargout{1:nargout}] = GPHIKRegressionMex('train', this.objectHandle, varargin{:});
         end
         
-        %% classify
-        function varargout = classify(this, varargin)
-            [varargout{1:nargout}] = GPHIKClassifierMex('classify', this.objectHandle, varargin{:});
+        %% perform regression
+        function varargout = estimate(this, varargin)
+            [varargout{1:nargout}] = GPHIKRegressionMex('estimate', this.objectHandle, varargin{:});
         end 
         
         %% uncertainty - Uncertainty prediction
         function varargout = uncertainty(this, varargin)
-            [varargout{1:nargout}] = GPHIKClassifierMex('uncertainty', this.objectHandle, varargin{:});
+            [varargout{1:nargout}] = GPHIKRegressionMex('uncertainty', this.objectHandle, varargin{:});
         end        
 
-        %% test - evaluate classifier on whole test set
-        function varargout = test(this, varargin)
-            [varargout{1:nargout}] = GPHIKClassifierMex('test', this.objectHandle, varargin{:});
+        %% test - evaluate regression on whole test set using L2 loss
+        function varargout = testL2loss(this, varargin)
+            [varargout{1:nargout}] = GPHIKRegressionMex('testL2loss', this.objectHandle, varargin{:});
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -51,11 +51,11 @@ classdef GPHIKClassifier < handle
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% addExample
         function varargout = addExample(this, varargin)
-            [varargout{1:nargout}] = GPHIKClassifierMex('addExample', this.objectHandle, varargin{:});
+            [varargout{1:nargout}] = GPHIKRegressionMex('addExample', this.objectHandle, varargin{:});
         end 
         %% addMultipleExamples
         function varargout = addMultipleExamples(this, varargin)
-            [varargout{1:nargout}] = GPHIKClassifierMex('addMultipleExamples', this.objectHandle, varargin{:});
+            [varargout{1:nargout}] = GPHIKRegressionMex('addMultipleExamples', this.objectHandle, varargin{:});
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -63,11 +63,11 @@ classdef GPHIKClassifier < handle
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% store - store the classifier to an external file
         function varargout = store(this, varargin)
-            [varargout{1:nargout}] = GPHIKClassifierMex('store', this.objectHandle, varargin{:});
+            [varargout{1:nargout}] = GPHIKRegressionMex('store', this.objectHandle, varargin{:});
         end
         %% restore -  load classifier from external file 
         function varargout = restore(this, varargin)
-            [varargout{1:nargout}] = GPHIKClassifierMex('restore', this.objectHandle, varargin{:});
+            [varargout{1:nargout}] = GPHIKRegressionMex('restore', this.objectHandle, varargin{:});
         end
     end
 end

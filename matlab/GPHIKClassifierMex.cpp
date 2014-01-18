@@ -1,5 +1,5 @@
 /** 
-* @file GPHIK.cpp
+* @file GPHIKClassifierMex.cpp
 * @author Alexander Freytag
 * @date 07-01-2014 (dd-mm-yyyy)
 * @brief Matlab-Interface of our GPHIKClassifier, allowing for training, classification, optimization, variance prediction, incremental learning, and  storing/re-storing.
@@ -33,7 +33,7 @@ using namespace std; //C basics
 using namespace NICE;  // nice-core
 
 
-NICE::Config parseParameters(const mxArray *prhs[], int nrhs)
+NICE::Config parseParametersGPHIKClassifier(const mxArray *prhs[], int nrhs)
 {
   NICE::Config conf;
   
@@ -235,7 +235,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgTxt("New: One output expected.");
         
         // read config settings
-        NICE::Config conf = parseParameters(prhs+1,nrhs-1);
+        NICE::Config conf = parseParametersGPHIKClassifier(prhs+1,nrhs-1);
         
         // create class instance
         NICE::GPHIKClassifier * classifier = new NICE::GPHIKClassifier ( &conf, "GPHIKClassifier" /*sectionName in config*/ );

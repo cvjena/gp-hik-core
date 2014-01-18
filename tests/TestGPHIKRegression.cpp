@@ -24,7 +24,7 @@ using namespace std; //C basics
 using namespace NICE;  // nice-core
 
 const bool verboseStartEnd = true;
-const bool verbose = false;
+const bool verbose = true;
 
 
 CPPUNIT_TEST_SUITE_REGISTRATION( TestGPHIKRegression );
@@ -113,7 +113,7 @@ void TestGPHIKRegression::testRegressionHoldInData()
     *exTrainIt =  new NICE::SparseVector( dataTrain.getRow(i) );
   }
     
-  //create classifier object
+  //create regressionMethod object
   NICE::GPHIKRegression * regressionMethod;
   regressionMethod = new NICE::GPHIKRegression ( &conf );
   regressionMethod->train ( examplesTrain , yValues );
@@ -180,7 +180,7 @@ void TestGPHIKRegression::testRegressionHoldOutData()
     *exTrainIt =  new NICE::SparseVector( dataTrain.getRow(i) );
   }
     
-  //create classifier object
+  //create regressionMethod object
   NICE::GPHIKRegression * regressionMethod;
   regressionMethod = new NICE::GPHIKRegression ( &conf );
   regressionMethod->train ( examplesTrain , yValues );
@@ -230,6 +230,135 @@ void TestGPHIKRegression::testRegressionOnlineLearning()
 {
   if (verboseStartEnd)
     std::cerr << "================== TestGPHIKRegression::testRegressionOnlineLearning ===================== " << std::endl;  
+
+  NICE::Config conf;
+  
+  conf.sB ( "GPHIKRegressionMethod", "eig_verbose", false);
+  conf.sS ( "GPHIKRegressionMethod", "optimization_method", "downhillsimplex");//downhillsimplex greedy
+  
+  std::string s_trainData = conf.gS( "main", "trainData", "toyExampleSmallScaleTrain.data" );
+  
+  //------------- read the training data --------------
+  
+  NICE::Matrix dataTrain;
+  NICE::Vector yValuesTrain; 
+  
+  readData ( s_trainData, dataTrain, yValuesTrain );
+
+  //----------------- convert data to sparse data structures ---------
+  std::vector< const NICE::SparseVector *> examplesTrain;
+  examplesTrain.resize( dataTrain.rows()-1 );
+  
+  std::vector< const NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin();
+  for (int i = 0; i < (int)dataTrain.rows()-1; i++, exTrainIt++)
+  {
+    *exTrainIt =  new NICE::SparseVector( dataTrain.getRow(i) );
+  }  
+  
+  // TRAIN INITIAL CLASSIFIER FROM SCRATCH
+  NICE::GPHIKRegression * regressionMethod;
+  regressionMethod = new NICE::GPHIKRegression ( &conf );
+
+  //use all but the first example for training and add the first one lateron
+  NICE::Vector yValuesRelevantTrain  ( yValuesTrain.getRangeRef( 0, yValuesTrain.size()-2  ) );
+  
+  regressionMethod->train ( examplesTrain , yValuesRelevantTrain );
+  
+  std::cerr << " initial training done " << std::endl;
+  
+  // RUN INCREMENTAL LEARNING
+  
+  bool performOptimizationAfterIncrement ( true );
+  
+  NICE::SparseVector * exampleToAdd = new NICE::SparseVector ( dataTrain.getRow( (int)dataTrain.rows()-1 ) );
+  
+  exampleToAdd->store  ( std::cerr );
+  std::cerr << "corresponding label: " << yValuesTrain[ (int)dataTrain.rows()-2 ] << std::endl;
+  
+  // TODO seg fault happens here!
+  regressionMethod->addExample ( exampleToAdd, yValuesTrain[ (int)dataTrain.rows()-2 ], performOptimizationAfterIncrement );
+  
+  if ( verbose )
+    std::cerr << "label of example to add: " << yValuesTrain[ (int)dataTrain.rows()-1 ] << std::endl;
+  
+  // TRAIN SECOND CLASSIFIER FROM SCRATCH USING THE SAME OVERALL AMOUNT OF EXAMPLES
+  examplesTrain.push_back(  exampleToAdd );
+
+  NICE::GPHIKRegression * regressionMethodScratch = new NICE::GPHIKRegression ( &conf );
+  regressionMethodScratch->train ( examplesTrain, yValuesTrain );
+  
+  if ( verbose )
+    std::cerr << "trained both regressionMethods - now start evaluating them" << std::endl;
+  
+  
+  // TEST that both regressionMethods produce equal store-files
+   std::string s_destination_save_IL ( "myRegressionMethodIL.txt" );
+  
+  std::filebuf fbOut;
+  fbOut.open ( s_destination_save_IL.c_str(), ios::out );
+  std::ostream os (&fbOut);
+  //
+  regressionMethod->store( os );
+  //   
+  fbOut.close(); 
+  
+  std::string s_destination_save_scratch ( "myRegressionMethodScratch.txt" );
+  
+  std::filebuf fbOutScratch;
+  fbOutScratch.open ( s_destination_save_scratch.c_str(), ios::out );
+  std::ostream osScratch (&fbOutScratch);
+  //
+  regressionMethodScratch->store( osScratch );
+  //   
+  fbOutScratch.close(); 
+  
+  
+  // TEST both regressionMethods to produce equal results
+  
+  //------------- read the test data --------------
+  
+  
+  NICE::Matrix dataTest;
+  NICE::Vector yValuesTest; 
+  
+  std::string s_testData = conf.gS( "main", "testData", "toyExampleTest.data" );  
+  
+  readData ( s_testData, dataTest, yValuesTest );
+
+  
+  // ------------------------------------------
+  // ------------- REGRESSION --------------
+  // ------------------------------------------  
+
+
+  double holdOutLossIL ( 0.0 );
+  double holdOutLossScratch ( 0.0 );
+  
+  evaluateRegressionMethod ( holdOutLossIL, regressionMethod, dataTest, yValuesTest ); 
+  
+  evaluateRegressionMethod ( holdOutLossScratch, regressionMethodScratch, dataTest, yValuesTest );  
+  
+    
+  if ( verbose ) 
+  {
+    std::cerr << "holdOutLossIL: " << holdOutLossIL  << std::endl;
+  
+    std::cerr << "holdOutLossScratch: " << holdOutLossScratch << std::endl;
+  }
+  
+  
+  CPPUNIT_ASSERT_DOUBLES_EQUAL( holdOutLossIL, holdOutLossScratch, 1e-8);
+  
+  // don't waste memory
+  
+  delete regressionMethod;
+  delete regressionMethodScratch;
+  
+  for (std::vector< const NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin(); exTrainIt != examplesTrain.end(); exTrainIt++)
+  {
+    delete *exTrainIt;
+  } 
+
   
   if (verboseStartEnd)
     std::cerr << "================== TestGPHIKRegression::testRegressionOnlineLearning done ===================== " << std::endl;   
