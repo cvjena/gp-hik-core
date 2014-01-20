@@ -25,7 +25,7 @@ using namespace NICE;  // nice-core
 
 const bool verboseStartEnd = true;
 const bool verbose = false;
-
+const bool writeRegressionObjectsForVerification = false;
 
 CPPUNIT_TEST_SUITE_REGISTRATION( TestGPHIKRegression );
 
@@ -290,25 +290,28 @@ void TestGPHIKRegression::testRegressionOnlineLearnableAdd1Example()
   
   
   // TEST that both regressionMethods produce equal store-files
-   std::string s_destination_save_IL ( "myRegressionMethodIL.txt" );
-  
-  std::filebuf fbOut;
-  fbOut.open ( s_destination_save_IL.c_str(), ios::out );
-  std::ostream os (&fbOut);
-  //
-  regressionMethod->store( os );
-  //   
-  fbOut.close(); 
-  
-  std::string s_destination_save_scratch ( "myRegressionMethodScratch.txt" );
-  
-  std::filebuf fbOutScratch;
-  fbOutScratch.open ( s_destination_save_scratch.c_str(), ios::out );
-  std::ostream osScratch (&fbOutScratch);
-  //
-  regressionMethodScratch->store( osScratch );
-  //   
-  fbOutScratch.close(); 
+  if ( writeRegressionObjectsForVerification )
+  {
+    std::string s_destination_save_IL ( "myRegressionMethodIL.txt" );
+    
+    std::filebuf fbOut;
+    fbOut.open ( s_destination_save_IL.c_str(), ios::out );
+    std::ostream os (&fbOut);
+    //
+    regressionMethod->store( os );
+    //   
+    fbOut.close(); 
+    
+    std::string s_destination_save_scratch ( "myRegressionMethodScratch.txt" );
+    
+    std::filebuf fbOutScratch;
+    fbOutScratch.open ( s_destination_save_scratch.c_str(), ios::out );
+    std::ostream osScratch (&fbOutScratch);
+    //
+    regressionMethodScratch->store( osScratch );
+    //   
+    fbOutScratch.close(); 
+  }
   
   
   // TEST both regressionMethods to produce equal results
@@ -450,25 +453,28 @@ void TestGPHIKRegression::testRegressionOnlineLearnableAddMultipleExamples()
   
   
   // TEST that both regressionMethods produce equal store-files
-   std::string s_destination_save_IL ( "myRegressionMethodIL.txt" );
-  
-  std::filebuf fbOut;
-  fbOut.open ( s_destination_save_IL.c_str(), ios::out );
-  std::ostream os (&fbOut);
-  //
-  regressionMethod->store( os );
-  //   
-  fbOut.close(); 
-  
-  std::string s_destination_save_scratch ( "myRegressionMethodScratch.txt" );
-  
-  std::filebuf fbOutScratch;
-  fbOutScratch.open ( s_destination_save_scratch.c_str(), ios::out );
-  std::ostream osScratch (&fbOutScratch);
-  //
-  regressionMethodScratch->store( osScratch );
-  //   
-  fbOutScratch.close(); 
+  if ( writeRegressionObjectsForVerification )
+  {
+    std::string s_destination_save_IL ( "myRegressionMethodIL.txt" );
+    
+    std::filebuf fbOut;
+    fbOut.open ( s_destination_save_IL.c_str(), ios::out );
+    std::ostream os (&fbOut);
+    //
+    regressionMethod->store( os );
+    //   
+    fbOut.close(); 
+    
+    std::string s_destination_save_scratch ( "myRegressionMethodScratch.txt" );
+    
+    std::filebuf fbOutScratch;
+    fbOutScratch.open ( s_destination_save_scratch.c_str(), ios::out );
+    std::ostream osScratch (&fbOutScratch);
+    //
+    regressionMethodScratch->store( osScratch );
+    //   
+    fbOutScratch.close(); 
+  }
   
   
   // TEST both regressionMethods to produce equal results
