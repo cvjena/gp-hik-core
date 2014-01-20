@@ -1,7 +1,7 @@
-myData = [ 0.2; 0.8];
+myData = [ 0.1; 0.3; 0.8];
 % create l1-normalized 'histograms'
 myData = cat(2,myData , 1-myData)';
-myValues = [1,2];
+myValues = [0.3, 0.0, 1.4];
 
 
 % init new GPHIKRegression object

@@ -254,11 +254,6 @@ void GPHIKRegression::train ( const std::vector< const NICE::SparseVector *> & e
     std::cerr << "GPHIKRegression::train" << std::endl;
   }
   
-  //TODO add flag fpr gphyper that only regression is performed, or add a new method for this.
-  // thereby, all the binary-label-stuff should be skipped :)
-  // also think about the internal stuff, like initialization of alpha vectors and stuff like that .... :(
-  // in the worst case, stuff has to be re-written...
-  
   if ( this->confCopy == NULL )
   {
     std::cerr << "WARNING -- No config used so far, initialize values with empty config file now..." << std::endl;
@@ -280,7 +275,9 @@ void GPHIKRegression::train ( const std::vector< const NICE::SparseVector *> & e
   
   if ( ( varianceApproximation != APPROXIMATE_FINE) )
     confCopy->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 0);
-  
+
+  // add flag for gphyper that only regression is performed
+  // thereby, all the binary-label-stuff should be skipped :)  
   confCopy->sB ( confSection, "b_performRegression", true );
   gphyper = new FMKGPHyperparameterOptimization ( confCopy, pf, fmk, confSection ); 
 

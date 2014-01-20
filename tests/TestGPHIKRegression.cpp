@@ -24,7 +24,7 @@ using namespace std; //C basics
 using namespace NICE;  // nice-core
 
 const bool verboseStartEnd = true;
-const bool verbose = true;
+const bool verbose = false;
 
 
 CPPUNIT_TEST_SUITE_REGISTRATION( TestGPHIKRegression );
@@ -158,8 +158,8 @@ void TestGPHIKRegression::testRegressionHoldOutData()
   
   conf.sB ( "GPHIKRegression", "eig_verbose", false);
   conf.sS ( "GPHIKRegression", "optimization_method", "downhillsimplex");
-  // set pretty low built-in noise for hold-in regression estimation
-  conf.sD ( "GPHIKRegression", "noise", 1e-6 );
+  // set higher built-in noise for hold-out regression estimation
+  conf.sD ( "GPHIKRegression", "noise", 1e-4 );
   
   std::string s_trainData = conf.gS( "main", "trainData", "toyExampleSmallScaleTrain.data" );
   
@@ -182,7 +182,7 @@ void TestGPHIKRegression::testRegressionHoldOutData()
     
   //create regressionMethod object
   NICE::GPHIKRegression * regressionMethod;
-  regressionMethod = new NICE::GPHIKRegression ( &conf );
+  regressionMethod = new NICE::GPHIKRegression ( &conf, "GPHIKRegression" );
   regressionMethod->train ( examplesTrain , yValues );
   
   //------------- read the test data --------------
@@ -204,7 +204,7 @@ void TestGPHIKRegression::testRegressionHoldOutData()
   evaluateRegressionMethod ( holdOutLoss, regressionMethod, dataTest, yValuesTest ); 
 
   // acceptable difference for every estimated y-value on average
-  double diffOkay ( 0.35 );
+  double diffOkay ( 0.4 );
   
   if ( verbose ) 
   {
@@ -235,6 +235,8 @@ void TestGPHIKRegression::testRegressionOnlineLearning()
   
   conf.sB ( "GPHIKRegressionMethod", "eig_verbose", false);
   conf.sS ( "GPHIKRegressionMethod", "optimization_method", "downhillsimplex");//downhillsimplex greedy
+  // set higher built-in noise for hold-out regression estimation
+  conf.sD ( "GPHIKRegression", "noise", 1e-4 );  
   
   std::string s_trainData = conf.gS( "main", "trainData", "toyExampleSmallScaleTrain.data" );
   
@@ -257,14 +259,13 @@ void TestGPHIKRegression::testRegressionOnlineLearning()
   
   // TRAIN INITIAL CLASSIFIER FROM SCRATCH
   NICE::GPHIKRegression * regressionMethod;
-  regressionMethod = new NICE::GPHIKRegression ( &conf );
+  regressionMethod = new NICE::GPHIKRegression ( &conf, "GPHIKRegression" );
 
   //use all but the first example for training and add the first one lateron
   NICE::Vector yValuesRelevantTrain  ( yValuesTrain.getRangeRef( 0, yValuesTrain.size()-2  ) );
   
   regressionMethod->train ( examplesTrain , yValuesRelevantTrain );
   
-  std::cerr << " initial training done " << std::endl;
   
   // RUN INCREMENTAL LEARNING
   
@@ -272,19 +273,16 @@ void TestGPHIKRegression::testRegressionOnlineLearning()
   
   NICE::SparseVector * exampleToAdd = new NICE::SparseVector ( dataTrain.getRow( (int)dataTrain.rows()-1 ) );
   
-  exampleToAdd->store  ( std::cerr );
-  std::cerr << "corresponding label: " << yValuesTrain[ (int)dataTrain.rows()-2 ] << std::endl;
   
-  // TODO seg fault happens here!
   regressionMethod->addExample ( exampleToAdd, yValuesTrain[ (int)dataTrain.rows()-2 ], performOptimizationAfterIncrement );
   
   if ( verbose )
     std::cerr << "label of example to add: " << yValuesTrain[ (int)dataTrain.rows()-1 ] << std::endl;
   
-  // TRAIN SECOND CLASSIFIER FROM SCRATCH USING THE SAME OVERALL AMOUNT OF EXAMPLES
+  // TRAIN SECOND REGRESSOR FROM SCRATCH USING THE SAME OVERALL AMOUNT OF EXAMPLES
   examplesTrain.push_back(  exampleToAdd );
 
-  NICE::GPHIKRegression * regressionMethodScratch = new NICE::GPHIKRegression ( &conf );
+  NICE::GPHIKRegression * regressionMethodScratch = new NICE::GPHIKRegression ( &conf, "GPHIKRegression" );
   regressionMethodScratch->train ( examplesTrain, yValuesTrain );
   
   if ( verbose )
@@ -347,7 +345,7 @@ void TestGPHIKRegression::testRegressionOnlineLearning()
   }
   
   
-  CPPUNIT_ASSERT_DOUBLES_EQUAL( holdOutLossIL, holdOutLossScratch, 1e-8);
+  CPPUNIT_ASSERT_DOUBLES_EQUAL( holdOutLossIL, holdOutLossScratch, 1e-4);
   
   // don't waste memory
   

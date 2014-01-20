@@ -55,7 +55,15 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
   std::map<int, NICE::Vector> binaryLabels;
   std::set<int> classesToUse;
   //TODO this could be made faster when storing the previous binary label vectors...
-  this->prepareBinaryLabels ( binaryLabels, this->labels , classesToUse );
+  
+  if ( this->b_performRegression )
+  {
+    // for regression, we are not interested in regression scores, rather than in any "label" 
+    int regressionLabel ( 1 );  
+    binaryLabels.insert ( std::pair< int, NICE::Vector> ( regressionLabel, this->labels ) );
+  }
+  else
+    this->prepareBinaryLabels ( binaryLabels, this->labels , classesToUse );
   
   if ( this->verbose )
     std::cerr << "labels.size() after increment: " << this->labels.size() << std::endl;
@@ -70,7 +78,6 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
   t1.stop();
   if ( this->verboseTime )
     std::cerr << "Time used for setting up the gplike-objects: " << t1.getLast() << std::endl;
-
 
   t1.start();
   if ( this->b_usePreviousAlphas && ( this->previousAlphas.size() > 0) )
@@ -116,7 +123,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
     //if we do not use previous alphas, we do not have to set up anything here
     gplike->setInitialAlphaGuess ( NULL );
   }
-  
+    
   t1.stop();
   if ( this->verboseTime )
     std::cerr << "Time used for setting up the alpha-objects: " << t1.getLast() << std::endl;
@@ -136,8 +143,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
   //////////////////////  //////////////////////
   //   RE-RUN THE OPTIMIZATION, IF DESIRED    //
   //////////////////////  //////////////////////    
-  
-  
+    
   if ( this->verbose )
     std::cerr << "resulting eigenvalues for first class: " << eigenMax[0] << std::endl;
   
@@ -154,7 +160,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
     
   if ( this->verbose )
     std::cerr << "perform optimization after increment " << std::endl;
-  
+   
   int optimizationMethodTmpCopy;
   if ( !performOptimizationAfterIncrement )
   {
@@ -163,7 +169,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
     optimizationMethodTmpCopy = this->optimizationMethod;
     this->optimizationMethod = OPT_NONE;
   }
-      
+  
   t1.start();
   this->performOptimization ( *gplike, parameterVectorSize);
 
@@ -721,7 +727,8 @@ void FMKGPHyperparameterOptimization::optimize ( const NICE::Vector & y )
   
   if ( this->b_performRegression )
   {
-    int regressionLabel ( 1 );    
+    // for regression, we are not interested in regression scores, rather than in any "label" 
+    int regressionLabel ( 1 );  
     binaryLabels.insert ( std::pair< int, NICE::Vector> ( regressionLabel, y ) );
     this->knownClasses.clear();
     this->knownClasses.insert ( regressionLabel );
@@ -878,7 +885,7 @@ int FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & xstar
     double beta;
 
     if ( q != NULL ) {
-      map<int, double *>::const_iterator j = precomputedT.find ( classno );
+      std::map<int, double *>::const_iterator j = precomputedT.find ( classno );
       double *T = j->second;
       fmk->hik_kernel_sum_fast ( T, *q, xstar, beta );
     } else {
@@ -1847,12 +1854,10 @@ void FMKGPHyperparameterOptimization::addExample( const NICE::SparseVector * exa
   if ( this->verboseTime)
     std::cerr << "Time used for adding the data to the fmk object: " << tFmk.getLast() << std::endl;
 
-  //TODO check that nothing serious happens here for regression setting!
   
   // add examples to all implicite kernel matrices we currently use
   this->ikmsum->addExample ( example, label, performOptimizationAfterIncrement );
   
-  //TODO check that nothing serious happens here for regression setting!
   
   // update the corresponding matrices A, B and lookup tables T  
   // optional: do the optimization again using the previously known solutions as initialization
