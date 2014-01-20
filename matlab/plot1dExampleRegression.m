@@ -1,14 +1,14 @@
 myData = [ 0.1; 0.3; 0.8];
 % create l1-normalized 'histograms'
-myData = cat(2,myData , 1-myData)';
-myValues = [0.3, 0.0, 1.4];
+myData = cat(2,myData , 1-myData);
+myValues = [0.3; 0.0; 1.4];
 
 
 % init new GPHIKRegression object
 myGPHIKRegression = GPHIKRegression ( 'verbose', 'false', ...
     'optimization_method', 'none', 'varianceApproximation', 'approximate_fine',...
     'nrOfEigenvaluesToConsiderForVarApprox',2,...
-    'uncertaintyPredictionForClassification', true ...
+    'uncertaintyPredictionForRegression', true ...
     );
 
 % run train method

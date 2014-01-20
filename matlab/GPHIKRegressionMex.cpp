@@ -58,7 +58,7 @@ NICE::Config parseParametersGPHIKRegression(const mxArray *prhs[], int nrhs)
     // READ STANDARD BOOLEAN VARIABLES
     /////////////////////////////////////////
     if( (variable == "verboseTime") || (variable == "verbose") ||
-        (variable == "optimize_noise") || (variable == "uncertaintyPredictionForClassification") ||
+        (variable == "optimize_noise") || (variable == "uncertaintyPredictionForRegression") ||
         (variable == "use_quantization") || (variable == "ils_verbose")
       )
     {
