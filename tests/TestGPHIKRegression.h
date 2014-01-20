@@ -15,7 +15,9 @@ class TestGPHIKRegression : public CppUnit::TestFixture {
     CPPUNIT_TEST_SUITE( TestGPHIKRegression );
       CPPUNIT_TEST(testRegressionHoldInData);
       CPPUNIT_TEST(testRegressionHoldOutData);
-      CPPUNIT_TEST(testRegressionOnlineLearning);
+      
+      CPPUNIT_TEST(testRegressionOnlineLearnableAdd1Example);
+      CPPUNIT_TEST(testRegressionOnlineLearnableAddMultipleExamples);
       
     CPPUNIT_TEST_SUITE_END();
   
@@ -28,8 +30,8 @@ class TestGPHIKRegression : public CppUnit::TestFixture {
     void testRegressionHoldInData();
     void testRegressionHoldOutData();    
     
-    void testRegressionOnlineLearning();
-    
+    void testRegressionOnlineLearnableAdd1Example();
+    void testRegressionOnlineLearnableAddMultipleExamples();    
 };
 
 #endif // _TESTGPHIKREGRESSION_H

@@ -1897,16 +1897,21 @@ void FMKGPHyperparameterOptimization::addMultipleExamples( const std::vector< co
   
   this->labels.append ( newLabels );
   //have we seen this class already?
-  for ( NICE::Vector::const_iterator vecIt = newLabels.begin(); 
-       vecIt != newLabels.end(); vecIt++
-      )
-  {  
-      if ( this->knownClasses.find( *vecIt ) == this->knownClasses.end() )
-    {
-      this->knownClasses.insert( *vecIt );
-      newClasses.insert( *vecIt );
-    } 
+  if ( !this->b_performRegression)
+  {
+    for ( NICE::Vector::const_iterator vecIt = newLabels.begin(); 
+	vecIt != newLabels.end(); vecIt++
+	)
+    {  
+	if ( this->knownClasses.find( *vecIt ) == this->knownClasses.end() )
+      {
+	this->knownClasses.insert( *vecIt );
+	newClasses.insert( *vecIt );
+      } 
+    }
   }
+  // in a regression setting, we do not have to remember any "class labels"
+  else{}
   
   // add the new example to our data structure
   // It is necessary to do this already here and not lateron for internal reasons (see GMHIKernel for more details)

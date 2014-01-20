@@ -226,10 +226,10 @@ void TestGPHIKRegression::testRegressionHoldOutData()
     std::cerr << "================== TestGPHIKRegression::testRegressionHoldOutData done ===================== " << std::endl;     
 }
     
-void TestGPHIKRegression::testRegressionOnlineLearning()
+void TestGPHIKRegression::testRegressionOnlineLearnableAdd1Example()
 {
   if (verboseStartEnd)
-    std::cerr << "================== TestGPHIKRegression::testRegressionOnlineLearning ===================== " << std::endl;  
+    std::cerr << "================== TestGPHIKRegression::testRegressionOnlineLearnableAdd1Example ===================== " << std::endl;  
 
   NICE::Config conf;
   
@@ -359,7 +359,166 @@ void TestGPHIKRegression::testRegressionOnlineLearning()
 
   
   if (verboseStartEnd)
-    std::cerr << "================== TestGPHIKRegression::testRegressionOnlineLearning done ===================== " << std::endl;   
+    std::cerr << "================== TestGPHIKRegression::testRegressionOnlineLearnableAdd1Example done ===================== " << std::endl;   
 }
+
+void TestGPHIKRegression::testRegressionOnlineLearnableAddMultipleExamples()
+{
+  if (verboseStartEnd)
+    std::cerr << "================== TestGPHIKRegression::testRegressionOnlineLearnableAddMultipleExamples ===================== " << std::endl;  
+
+  NICE::Config conf;
+  
+  conf.sB ( "GPHIKRegressionMethod", "eig_verbose", false);
+  conf.sS ( "GPHIKRegressionMethod", "optimization_method", "downhillsimplex");//downhillsimplex greedy
+  // set higher built-in noise for hold-out regression estimation
+  conf.sD ( "GPHIKRegression", "noise", 1e-4 );  
+  
+  std::string s_trainData = conf.gS( "main", "trainData", "toyExampleSmallScaleTrain.data" );
+  
+  //------------- read the training data --------------
+  
+  NICE::Matrix dataTrain;
+  NICE::Vector yValuesTrain; 
+  
+  readData ( s_trainData, dataTrain, yValuesTrain );
+  
+  //----------------- convert data to sparse data structures ---------
+  std::vector< const NICE::SparseVector *> examplesTrain;
+  std::vector< const NICE::SparseVector *> examplesTrainPlus;
+  std::vector< const NICE::SparseVector *> examplesTrainMinus;
+  
+  examplesTrain.resize( dataTrain.rows() );
+  NICE::Vector yValuesPlus( dataTrain.rows() );
+  NICE::Vector yValuesMinus( dataTrain.rows() );  
+  
+  std::vector< const NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin();
+  
+  int cntPlus ( 0 );
+  int cntMinus ( 0 );
+  // note: we also slightly shuffle the order of how examples are added compared to the scratch-classifier... 
+  // this should not result in any difference of behaviour...
+  for (int i = 0; i < (int)dataTrain.rows(); i++, exTrainIt++)
+  {
+    *exTrainIt =  new NICE::SparseVector( dataTrain.getRow(i) );
+    
+    if ( ( yValuesTrain[i] == 1 ) || ( yValuesTrain[i] == 2 ) )
+    {
+      examplesTrainPlus.push_back ( *exTrainIt );
+      yValuesPlus[cntPlus] = yValuesTrain[i];
+      cntPlus++;
+    }
+    else
+    {
+       examplesTrainMinus.push_back ( *exTrainIt );
+      yValuesMinus[cntMinus] = yValuesTrain[i];
+      cntMinus++;      
+    }
+  }
+  
+  yValuesPlus.resize ( examplesTrainPlus.size()  ) ;
+  yValuesMinus.resize( examplesTrainMinus.size() );  
+
+  
+  // TRAIN INITIAL CLASSIFIER FROM SCRATCH
+  NICE::GPHIKRegression * regressionMethod;
+  regressionMethod = new NICE::GPHIKRegression ( &conf, "GPHIKRegression" );
+  
+  regressionMethod->train ( examplesTrainPlus , yValuesPlus );
+  
+  if ( verbose ) 
+  {
+    std::cerr << "Initial values: " << yValuesPlus << std::endl;
+    std::cerr << "Values to add: " << yValuesMinus << std::endl;
+  }
+  
+  
+  // RUN INCREMENTAL LEARNING
+  
+  bool performOptimizationAfterIncrement ( true );
+  
+  regressionMethod->addMultipleExamples ( examplesTrainMinus, yValuesMinus, performOptimizationAfterIncrement );
+  
+  
+  // TRAIN SECOND REGRESSOR FROM SCRATCH USING THE SAME OVERALL AMOUNT OF EXAMPLES
+
+  NICE::GPHIKRegression * regressionMethodScratch = new NICE::GPHIKRegression ( &conf, "GPHIKRegression" );
+  regressionMethodScratch->train ( examplesTrain, yValuesTrain );
+  
+  if ( verbose )
+    std::cerr << "trained both regressionMethods - now start evaluating them" << std::endl;
+  
+  
+  // TEST that both regressionMethods produce equal store-files
+   std::string s_destination_save_IL ( "myRegressionMethodIL.txt" );
+  
+  std::filebuf fbOut;
+  fbOut.open ( s_destination_save_IL.c_str(), ios::out );
+  std::ostream os (&fbOut);
+  //
+  regressionMethod->store( os );
+  //   
+  fbOut.close(); 
+  
+  std::string s_destination_save_scratch ( "myRegressionMethodScratch.txt" );
+  
+  std::filebuf fbOutScratch;
+  fbOutScratch.open ( s_destination_save_scratch.c_str(), ios::out );
+  std::ostream osScratch (&fbOutScratch);
+  //
+  regressionMethodScratch->store( osScratch );
+  //   
+  fbOutScratch.close(); 
+  
+  
+  // TEST both regressionMethods to produce equal results
+  
+  //------------- read the test data --------------
+  
+  
+  NICE::Matrix dataTest;
+  NICE::Vector yValuesTest; 
+  
+  std::string s_testData = conf.gS( "main", "testData", "toyExampleTest.data" );  
+  
+  readData ( s_testData, dataTest, yValuesTest );
+  
+
+  // ------------------------------------------
+  // ------------- REGRESSION --------------
+  // ------------------------------------------  
+
+
+  double holdOutLossIL ( 0.0 );
+  double holdOutLossScratch ( 0.0 );
+  
+  evaluateRegressionMethod ( holdOutLossIL, regressionMethod, dataTest, yValuesTest ); 
+  
+  evaluateRegressionMethod ( holdOutLossScratch, regressionMethodScratch, dataTest, yValuesTest );  
+  
+    
+  if ( verbose ) 
+  {
+    std::cerr << "holdOutLossIL: " << holdOutLossIL  << std::endl;
+  
+    std::cerr << "holdOutLossScratch: " << holdOutLossScratch << std::endl;
+  }
+  
+  
+  CPPUNIT_ASSERT_DOUBLES_EQUAL( holdOutLossIL, holdOutLossScratch, 1e-4);
+  
+  // don't waste memory
+  
+  delete regressionMethod;
+  delete regressionMethodScratch;
+  
+  for (std::vector< const NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin(); exTrainIt != examplesTrain.end(); exTrainIt++)
+  {
+    delete *exTrainIt;
+  }   
+  
+  if (verboseStartEnd)
+    std::cerr << "================== TestGPHIKRegression::testRegressionOnlineLearnableAddMultipleExamples done ===================== " << std::endl;   
+}    
 
 #endif
