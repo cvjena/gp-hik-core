@@ -8,7 +8,8 @@
 #ifndef _NICE_CLASSHANDLEMTOCINCLUDE
 #define _NICE_CLASSHANDLEMTOCINCLUDE
 
-#include "mex.h"
+// STL includes
+#include <mex.h>
 #include <stdint.h>
 #include <iostream>
 #include <string>
@@ -18,7 +19,7 @@
 #define CLASS_HANDLE_SIGNATURE 0xFF00F0A3
 
   /** 
-  * @class FMKGPHyperparameterOptimization
+  * @class ClassHandle
   * @brief Generic class to pass C++ objects to matlab
   * @author Alexander Freytag
   */

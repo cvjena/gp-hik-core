@@ -25,6 +25,7 @@ using namespace NICE;  // nice-core
 
 const bool verboseStartEnd = true;
 const bool verbose = false;
+const bool writeClassifiersForVerification = false;
 
 
 CPPUNIT_TEST_SUITE_REGISTRATION( TestGPHIKOnlineLearnable );
@@ -557,25 +558,28 @@ void TestGPHIKOnlineLearnable::testOnlineLearningMultiClass()
   
   
   // TEST that both classifiers produce equal store-files
-   std::string s_destination_save_IL ( "myClassifierIL.txt" );
-  
-  std::filebuf fbOut;
-  fbOut.open ( s_destination_save_IL.c_str(), ios::out );
-  std::ostream os (&fbOut);
-  //
-  classifier->store( os );
-  //   
-  fbOut.close(); 
-  
-  std::string s_destination_save_scratch ( "myClassifierScratch.txt" );
-  
-  std::filebuf fbOutScratch;
-  fbOutScratch.open ( s_destination_save_scratch.c_str(), ios::out );
-  std::ostream osScratch (&fbOutScratch);
-  //
-  classifierScratch->store( osScratch );
-  //   
-  fbOutScratch.close(); 
+  if ( writeClassifiersForVerification )
+  {
+    std::string s_destination_save_IL ( "myClassifierIL.txt" );
+    
+    std::filebuf fbOut;
+    fbOut.open ( s_destination_save_IL.c_str(), ios::out );
+    std::ostream os (&fbOut);
+    //
+    classifier->store( os );
+    //   
+    fbOut.close(); 
+    
+    std::string s_destination_save_scratch ( "myClassifierScratch.txt" );
+    
+    std::filebuf fbOutScratch;
+    fbOutScratch.open ( s_destination_save_scratch.c_str(), ios::out );
+    std::ostream osScratch (&fbOutScratch);
+    //
+    classifierScratch->store( osScratch );
+    //   
+    fbOutScratch.close(); 
+  }
   
   
   // TEST both classifiers to produce equal results

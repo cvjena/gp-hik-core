@@ -1,9 +1,8 @@
 /** 
 * @file FMKGPHyperparameterOptimization.h
 * @brief Heart of the framework to set up everything, perform optimization, classification, and variance prediction (Interface)
-* @author Erik Rodner, Alexander Freytag
-* @date 01/02/2012
-
+* @author Alexander Freytag, Erik Rodner
+* @date 01-02-2012 (dd-mm-yyyy)
 */
 #ifndef _NICE_FMKGPHYPERPARAMETEROPTIMIZATIONINCLUDE
 #define _NICE_FMKGPHYPERPARAMETEROPTIMIZATIONINCLUDE
@@ -39,108 +38,66 @@ namespace NICE {
   /** 
  * @class FMKGPHyperparameterOptimization
  * @brief Heart of the framework to set up everything, perform optimization, classification, and variance prediction
- * @author Erik Rodner, Alexander Freytag
+ * @author Alexander Freytag, Erik Rodner
  */
   
 class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::OnlineLearnable
 {
   protected:
-    enum {
-      OPT_GREEDY = 0,
-      OPT_DOWNHILLSIMPLEX,
-      OPT_NONE,
-      OPT_NUMBEROFMETHODS
-    };
-
-    /** optimization method used */
-    int optimizationMethod;
-
-    /** the parameterized function we use within the minimum kernel */
-    ParameterizedFunction *pf;
-
-    /** method computing eigenvalues */
-    EigValues *eig;
-
-    /** method for solving linear equation systems */
-    IterativeLinearSolver *linsolver;
-
-    /** object which stores our sorted data and provides fast hik functions */
-    FastMinKernel *fmk;
-
-    /** object which stores our quantization object */
-    Quantization *q;
-
+    
+    /////////////////////////
+    /////////////////////////
+    // PROTECTED VARIABLES //
+    /////////////////////////
+    ///////////////////////// 
+    
+    ///////////////////////////////////
+    // output/debug related settings //   
+    ///////////////////////////////////
+    
     /** verbose flag */
     bool verbose;    
     /** verbose flag for time measurement outputs */
     bool verboseTime;        
     /** debug flag for several outputs useful for debugging*/
     bool debug;    
-
-    /** optimization parameters */
-    double parameterUpperBound;
-    double parameterLowerBound;
-    double parameterStepSize;
-    int ils_max_iterations;
-
-    int downhillSimplexMaxIterations;
-    double downhillSimplexTimeLimit;
-    double downhillSimplexParamTol;
-
-    /** whether to compute the likelihood with the usual method */
-    bool verifyApproximation;
     
-    /** number of Eigenvalues to consider in the approximation of |K|_F */
-    int nrOfEigenvaluesToConsider;
+    //////////////////////////////////////
+    // classification related variables //
+    //////////////////////////////////////
     
-    /** number of Eigenvalues to consider in the fine approximation of the predictive variance */
-    int nrOfEigenvaluesToConsiderForVarApprox;
+    /** per default, we perform classification, if not stated otherwise */
+    bool b_performRegression;
+    
+    /** object storing sorted data and providing fast hik methods */
+    NICE::FastMinKernel *fmk;
 
+    /** object performing feature quantization */
+    NICE::Quantization *q;
+    
+    /** the parameterized function we use within the minimum kernel */
+    NICE::ParameterizedFunction *pf;
+
+    /** method for solving linear equation systems - needed to compute K^-1 \times y */
+    IterativeLinearSolver *linsolver;
+    
+    /** Max. number of iterations the iterative linear solver is allowed to run */
+    int ils_max_iterations;    
+    
+    /** Simple type definition for precomputation matrices used for fast classification */
     typedef VVector PrecomputedType;
 
-    /** precomputed arrays and lookup tables */
-    std::map< int, PrecomputedType > precomputedA;
+    /** precomputed arrays A (1 per class) needed for classification without quantization  */
+    std::map< int, PrecomputedType > precomputedA;    
+    /** precomputed arrays B (1 per class) needed for classification without quantization  */
     std::map< int, PrecomputedType > precomputedB;
-    std::map< int, double * > precomputedT;
-
-    PrecomputedType precomputedAForVarEst;
-    double * precomputedTForVarEst;
-
-    //! optimize noise with the GP likelihood
-    bool optimizeNoise;     
-       
-    //! k largest eigenvalues of the kernel matrix (k == nrOfEigenvaluesToConsider)
-    NICE::Vector eigenMax;
-
-    //! eigenvectors corresponding to k largest eigenvalues (k == nrOfEigenvaluesToConsider) -- format: nxk
-    NICE::Matrix eigenMaxVectors;
     
-    //! needed for optimization and variance approximation
-    IKMLinearCombination * ikmsum;
+    /** precomputed LUTs (1 per class) needed for classification with quantization  */
+    std::map< int, double * > precomputedT;  
     
     //! storing the labels is needed for Incremental Learning (re-optimization)
-    NICE::Vector labels;
+    NICE::Vector labels; 
     
-
-    //! calculate binary label vectors using a multi-class label vector
-    int prepareBinaryLabels ( std::map<int, NICE::Vector> & binaryLabels, const NICE::Vector & y , std::set<int> & myClasses);     
-    
-    //! prepare the GPLike object for given binary labels and already given ikmsum-object
-    inline void setupGPLikelihoodApprox( GPLikelihoodApprox * & gplike, const std::map<int, NICE::Vector> & binaryLabels, uint & parameterVectorSize);    
-    
-    //! update eigenvectors and eigenvalues for given ikmsum-objects and a method to compute eigenvalues
-    inline void updateEigenDecomposition( const int & i_noEigenValues );
-    
-    //! core of the optimize-functions
-    inline void performOptimization( GPLikelihoodApprox & gplike, const uint & parameterVectorSize);
-    
-    //! apply the optimized transformation values to the underlying features
-    inline void transformFeaturesWithOptimalParameters(const GPLikelihoodApprox & gplike, const uint & parameterVectorSize);
-    
-    //! build the resulting matrices A and B as well as lookup tables T for fast evaluations using the optimized parameter settings
-    inline void computeMatricesAndLUTs( const GPLikelihoodApprox & gplike);
-    
-     
     //! store the class number of the positive class (i.e., larger class no), only used in binary settings
     int binaryLabelPositive;
     //! store the class number of the negative class (i.e., smaller class no), only used in binary settings
@@ -149,12 +106,138 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     //! contains all class numbers of the currently known classes
     std::set<int> knownClasses;
     
+    //! container for multiple kernel matrices (e.g., a data-containing kernel matrix (GMHIKernel) and a noise matrix (IKMNoise) )
+    NICE::IKMLinearCombination * ikmsum;    
+    
+  
+    /////////////////////////////////////
+    // optimization related parameters //
+    /////////////////////////////////////
+    
+    enum {
+      OPT_GREEDY = 0,
+      OPT_DOWNHILLSIMPLEX,
+      OPT_NONE
+    };
+
+    /** specify the optimization method used (see corresponding enum) */
+    int optimizationMethod;
+    
+    //! whether or not to optimize noise with the GP likelihood
+    bool optimizeNoise;     
+    
+    /** upper bound for hyper parameters to optimize */
+    double parameterUpperBound;
+    
+    /** lower bound for hyper parameters to optimize */
+    double parameterLowerBound;
+    
+        // specific to greedy optimization
+    /** step size used in grid based greedy optimization technique */
+    double parameterStepSize;
+    
+        // specific to downhill simplex optimization
+    /** Max. number of iterations the downhill simplex optimizer is allowed to run */
+    int downhillSimplexMaxIterations;
+    
+    /** Max. time the downhill simplex optimizer is allowed to run */
+    double downhillSimplexTimeLimit;
+    
+    /** Max. number of iterations the iterative linear solver is allowed to run */
+    double downhillSimplexParamTol;
+    
+    
+      // likelihood computation related variables
+
+    /** whether to compute the exact likelihood by computing the exact kernel matrix (not recommended - only for debugging/comparison purpose) */
+    bool verifyApproximation;
+
+    /** method computing eigenvalues and eigenvectors*/
+    NICE::EigValues *eig;
+    
+    /** number of Eigenvalues to consider in the approximation of |K|_F used for approximating the likelihood */
+    int nrOfEigenvaluesToConsider;
+    
+    //! k largest eigenvalues of the kernel matrix (k == nrOfEigenvaluesToConsider)
+    NICE::Vector eigenMax;
+
+    //! eigenvectors corresponding to k largest eigenvalues (k == nrOfEigenvaluesToConsider) -- format: nxk
+    NICE::Matrix eigenMaxVectors;
+    
+
+    ////////////////////////////////////////////
+    // variance computation related variables //
+    ////////////////////////////////////////////
+    
+    /** number of Eigenvalues to consider in the fine approximation of the predictive variance (fine approximation only) */
+    int nrOfEigenvaluesToConsiderForVarApprox;
+    
+    /** precomputed array needed for rough variance approximation without quantization */ 
+    PrecomputedType precomputedAForVarEst;
+    
+    /** precomputed LUT needed for rough variance approximation with quantization  */
+    double * precomputedTForVarEst;    
+    
+    /////////////////////////////////////////////////////
+    // online / incremental learning related variables //
+    /////////////////////////////////////////////////////
+
+    /** whether or not to use previous alpha solutions as initialization after adding new examples*/
     bool b_usePreviousAlphas;
     
-    //! we store the alpha vectors for good initializations in the IL setting
-    std::map<int, NICE::Vector> previousAlphas;  
+    //! store alpha vectors for good initializations in the IL setting, if activated
+    std::map<int, NICE::Vector> previousAlphas;     
 
-    //! Update matrices (A, B, LUTs) and optionally find optimal parameters after adding (a) new example(s).  
+    
+    /////////////////////////
+    /////////////////////////
+    //  PROTECTED METHODS  //
+    /////////////////////////
+    /////////////////////////
+    
+
+    /**
+    * @brief calculate binary label vectors using a multi-class label vector
+    * @author Alexander Freytag
+    */    
+    int prepareBinaryLabels ( std::map<int, NICE::Vector> & binaryLabels, const NICE::Vector & y , std::set<int> & myClasses);     
+    
+    /**
+    * @brief prepare the GPLike object for given binary labels and already given ikmsum-object
+    * @author Alexander Freytag
+    */
+    inline void setupGPLikelihoodApprox( GPLikelihoodApprox * & gplike, const std::map<int, NICE::Vector> & binaryLabels, uint & parameterVectorSize);    
+    
+    /**
+    * @brief update eigenvectors and eigenvalues for given ikmsum-objects and a method to compute eigenvalues
+    * @author Alexander Freytag
+    */
+    inline void updateEigenDecomposition( const int & i_noEigenValues );
+    
+    /**
+    * @brief core of the optimize-functions
+    * @author Alexander Freytag
+    */
+    inline void performOptimization( GPLikelihoodApprox & gplike, const uint & parameterVectorSize);
+    
+    /**
+    * @brief apply the optimized transformation values to the underlying features
+    * @author Alexander Freytag
+    */    
+    inline void transformFeaturesWithOptimalParameters(const GPLikelihoodApprox & gplike, const uint & parameterVectorSize);
+    
+    /**
+    * @brief build the resulting matrices A and B as well as lookup tables T for fast evaluations using the optimized parameter settings
+    * @author Alexander Freytag
+    */
+    inline void computeMatricesAndLUTs( const GPLikelihoodApprox & gplike);
+    
+     
+
+    /**
+    * @brief Update matrices (A, B, LUTs) and optionally find optimal parameters after adding (a) new example(s).  
+    * @author Alexander Freytag
+    */           
     void updateAfterIncrement (
       const std::set<int> newClasses,
       const bool & performOptimizationAfterIncrement = false
@@ -164,9 +247,12 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     
   public:  
     
-
-    FMKGPHyperparameterOptimization();
-    
+    /**
+    * @brief simple constructor
+    * @author Alexander Freytag
+    */
+    FMKGPHyperparameterOptimization( const bool & b_performRegression = false);
+        
     /**
     * @brief standard constructor
     *
@@ -176,27 +262,48 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     */
     FMKGPHyperparameterOptimization( const Config *conf, ParameterizedFunction *pf, FastMinKernel *fmk = NULL, const std::string & confSection = "GPHIKClassifier" );
       
-    /** simple destructor */
+    /**
+    * @brief standard destructor
+    * @author Alexander Freytag
+    */
     virtual ~FMKGPHyperparameterOptimization();
     
     ///////////////////// ///////////////////// /////////////////////
     //                         GET / SET
-    ///////////////////// ///////////////////// ///////////////////// 
+    ///////////////////// ///////////////////// /////////////////////
+    
+    /**
+    * @brief Set lower bound for hyper parameters to optimize
+    * @author Alexander Freytag
+    */    
     void setParameterUpperBound(const double & _parameterUpperBound);
+    /**
+    * @brief Set upper bound for hyper parameters to optimize
+    * @author Alexander Freytag
+    */    
     void setParameterLowerBound(const double & _parameterLowerBound);  
     
+    /**
+    * @brief Get the currently known class numbers
+    * @author Alexander Freytag
+    */    
     std::set<int> getKnownClassNumbers ( ) const;
     
     ///////////////////// ///////////////////// /////////////////////
     //                      CLASSIFIER STUFF
     ///////////////////// ///////////////////// /////////////////////  
     
+    /**
+    * @brief Set variables and parameters to default or config-specified values
+    * @author Alexander Freytag
+    */       
     void initialize( const Config *conf, ParameterizedFunction *pf, FastMinKernel *fmk = NULL, const std::string & confSection = "GPHIKClassifier" );
        
 #ifdef NICE_USELIB_MATIO
     /**
     * @brief Perform hyperparameter optimization
-    *
+    * @author Alexander Freytag
+    * 
     * @param data MATLAB data structure, like a feature matrix loaded from ImageNet
     * @param y label vector (arbitrary), will be converted into a binary label vector
     * @param positives set of positive examples (indices)
@@ -206,7 +313,8 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
 
     /**
     * @brief Perform hyperparameter optimization for GP multi-class or binary problems
-    *
+    * @author Alexander Freytag
+    * 
     * @param data MATLAB data structure, like a feature matrix loaded from ImageNet
     * @param y label vector with multi-class labels
     * @param examples mapping of example index to new index
@@ -216,6 +324,7 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
 
     /**
     * @brief Perform hyperparameter optimization (multi-class or binary) assuming an already initialized fmk object
+    * @author Alexander Freytag
     *
     * @param y label vector (multi-class as well as binary labels supported)
     */
@@ -226,8 +335,8 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     *
     * @param binLabels vector of binary label vectors (1,-1) and corresponding class no.
     */
-    void optimize ( std::map<int, NICE::Vector> & binaryLabels );    
-    
+    void optimize ( std::map<int, NICE::Vector> & binaryLabels );  
+   
     /**
     * @brief Compute the necessary variables for appxorimations of predictive variance (LUTs), assuming an already initialized fmk object
     * @author Alexander Freytag
@@ -322,7 +431,7 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     * @author Alexander Freytag
     * @date 19-12-2013 (dd-mm-yyyy)
     * @param x input example
-     * @param predVariance contains the approximation of the predictive variance
+    * @param predVariance contains the approximation of the predictive variance
     *
     */    
     void computePredictiveVarianceApproximateFine(const NICE::Vector & x, double & predVariance ) const;      
@@ -347,23 +456,45 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     // interface specific methods for store and restore
     ///////////////////// INTERFACE PERSISTENT ///////////////////// 
     
+    /** 
+     * @brief Load current object from external file (stream)
+     * @author Alexander Freytag
+     */     
     void restore ( std::istream & is, int format = 0 );
+    
+    /** 
+     * @brief Save current object to external file (stream)
+     * @author Alexander Freytag
+     */      
     void store ( std::ostream & os, int format = 0 ) const;
+    
+    /** 
+     * @brief Clear current object
+     * @author Alexander Freytag
+     */      
     void clear ( ) ;
     
     ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
     // interface specific methods for incremental extensions
     ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////    
     
+    /** 
+     * @brief add a new example
+     * @author Alexander Freytag
+     */       
     virtual void addExample( const NICE::SparseVector * example, 
-			     const double & label, 
-			     const bool & performOptimizationAfterIncrement = true
-			   );
-			   
+                             const double & label, 
+                             const bool & performOptimizationAfterIncrement = true
+                           );
+
+    /** 
+     * @brief add several new examples
+     * @author Alexander Freytag
+     */    
     virtual void addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
-				      const NICE::Vector & newLabels,
-				      const bool & performOptimizationAfterIncrement = true
-				    );         
+                                      const NICE::Vector & newLabels,
+                                      const bool & performOptimizationAfterIncrement = true
+                                    );         
 };
 
 }

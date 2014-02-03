@@ -223,7 +223,7 @@ int main (int argc, char* argv[])
     
     Vector kstarSlow ( hikSlow.computeKernelVector(rand_feat_transposed, xstar_stl));
     xstar.resize(xstar_stl.size());
-    for ( int i = 0 ; i < xstar.size() ; i++ )
+    for ( int i = 0 ; (uint) i < xstar.size() ; i++ )
       xstar[i] = xstar_stl[i];
     double kSumSlowly = alphas.scalarProduct(kstarSlow);
     

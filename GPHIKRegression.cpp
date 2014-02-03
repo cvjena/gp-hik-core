@@ -1,9 +1,8 @@
 /** 
-* @file GPHIKClassifier.cpp
-* @brief Main interface for our GP HIK classifier (similar to the feature pool classifier interface in vislearning) (Implementation)
-* @author Erik Rodner, Alexander Freytag
-* @date 02/01/2012
-
+* @file GPHIKRegression.cpp
+* @brief Main interface for our GP HIK regression implementation (Implementation)
+* @author Alexander Freytag
+* @date 15-01-2014 (dd-mm-yyyy)
 */
 
 // STL includes
@@ -14,7 +13,7 @@
 #include <core/basics/Timer.h>
 
 // gp-hik-core includes
-#include "GPHIKClassifier.h"
+#include "GPHIKRegression.h"
 #include "gp-hik-core/parameterizedFunctions/PFAbsExp.h"
 #include "gp-hik-core/parameterizedFunctions/PFExp.h"
 #include "gp-hik-core/parameterizedFunctions/PFMKL.h"
@@ -28,7 +27,7 @@ using namespace NICE;
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
 
-void GPHIKClassifier::init(const Config *conf, const string & s_confSection)
+void GPHIKRegression::init(const Config *conf, const string & s_confSection)
 {
   //copy the given config to have it accessible lateron
   if ( this->confCopy != conf )
@@ -72,11 +71,11 @@ void GPHIKClassifier::init(const Config *conf, const string & s_confSection)
   this->confSection = confSection;
   this->verbose = confCopy->gB(confSection, "verbose", false);
   this->debug = confCopy->gB(confSection, "debug", false);
-  this->uncertaintyPredictionForClassification = confCopy->gB( confSection, "uncertaintyPredictionForClassification", false );
+  this->uncertaintyPredictionForRegression = confCopy->gB( confSection, "uncertaintyPredictionForRegression", false );
   
 
    
-  //how do we approximate the predictive variance for classification uncertainty?
+  //how do we approximate the predictive variance for regression uncertainty?
   string s_varianceApproximation = confCopy->gS(confSection, "varianceApproximation", "approximate_fine"); //default: fine approximative uncertainty prediction
   if ( (s_varianceApproximation.compare("approximate_rough") == 0) || ((s_varianceApproximation.compare("1") == 0)) )
   {
@@ -116,14 +115,14 @@ void GPHIKClassifier::init(const Config *conf, const string & s_confSection)
 //                 PUBLIC METHODS
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
-GPHIKClassifier::GPHIKClassifier( const Config *conf, const string & s_confSection ) 
+GPHIKRegression::GPHIKRegression( const Config *conf, const string & s_confSection ) 
 {
   //default settings, may be overwritten lateron
   gphyper = NULL;
   pf = NULL;
   confCopy = NULL;
   //just a default value
-  uncertaintyPredictionForClassification = false;
+  uncertaintyPredictionForRegression = false;
   
   this->confSection = s_confSection;
   
@@ -135,7 +134,7 @@ GPHIKClassifier::GPHIKClassifier( const Config *conf, const string & s_confSecti
   }
 }
 
-GPHIKClassifier::~GPHIKClassifier()
+GPHIKRegression::~GPHIKRegression()
 {
   if ( gphyper != NULL )
     delete gphyper;
@@ -151,45 +150,42 @@ GPHIKClassifier::~GPHIKClassifier()
 //                         GET / SET
 ///////////////////// ///////////////////// ///////////////////// 
 
-std::set<int> GPHIKClassifier::getKnownClassNumbers ( ) const
-{
-  if (gphyper == NULL)
-     fthrow(Exception, "Classifier not trained yet -- aborting!" );  
-  
-  return gphyper->getKnownClassNumbers();
-}
 
 
 ///////////////////// ///////////////////// /////////////////////
-//                      CLASSIFIER STUFF
+//                      REGRESSION STUFF
 ///////////////////// ///////////////////// /////////////////////
 
-void GPHIKClassifier::classify ( const SparseVector * example,  int & result, SparseVector & scores ) const
+void GPHIKRegression::estimate ( const SparseVector * example,  double & result ) const
 {
   double tmpUncertainty;
-  this->classify( example, result, scores, tmpUncertainty );
+  this->estimate( example, result, tmpUncertainty );
 }
 
-void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, SparseVector & scores ) const
+void GPHIKRegression::estimate ( const NICE::Vector * example,  double & result ) const
 {
   double tmpUncertainty;
-  this->classify( example, result, scores, tmpUncertainty );
+  this->estimate( example, result, tmpUncertainty );
 }
 
-void GPHIKClassifier::classify ( const SparseVector * example,  int & result, SparseVector & scores, double & uncertainty ) const
+void GPHIKRegression::estimate ( const SparseVector * example,  double & result, double & uncertainty ) const
 {
   if (gphyper == NULL)
-     fthrow(Exception, "Classifier not trained yet -- aborting!" );
+     fthrow(Exception, "Regression object not trained yet -- aborting!" );
   
+  NICE::SparseVector scores;
   scores.clear();
   
-  result = gphyper->classify ( *example, scores );
-
+  gphyper->classify ( *example, scores );
+  
   if ( scores.size() == 0 ) {
     fthrow(Exception, "Zero scores, something is likely to be wrong here: svec.size() = " << example->size() );
   }
   
-  if (uncertaintyPredictionForClassification)
+  // the internal gphyper object returns for regression a sparse vector with a single entry only
+  result = scores.begin()->second;
+  
+  if (uncertaintyPredictionForRegression)
   {
     if (varianceApproximation != NONE)
     {
@@ -208,20 +204,24 @@ void GPHIKClassifier::classify ( const SparseVector * example,  int & result, Sp
   }    
 }
 
-void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, SparseVector & scores, double & uncertainty ) const
+void GPHIKRegression::estimate ( const NICE::Vector * example,  double & result, double & uncertainty ) const
 {
   if (gphyper == NULL)
-     fthrow(Exception, "Classifier not trained yet -- aborting!" );  
+     fthrow(Exception, "Regression object not trained yet -- aborting!" );  
   
+  NICE::SparseVector scores;
   scores.clear();
   
-  result = gphyper->classify ( *example, scores );
+  gphyper->classify ( *example, scores );
 
   if ( scores.size() == 0 ) {
     fthrow(Exception, "Zero scores, something is likely to be wrong here: svec.size() = " << example->size() );
   }
+  
+  // the internal gphyper object returns for regression a sparse vector with a single entry only  
+  result = scores.begin()->second;
     
-  if (uncertaintyPredictionForClassification)
+  if (uncertaintyPredictionForRegression)
   {
     if (varianceApproximation != NONE)
     {
@@ -241,7 +241,7 @@ void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, Sp
 }
 
 /** training process */
-void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & examples, const NICE::Vector & labels )
+void GPHIKRegression::train ( const std::vector< const NICE::SparseVector *> & examples, const NICE::Vector & labels )
 {
   // security-check: examples and labels have to be of same size
   if ( examples.size() != labels.size() ) 
@@ -251,7 +251,7 @@ void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & e
   
   if (verbose)
   {
-    std::cerr << "GPHIKClassifier::train" << std::endl;
+    std::cerr << "GPHIKRegression::train" << std::endl;
   }
   
   if ( this->confCopy == NULL )
@@ -275,7 +275,10 @@ void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & e
   
   if ( ( varianceApproximation != APPROXIMATE_FINE) )
     confCopy->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 0);
-  
+
+  // add flag for gphyper that only regression is performed
+  // thereby, all the binary-label-stuff should be skipped :)  
+  confCopy->sB ( confSection, "b_performRegression", true );
   gphyper = new FMKGPHyperparameterOptimization ( confCopy, pf, fmk, confSection ); 
 
   if (verbose)
@@ -318,93 +321,19 @@ void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & e
     std::cerr << "Learning finished" << std::endl;
 }
 
-/** training process */
-void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & examples, std::map<int, NICE::Vector> & binLabels )
-{ 
-  // security-check: examples and labels have to be of same size
-  for ( std::map< int, NICE::Vector >::const_iterator binLabIt = binLabels.begin();
-        binLabIt != binLabels.end();
-        binLabIt++ 
-      )
-  {
-    if ( examples.size() != binLabIt->second.size() ) 
-    {
-      fthrow(Exception, "Given examples do not match label vector in size -- aborting!" );  
-    }
-  }
-  
-  if (verbose)
-    std::cerr << "GPHIKClassifier::train" << std::endl;
-  
-  if ( this->confCopy == NULL )
-  {
-    std::cerr << "WARNING -- No config used so far, initialize values with empty config file now..." << std::endl;
-    NICE::Config tmpConfEmpty ;
-    this->init ( &tmpConfEmpty, this->confSection );
-  }  
 
-  Timer t;
-  t.start();
-  FastMinKernel *fmk = new FastMinKernel ( examples, noise, this->debug );
-  t.stop();
-  if (verbose)
-    std::cerr << "Time used for setting up the fmk object: " << t.getLast() << std::endl;  
-  
-  if (gphyper != NULL)
-     delete gphyper;
-  gphyper = new FMKGPHyperparameterOptimization ( confCopy, pf, fmk, confSection ); 
-
-  if (verbose)
-    cerr << "Learning ..." << endl;
-  // go go go
-  gphyper->optimize ( binLabels );
-  if (verbose)
-    std::cerr << "optimization done, now prepare for the uncertainty prediction" << std::endl;
-  
-  if ( ( varianceApproximation != NONE ) )
-  {    
-    switch (varianceApproximation)    
-    {
-      case APPROXIMATE_ROUGH:
-      {
-        gphyper->prepareVarianceApproximationRough();
-        break;
-      }
-      case APPROXIMATE_FINE:
-      {
-        gphyper->prepareVarianceApproximationFine();
-        break;
-      }    
-      case EXACT:
-      {
-       //nothing to prepare
-        break;
-      }
-      default:
-      {
-       //nothing to prepare
-      }
-    }
-  }
-
-  // clean up all examples ??
-  if (verbose)
-    std::cerr << "Learning finished" << std::endl;
-}
-
-GPHIKClassifier *GPHIKClassifier::clone () const
+GPHIKRegression *GPHIKRegression::clone () const
 {
-  fthrow(Exception, "GPHIKClassifier: clone() not yet implemented" );
+  fthrow(Exception, "GPHIKRegression: clone() not yet implemented" );
 
   return NULL;
 }
   
-void GPHIKClassifier::predictUncertainty( const NICE::SparseVector * example, double & uncertainty ) const
+void GPHIKRegression::predictUncertainty( const NICE::SparseVector * example, double & uncertainty ) const
 {  
   if (gphyper == NULL)
-     fthrow(Exception, "Classifier not trained yet -- aborting!" );  
+     fthrow(Exception, "Regression object not trained yet -- aborting!" );  
   
-  //we directly store the predictive variances in the vector, that contains the classification uncertainties lateron to save storage
   switch (varianceApproximation)    
   {
     case APPROXIMATE_ROUGH:
@@ -424,19 +353,16 @@ void GPHIKClassifier::predictUncertainty( const NICE::SparseVector * example, do
     }
     default:
     {
-      fthrow(Exception, "GPHIKClassifier - your settings disabled the variance approximation needed for uncertainty prediction.");
-//       uncertainty = numeric_limits<double>::max();
-//       break;
+      fthrow(Exception, "GPHIKRegression - your settings disabled the variance approximation needed for uncertainty prediction.");
     }
   }
 }
 
-void GPHIKClassifier::predictUncertainty( const NICE::Vector * example, double & uncertainty ) const
+void GPHIKRegression::predictUncertainty( const NICE::Vector * example, double & uncertainty ) const
 {  
   if (gphyper == NULL)
-     fthrow(Exception, "Classifier not trained yet -- aborting!" );  
+     fthrow(Exception, "Regression object not trained yet -- aborting!" );  
   
-  //we directly store the predictive variances in the vector, that contains the classification uncertainties lateron to save storage
   switch (varianceApproximation)    
   {
     case APPROXIMATE_ROUGH:
@@ -456,9 +382,7 @@ void GPHIKClassifier::predictUncertainty( const NICE::Vector * example, double &
     }
     default:
     {
-      fthrow(Exception, "GPHIKClassifier - your settings disabled the variance approximation needed for uncertainty prediction.");
-//       uncertainty = numeric_limits<double>::max();
-//       break;
+      fthrow(Exception, "GPHIKRegression - your settings disabled the variance approximation needed for uncertainty prediction.");
     }
   }
 }
@@ -467,7 +391,7 @@ void GPHIKClassifier::predictUncertainty( const NICE::Vector * example, double &
 // interface specific methods for store and restore
 ///////////////////// INTERFACE PERSISTENT ///////////////////// 
 
-void GPHIKClassifier::restore ( std::istream & is, int format )
+void GPHIKRegression::restore ( std::istream & is, int format )
 {
   //delete everything we knew so far...
   this->clear();
@@ -480,14 +404,14 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
   if ( is.good() )
   {
     if ( b_restoreVerbose ) 
-      std::cerr << " restore GPHIKClassifier" << std::endl;
+      std::cerr << " restore GPHIKRegression" << std::endl;
     
     std::string tmp;
     is >> tmp; //class name 
     
-    if ( ! this->isStartTag( tmp, "GPHIKClassifier" ) )
+    if ( ! this->isStartTag( tmp, "GPHIKRegression" ) )
     {
-      std::cerr << " WARNING - attempt to restore GPHIKClassifier, but start flag " << tmp << " does not match! Aborting... " << std::endl;
+      std::cerr << " WARNING - attempt to restore GPHIKRegression, but start flag " << tmp << " does not match! Aborting... " << std::endl;
       throw;
     }   
     
@@ -515,7 +439,7 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
     {
       is >> tmp; // start of block 
       
-      if ( this->isEndTag( tmp, "GPHIKClassifier" ) )
+      if ( this->isEndTag( tmp, "GPHIKRegression" ) )
       {
         b_endOfBlock = true;
         continue;
@@ -524,7 +448,7 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
       tmp = this->removeStartTag ( tmp );
       
       if ( b_restoreVerbose )
-        std::cerr << " currently restore section " << tmp << " in GPHIKClassifier" << std::endl;
+        std::cerr << " currently restore section " << tmp << " in GPHIKRegression" << std::endl;
       
       if ( tmp.compare("confSection") == 0 )
       {
@@ -589,7 +513,7 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
       }       
       else
       {
-      std::cerr << "WARNING -- unexpected GPHIKClassifier object -- " << tmp << " -- for restoration... aborting" << std::endl;
+      std::cerr << "WARNING -- unexpected GPHIKRegression object -- " << tmp << " -- for restoration... aborting" << std::endl;
       throw;
       }
     }
@@ -602,20 +526,20 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
   }
   else
   {
-    std::cerr << "GPHIKClassifier::restore -- InStream not initialized - restoring not possible!" << std::endl;
+    std::cerr << "GPHIKRegression::restore -- InStream not initialized - restoring not possible!" << std::endl;
     throw;
   }
 }
 
-void GPHIKClassifier::store ( std::ostream & os, int format ) const
+void GPHIKRegression::store ( std::ostream & os, int format ) const
 {
   if (gphyper == NULL)
-     fthrow(Exception, "Classifier not trained yet -- aborting!" );  
+     fthrow(Exception, "Regression object not trained yet -- aborting!" );  
   
   if (os.good())
   {
     // show starting point
-    os << this->createStartTag( "GPHIKClassifier" ) << std::endl;    
+    os << this->createStartTag( "GPHIKRegression" ) << std::endl;    
     
     os.precision (numeric_limits<double>::digits10 + 1);
     
@@ -642,7 +566,7 @@ void GPHIKClassifier::store ( std::ostream & os, int format ) const
     
     
     // done
-    os << this->createEndTag( "GPHIKClassifier" ) << std::endl;    
+    os << this->createEndTag( "GPHIKRegression" ) << std::endl;    
   }
   else
   {
@@ -650,7 +574,7 @@ void GPHIKClassifier::store ( std::ostream & os, int format ) const
   }
 }
 
-void GPHIKClassifier::clear ()
+void GPHIKRegression::clear ()
 {
   if ( gphyper != NULL )
   {
@@ -675,7 +599,7 @@ void GPHIKClassifier::clear ()
 // interface specific methods for incremental extensions
 ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
 
-void GPHIKClassifier::addExample( const NICE::SparseVector * example, 
+void GPHIKRegression::addExample( const NICE::SparseVector * example, 
 			     const double & label, 
 			     const bool & performOptimizationAfterIncrement
 			   )
@@ -684,7 +608,7 @@ void GPHIKClassifier::addExample( const NICE::SparseVector * example,
   if ( this->gphyper == NULL )
   {
     //call train method instead
-    std::cerr << "Classifier not initially trained yet -- run initial training instead of incremental extension!"  << std::endl;
+    std::cerr << "Regression object not initially trained yet -- run initial training instead of incremental extension!"  << std::endl;
      
     std::vector< const NICE::SparseVector *> examplesVec;
     examplesVec.push_back ( example );
@@ -699,7 +623,7 @@ void GPHIKClassifier::addExample( const NICE::SparseVector * example,
   }
 }
 
-void GPHIKClassifier::addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
+void GPHIKRegression::addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
 				      const NICE::Vector & newLabels,
 				      const bool & performOptimizationAfterIncrement
 				    )
@@ -711,7 +635,7 @@ void GPHIKClassifier::addMultipleExamples( const std::vector< const NICE::Sparse
   if ( this->gphyper == NULL )
   {
     //call train method instead
-    std::cerr << "Classifier not initially trained yet -- run initial training instead of incremental extension!"  << std::endl;
+    std::cerr << "Regression object not initially trained yet -- run initial training instead of incremental extension!"  << std::endl;
     
     this->train ( newExamples, newLabels );    
   }

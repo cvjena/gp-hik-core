@@ -21,20 +21,44 @@ class OnlineLearnable {
  
   public:
     // Interface specifications
-    virtual void addExample( const NICE::SparseVector * example, 
-			     const double & label, 
-			     const bool & performOptimizationAfterIncrement = true
-			   ) = 0;
-			   
+    
+    /** 
+     * @brief Interface method to add a single example to the current object
+     * @author Alexander Freytag
+     * @param newExample example to be added
+     * @param newLabel corresponding class labels
+     * @param performOptimizationAfterIncrement (optional) whether or not to run a hyper parameter optimization after adding new examples
+     */    
+    virtual void addExample( const NICE::SparseVector * newExample, 
+                              const double & newLabel, 
+                              const bool & performOptimizationAfterIncrement = true
+                            ) = 0;
+
+    /** 
+     * @brief Interface method to add multiple example to the current object
+     * @author Alexander Freytag
+     * @param newExamples vector of example to be added
+     * @param newLabels vector of corresponding class labels
+     * @param performOptimizationAfterIncrement (optional) whether or not to run a hyper parameter optimization after adding new examples
+     */                                       
+                            
     virtual void addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
-				      const NICE::Vector & newLabels,
-				      const bool & performOptimizationAfterIncrement = true
-				    ) = 0;    
+                                      const NICE::Vector & newLabels,
+                                      const bool & performOptimizationAfterIncrement = true
+                                    ) = 0;    
 
 
-    // Provided functions and overloaded stream operators
+    /** 
+     * @brief simple destructor
+     * @author Alexander Freytag
+     */                                       
     virtual ~OnlineLearnable () {};
     
+    
+    /** 
+     * @brief simple destructor
+     * @author Alexander Freytag
+     */    
     // just to prevent senseless compiler warnings
     OnlineLearnable() {};   
 

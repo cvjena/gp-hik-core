@@ -1,11 +1,11 @@
 /** 
-* @file GPHIKClassifier.h
-* @brief Main interface for our GP HIK classifier (similar to the feature pool classifier interface in vislearning) (Interface)
-* @author Alexander Freytag, Erik Rodner
-* @date 01-02-2012 (dd-mm-yyyy)
+* @file GPHIKRegression.h
+* @brief Main interface for our GP HIK regression implementation (Interface)
+* @author Alexander Freytag
+* @date 15-01-2014 (dd-mm-yyyy)
 */
-#ifndef _NICE_GPHIKCLASSIFIERINCLUDE
-#define _NICE_GPHIKCLASSIFIERINCLUDE
+#ifndef _NICE_GPHIKREGRESSIONINCLUDE
+#define _NICE_GPHIKREGRESSIONINCLUDE
 
 // STL includes
 #include <string>
@@ -25,12 +25,12 @@
 namespace NICE {
   
  /** 
- * @class GPHIKClassifier
- * @brief Main interface for our GP HIK classifier (similar to the feature pool classifier interface in vislearning)
- * @author Alexander Freytag, Erik Rodner
+ * @class GPHIKRegression
+ * @brief Main interface for our GP HIK regression implementation (Interface)
+ * @author Alexander Freytag
  */
  
-class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
+class GPHIKRegression : public NICE::Persistent, public NICE::OnlineLearnable
 {
 
   protected:
@@ -57,7 +57,7 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
     
     // internal objects 
     
-    /** Main object doing all the jobs: training, classification, optimization, ... */
+    /** Main object doing all the jobs: training, regression, optimization, ... */
     NICE::FMKGPHyperparameterOptimization *gphyper;    
     
     /** Possibility for transforming feature values, parameters can be optimized */
@@ -79,8 +79,8 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
     /** Which technique for variance approximations shall be used */
     VarianceApproximation varianceApproximation;
     
-    /**compute the uncertainty prediction during classification?*/
-    bool uncertaintyPredictionForClassification;
+    /**compute the uncertainty prediction during regression?*/
+    bool uncertaintyPredictionForRegression;
     
     /////////////////////////
     /////////////////////////
@@ -103,111 +103,95 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @brief standard constructor
      * @author Alexander Freytag
      */
-    GPHIKClassifier( const NICE::Config *conf = NULL, const std::string & s_confSection = "GPHIKClassifier" );
+    GPHIKRegression( const NICE::Config *conf = NULL, const std::string & s_confSection = "GPHIKRegression" );
       
     /**
      * @brief simple destructor
      * @author Alexander Freytag
      */
-    ~GPHIKClassifier();
+    ~GPHIKRegression();
     
     ///////////////////// ///////////////////// /////////////////////
     //                         GET / SET
     ///////////////////// ///////////////////// /////////////////////      
     
-    /**
-     * @brief Return currently known class numbers
-     * @author Alexander Freytag
-     */    
-    std::set<int> getKnownClassNumbers ( ) const;    
+   
    
     ///////////////////// ///////////////////// /////////////////////
-    //                      CLASSIFIER STUFF
+    //                      REGRESSION STUFF
     ///////////////////// ///////////////////// /////////////////////      
     
     /** 
-     * @brief classify a given example with the previously learnt model
-     * @date 19-06-2012 (dd-mm-yyyy)
+     * @brief Estimate output of a given example with the previously learnt model
+     * @date 15-01-2014 (dd-mm-yyyy)
      * @author Alexander Freytag
-     * @param example (SparseVector) to be classified given in a sparse representation
-     * @param result (int) class number of most likely class
-     * @param scores (SparseVector) classification scores for known classes
+     * @param example (SparseVector) for which regression shall be performed, given in a sparse representation
+     * @param result (double) regression result
      */        
-    void classify ( const NICE::SparseVector * example,  int & result, NICE::SparseVector & scores ) const;
+    void estimate ( const NICE::SparseVector * example,  double & result ) const;
     
     /** 
-     * @brief classify a given example with the previously learnt model
-     * @date 19-06-2012 (dd-mm-yyyy)
+     * @brief Estimate output of a given example with the previously learnt model
+     ** @date 15-01-2014 (dd-mm-yyyy)
      * @author Alexander Freytag
-     * @param example (SparseVector) to be classified given in a sparse representation
-     * @param result (int) class number of most likely class
-     * @param scores (SparseVector) classification scores for known classes
-     * @param uncertainty (double*) predictive variance of the classification result, if computed
+     * @param example (SparseVector) for which regression shall be performed, given in a sparse representation
+     * @param result (double) regression result
+     * @param uncertainty (double*) predictive variance of the regression result, if computed
      */    
-    void classify ( const NICE::SparseVector * example,  int & result, NICE::SparseVector & scores, double & uncertainty ) const;
+    void estimate ( const NICE::SparseVector * example,  double & result, double & uncertainty ) const;
     
     /** 
-     * @brief classify a given example with the previously learnt model
+     * @brief Estimate output of a given example with the previously learnt model
      * NOTE: whenever possible, you should the sparse version to obtain significantly smaller computation times* 
-     * @date 18-06-2013 (dd-mm-yyyy)
+     * @date 15-01-2014 (dd-mm-yyyy)
      * @author Alexander Freytag
-     * @param example (non-sparse Vector) to be classified given in a non-sparse representation
-     * @param result (int) class number of most likely class
-     * @param scores (SparseVector) classification scores for known classes
+     * @param example (non-sparse Vector) for which regression shall be performed, given in a non-sparse representation
+     * @param result (double) regression result
      */        
-    void classify ( const NICE::Vector * example,  int & result, NICE::SparseVector & scores ) const;
+    void estimate ( const NICE::Vector * example,  double & result ) const;
     
     /** 
-     * @brief classify a given example with the previously learnt model
+     * @brief Estimate output of a given example with the previously learnt model
      * NOTE: whenever possible, you should the sparse version to obtain significantly smaller computation times
-     * @date 18-06-2013 (dd-mm-yyyy)
+     * @date 15-01-2014 (dd-mm-yyyy)
      * @author Alexander Freytag
-     * @param example (non-sparse Vector) to be classified given in a non-sparse representation
-     * @param result (int) class number of most likely class
-     * @param scores (SparseVector) classification scores for known classes
-     * @param uncertainty (double) predictive variance of the classification result, if computed
+     * @param example (non-sparse Vector) for which regression shall be performed, given in a non-sparse representation
+     * @param result (double)regression result
+     * @param uncertainty (double*) predictive variance of the regression result, if computed
      */    
-    void classify ( const NICE::Vector * example,  int & result, NICE::SparseVector & scores, double & uncertainty ) const;    
+    void estimate ( const NICE::Vector * example,  double & result, double & uncertainty ) const;    
 
     /**
-     * @brief train this classifier using a given set of examples and a given set of binary label vectors 
-     * @date 18-10-2012 (dd-mm-yyyy)
+     * @brief train this regression method using a given set of examples and corresponding labels
+     * @date 15-01-2014 (dd-mm-yyyy)
      * @author Alexander Freytag
      * @param examples (std::vector< NICE::SparseVector *>) training data given in a sparse representation
-     * @param labels (Vector) class labels (multi-class)
+     * @param labels (Vector) labels
      */
     void train ( const std::vector< const NICE::SparseVector *> & examples, const NICE::Vector & labels );
     
-    /** 
-     * @brief train this classifier using a given set of examples and a given set of binary label vectors 
-     * @date 19-06-2012 (dd-mm-yyyy)
-     * @author Alexander Freytag
-     * @param examples examples to use given in a sparse data structure
-     * @param binLabels corresponding binary labels with class no. There is no need here that every examples has only on positive entry in this set (1,-1)
-     */
-    void train ( const std::vector< const NICE::SparseVector *> & examples, std::map<int, NICE::Vector> & binLabels );
     
     /**
-     * @brief Clone classifier object
+     * @brief Clone regression object
      * @author Alexander Freytag
      */    
-    GPHIKClassifier *clone () const;
+    GPHIKRegression *clone () const;
 
     /** 
-     * @brief prediction of classification uncertainty
-     * @date 19-06-2012 (dd-mm-yyyy)
+     * @brief prediction of regression uncertainty
+     * @date 15-01-2014 (dd-mm-yyyy)
      * @author Alexander Freytag
-     * @param examples example for which the classification uncertainty shall be predicted, given in a sparse representation
-     * @param uncertainty contains the resulting classification uncertainty
+     * @param examples example for which the regression uncertainty shall be predicted, given in a sparse representation
+     * @param uncertainty contains the resulting regression uncertainty
      */       
     void predictUncertainty( const NICE::SparseVector * example, double & uncertainty ) const;
     
     /** 
-     * @brief prediction of classification uncertainty
-     * @date 19-12-2013 (dd-mm-yyyy)
+     * @brief prediction of regression uncertainty
+     * @date 15-01-2014 (dd-mm-yyyy)
      * @author Alexander Freytag
-     * @param examples example for which the classification uncertainty shall be predicted, given in a non-sparse representation
-     * @param uncertainty contains the resulting classification uncertainty
+     * @param examples example for which the regression uncertainty shall be predicted, given in a non-sparse representation
+     * @param uncertainty contains the resulting regression uncertainty
      */       
     void predictUncertainty( const NICE::Vector * example, double & uncertainty ) const;    
     
@@ -218,19 +202,19 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
     ///////////////////// INTERFACE PERSISTENT /////////////////////   
     
     /** 
-     * @brief Load classifier from external file (stream)
+     * @brief Load regression object from external file (stream)
      * @author Alexander Freytag
      */     
     void restore ( std::istream & is, int format = 0 );
     
     /** 
-     * @brief Save classifier to external file (stream)
+     * @brief Save regression object to external file (stream)
      * @author Alexander Freytag
      */     
     void store ( std::ostream & os, int format = 0 ) const;
     
     /** 
-     * @brief Clear classifier object
+     * @brief Clear regression object
      * @author Alexander Freytag
      */     
     void clear ();

@@ -55,7 +55,15 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
   std::map<int, NICE::Vector> binaryLabels;
   std::set<int> classesToUse;
   //TODO this could be made faster when storing the previous binary label vectors...
-  this->prepareBinaryLabels ( binaryLabels, this->labels , classesToUse );
+  
+  if ( this->b_performRegression )
+  {
+    // for regression, we are not interested in regression scores, rather than in any "label" 
+    int regressionLabel ( 1 );  
+    binaryLabels.insert ( std::pair< int, NICE::Vector> ( regressionLabel, this->labels ) );
+  }
+  else
+    this->prepareBinaryLabels ( binaryLabels, this->labels , classesToUse );
   
   if ( this->verbose )
     std::cerr << "labels.size() after increment: " << this->labels.size() << std::endl;
@@ -70,7 +78,6 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
   t1.stop();
   if ( this->verboseTime )
     std::cerr << "Time used for setting up the gplike-objects: " << t1.getLast() << std::endl;
-
 
   t1.start();
   if ( this->b_usePreviousAlphas && ( this->previousAlphas.size() > 0) )
@@ -116,7 +123,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
     //if we do not use previous alphas, we do not have to set up anything here
     gplike->setInitialAlphaGuess ( NULL );
   }
-  
+    
   t1.stop();
   if ( this->verboseTime )
     std::cerr << "Time used for setting up the alpha-objects: " << t1.getLast() << std::endl;
@@ -136,8 +143,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
   //////////////////////  //////////////////////
   //   RE-RUN THE OPTIMIZATION, IF DESIRED    //
   //////////////////////  //////////////////////    
-  
-  
+    
   if ( this->verbose )
     std::cerr << "resulting eigenvalues for first class: " << eigenMax[0] << std::endl;
   
@@ -154,7 +160,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
     
   if ( this->verbose )
     std::cerr << "perform optimization after increment " << std::endl;
-  
+   
   int optimizationMethodTmpCopy;
   if ( !performOptimizationAfterIncrement )
   {
@@ -163,7 +169,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
     optimizationMethodTmpCopy = this->optimizationMethod;
     this->optimizationMethod = OPT_NONE;
   }
-      
+  
   t1.start();
   this->performOptimization ( *gplike, parameterVectorSize);
 
@@ -206,7 +212,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
 
-FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization()
+FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization( const bool & b_performRegression )
 {
   // initialize pointer variables
   pf = NULL;
@@ -227,6 +233,7 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization()
   binaryLabelNegative = -2;
   
   this->b_usePreviousAlphas = false;
+  this->b_performRegression = b_performRegression;
 }
 
 FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config *_conf, ParameterizedFunction *_pf, FastMinKernel *_fmk, const string & _confSection )
@@ -244,7 +251,7 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config 
   binaryLabelPositive = -1;
   binaryLabelNegative = -2;  
   knownClasses.clear();
-
+  
   if ( _fmk == NULL )
     this->initialize ( _conf, _pf ); //then the confSection is also the default value
   else
@@ -287,6 +294,7 @@ void FMKGPHyperparameterOptimization::initialize ( const Config *_conf, Paramete
   }
   
   this->pf = _pf;
+ 
   
   this->verbose = _conf->gB ( _confSection, "verbose", false );
   this->verboseTime = _conf->gB ( _confSection, "verboseTime", false );
@@ -298,6 +306,9 @@ void FMKGPHyperparameterOptimization::initialize ( const Config *_conf, Paramete
     std::cerr << "|  set-up  |" << std::endl;
     std::cerr << "------------" << std::endl;
   }
+  
+  this->b_performRegression = _conf->gB ( _confSection, "b_performRegression", false );
+
 
   // this->eig = new EigValuesTRLAN();
   // My time measurements show that both methods use equal time, a comparision
@@ -584,7 +595,7 @@ void FMKGPHyperparameterOptimization::computeMatricesAndLUTs ( const GPLikelihoo
   {
     this->prepareVarianceApproximationRough();
   }
-  else if ( this->precomputedAForVarEst.size() > 0) 
+  else if ( this->nrOfEigenvaluesToConsiderForVarApprox > 0) 
   {
      this->prepareVarianceApproximationFine();
   }
@@ -713,11 +724,24 @@ void FMKGPHyperparameterOptimization::optimize ( const NICE::Vector & y )
   this->labels  = y;
   
   std::map<int, NICE::Vector> binaryLabels;
-  prepareBinaryLabels ( binaryLabels, y , knownClasses );
+  
+  if ( this->b_performRegression )
+  {
+    // for regression, we are not interested in regression scores, rather than in any "label" 
+    int regressionLabel ( 1 );  
+    binaryLabels.insert ( std::pair< int, NICE::Vector> ( regressionLabel, y ) );
+    this->knownClasses.clear();
+    this->knownClasses.insert ( regressionLabel );
+  }
+  else
+  {
+    this->prepareBinaryLabels ( binaryLabels, y , knownClasses );    
+  }
   
   //now call the main function :)
   this->optimize(binaryLabels);
 }
+
   
 void FMKGPHyperparameterOptimization::optimize ( std::map<int, NICE::Vector> & binaryLabels )
 {
@@ -837,9 +861,10 @@ void FMKGPHyperparameterOptimization::prepareVarianceApproximationRough()
 
 void FMKGPHyperparameterOptimization::prepareVarianceApproximationFine()
 {
-  if ( this->eigenMax.size() != this->nrOfEigenvaluesToConsiderForVarApprox) 
+  if ( this->eigenMax.size() < (uint) this->nrOfEigenvaluesToConsiderForVarApprox ) 
   {
-    std::cerr << "not enough eigenvectors computed for fine approximation of predictive variance. Compute missing ones!" << std::endl;
+    std::cerr << "not enough eigenvectors computed for fine approximation of predictive variance. " <<std::endl;
+    std::cerr << "Current number of EV: " <<  this->eigenMax.size() << " but required: " << (uint) this->nrOfEigenvaluesToConsiderForVarApprox << std::endl;
     this->updateEigenDecomposition(  this->nrOfEigenvaluesToConsiderForVarApprox ); 
   }
 }
@@ -860,7 +885,7 @@ int FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & xstar
     double beta;
 
     if ( q != NULL ) {
-      map<int, double *>::const_iterator j = precomputedT.find ( classno );
+      std::map<int, double *>::const_iterator j = precomputedT.find ( classno );
       double *T = j->second;
       fmk->hik_kernel_sum_fast ( T, *q, xstar, beta );
     } else {
@@ -886,10 +911,14 @@ int FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & xstar
   { // multi-class classification
     return scores.maxElement();
   }
-  else
-  {  // binary setting    
+  else if ( this->knownClasses.size() == 2 ) // binary setting
+  {      
     scores[binaryLabelNegative] = -scores[binaryLabelPositive];     
     return scores[ binaryLabelPositive ] <= 0.0 ? binaryLabelNegative : binaryLabelPositive;
+  }
+  else //OCC or regression setting
+  {
+    return 1;
   }
 }
 
@@ -935,11 +964,14 @@ int FMKGPHyperparameterOptimization::classify ( const NICE::Vector & xstar, NICE
   { // multi-class classification
     return scores.maxElement();
   }
-  else 
-  { // binary setting
-   
+  else if ( this->knownClasses.size() == 2 ) // binary setting
+  {      
     scores[binaryLabelNegative] = -scores[binaryLabelPositive];     
     return scores[ binaryLabelPositive ] <= 0.0 ? binaryLabelNegative : binaryLabelPositive;
+  }
+  else //OCC or regression setting
+  {
+    return 1;
   }
 }
 
@@ -1793,9 +1825,9 @@ void FMKGPHyperparameterOptimization::clear ( ) {};
 ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
 
 void FMKGPHyperparameterOptimization::addExample( const NICE::SparseVector * example, 
-			     const double & label, 
-			     const bool & performOptimizationAfterIncrement
-			   )
+                                                  const double & label, 
+                                                  const bool & performOptimizationAfterIncrement
+                                                )
 {
   if ( this->verbose )
     std::cerr << " --- FMKGPHyperparameterOptimization::addExample --- " << std::endl;  
@@ -1807,7 +1839,7 @@ void FMKGPHyperparameterOptimization::addExample( const NICE::SparseVector * exa
   
   this->labels.append ( label );
   //have we seen this class already?
-  if ( this->knownClasses.find( label ) == this->knownClasses.end() )
+  if ( !this->b_performRegression && ( this->knownClasses.find( label ) == this->knownClasses.end() ) )
   {
     this->knownClasses.insert( label );
     newClasses.insert( label );
@@ -1851,9 +1883,9 @@ void FMKGPHyperparameterOptimization::addExample( const NICE::SparseVector * exa
 }
 
 void FMKGPHyperparameterOptimization::addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
-				      const NICE::Vector & newLabels,
-				      const bool & performOptimizationAfterIncrement
-				    )
+                                                           const NICE::Vector & newLabels,
+                                                           const bool & performOptimizationAfterIncrement
+                                                         )
 {
   if ( this->verbose )
     std::cerr << " --- FMKGPHyperparameterOptimization::addMultipleExamples --- " << std::endl;  
@@ -1865,16 +1897,21 @@ void FMKGPHyperparameterOptimization::addMultipleExamples( const std::vector< co
   
   this->labels.append ( newLabels );
   //have we seen this class already?
-  for ( NICE::Vector::const_iterator vecIt = newLabels.begin(); 
-       vecIt != newLabels.end(); vecIt++
-      )
-  {  
-      if ( this->knownClasses.find( *vecIt ) == this->knownClasses.end() )
-    {
-      this->knownClasses.insert( *vecIt );
-      newClasses.insert( *vecIt );
-    } 
+  if ( !this->b_performRegression)
+  {
+    for ( NICE::Vector::const_iterator vecIt = newLabels.begin(); 
+	vecIt != newLabels.end(); vecIt++
+	)
+    {  
+	if ( this->knownClasses.find( *vecIt ) == this->knownClasses.end() )
+      {
+	this->knownClasses.insert( *vecIt );
+	newClasses.insert( *vecIt );
+      } 
+    }
   }
+  // in a regression setting, we do not have to remember any "class labels"
+  else{}
   
   // add the new example to our data structure
   // It is necessary to do this already here and not lateron for internal reasons (see GMHIKernel for more details)
