@@ -117,6 +117,8 @@ void TestGPHIKRegression::testRegressionHoldInData()
   NICE::GPHIKRegression * regressionMethod;
   regressionMethod = new NICE::GPHIKRegression ( &conf );
   regressionMethod->train ( examplesTrain , yValues );
+  std::cerr << " yValues used for training regression object" << std::endl;
+  std::cerr << yValues << std::endl;
   
   double holdInLoss ( 0.0 );
   

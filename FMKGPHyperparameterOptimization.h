@@ -75,14 +75,18 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     /** object performing feature quantization */
     NICE::Quantization *q;
     
+    
+    /** upper bound for hyper parameters (ParameterizedFunction) to optimize */
+    double parameterUpperBound;
+    
+    /** lower bound for hyper parameters (ParameterizedFunction) to optimize */
+    double parameterLowerBound;
+    
     /** the parameterized function we use within the minimum kernel */
     NICE::ParameterizedFunction *pf;
 
-    /** method for solving linear equation systems - needed to compute K^-1 \times y */
-    IterativeLinearSolver *linsolver;
     
-    /** Max. number of iterations the iterative linear solver is allowed to run */
-    int ils_max_iterations;    
+   
     
     /** Simple type definition for precomputation matrices used for fast classification */
     typedef VVector PrecomputedType;
@@ -109,32 +113,37 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     //! container for multiple kernel matrices (e.g., a data-containing kernel matrix (GMHIKernel) and a noise matrix (IKMNoise) )
     NICE::IKMLinearCombination * ikmsum;    
     
+    //////////////////////////////////////////////
+    //           Iterative Linear Solver        //
+    //////////////////////////////////////////////
+    
+    /** method for solving linear equation systems - needed to compute K^-1 \times y */
+    IterativeLinearSolver *linsolver;    
+    
+    /** Max. number of iterations the iterative linear solver is allowed to run */
+    int ils_max_iterations;    
   
     /////////////////////////////////////
     // optimization related parameters //
     /////////////////////////////////////
     
-    enum {
+    enum OPTIMIZATIONTECHNIQUE{
       OPT_GREEDY = 0,
       OPT_DOWNHILLSIMPLEX,
       OPT_NONE
     };
 
     /** specify the optimization method used (see corresponding enum) */
-    int optimizationMethod;
+    OPTIMIZATIONTECHNIQUE optimizationMethod;
     
     //! whether or not to optimize noise with the GP likelihood
     bool optimizeNoise;     
     
-    /** upper bound for hyper parameters to optimize */
-    double parameterUpperBound;
-    
-    /** lower bound for hyper parameters to optimize */
-    double parameterLowerBound;
-    
         // specific to greedy optimization
     /** step size used in grid based greedy optimization technique */
     double parameterStepSize;
+    
+     
     
         // specific to downhill simplex optimization
     /** Max. number of iterations the downhill simplex optimizer is allowed to run */
@@ -147,7 +156,9 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     double downhillSimplexParamTol;
     
     
-      // likelihood computation related variables
+    //////////////////////////////////////////////
+    // likelihood computation related variables //
+    //////////////////////////////////////////////  
 
     /** whether to compute the exact likelihood by computing the exact kernel matrix (not recommended - only for debugging/comparison purpose) */
     bool verifyApproximation;
@@ -256,27 +267,29 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     /**
     * @brief simple constructor
     * @author Alexander Freytag
+    * @param b_performRegression
     */
     FMKGPHyperparameterOptimization( const bool & b_performRegression );
 
     /**
     * @brief recommended constructor, only calls this->initialize with same input arguments
+    * @author Alexander Freytag
+    * @param conf
+    * @param confSection
     *
-    * @param pf pointer to a parameterized function used within the minimum kernel min(f(x_i), f(x_j)) (will not be deleted)
-    * @param noise GP label noise
-    * @param fmk pointer to a pre-initialized structure (will be deleted)
     */
     FMKGPHyperparameterOptimization( const Config *conf, const std::string & confSection = "GPHIKClassifier" );
     
     
     /**
     * @brief recommended constructor, only calls this->initialize with same input arguments
+    * @author Alexander Freytag
     *
-    * @param pf pointer to a parameterized function used within the minimum kernel min(f(x_i), f(x_j)) (will not be deleted)
-    * @param noise GP label noise
+    * @param conf
     * @param fmk pointer to a pre-initialized structure (will be deleted)
+    * @param confSection
     */
-    FMKGPHyperparameterOptimization( const Config *conf, ParameterizedFunction *_pf, FastMinKernel *_fmk, const std::string & confSection = "GPHIKClassifier" );
+    FMKGPHyperparameterOptimization( const Config *conf, FastMinKernel *_fmk, const std::string & confSection = "GPHIKClassifier" );
       
     /**
     * @brief standard destructor
@@ -318,13 +331,6 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
      * @date 05-02-2014 (dd-mm-yyyy)
      */
     void setPerformRegression ( const bool & b_performRegression );
-
-      /**
-     * @brief Set the ParameterizedFunction object. Only allowed if not trained. Otherwise, exceptions will be thrown...
-     * @author Alexander Freytag
-     * @date 05-02-2014 (dd-mm-yyyy)
-     */
-    void setParameterizedFunction ( ParameterizedFunction *pf );
     
     /**
      * @brief Set the FastMinKernel object. Only allowed if not trained. Otherwise, exceptions will be thrown...

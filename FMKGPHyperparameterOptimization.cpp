@@ -29,10 +29,14 @@
 
 
 // gp-hik-core includes
-#include "FMKGPHyperparameterOptimization.h"
-#include "FastMinKernel.h"
-#include "GMHIKernel.h"
-#include "IKMNoise.h"
+#include "gp-hik-core/FMKGPHyperparameterOptimization.h"
+#include "gp-hik-core/FastMinKernel.h"
+#include "gp-hik-core/GMHIKernel.h"
+#include "gp-hik-core/IKMNoise.h"
+// 
+#include "gp-hik-core/parameterizedFunctions/PFAbsExp.h"
+#include "gp-hik-core/parameterizedFunctions/PFExp.h"
+#include "gp-hik-core/parameterizedFunctions/PFMKL.h"
 
 
 
@@ -161,7 +165,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
   if ( this->verbose )
     std::cerr << "perform optimization after increment " << std::endl;
    
-  int optimizationMethodTmpCopy;
+  OPTIMIZATIONTECHNIQUE optimizationMethodTmpCopy;
   if ( !performOptimizationAfterIncrement )
   {
     // if no optimization shall be carried out, we simply set the optimization method to NONE but run the optimization
@@ -215,85 +219,178 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
 FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization( )
 {
   // initialize pointer variables
-  pf = NULL;
-  eig = NULL;
-  linsolver = NULL;
-  fmk = NULL;
-  q = NULL;
-  precomputedTForVarEst = NULL;
-  ikmsum  = NULL;
+  this->pf = NULL;
+  this->eig = NULL;
+  this->linsolver = NULL;
+  this->fmk = NULL;
+  this->q = NULL;
+  this->precomputedTForVarEst = NULL;
+  this->ikmsum  = NULL;
   
   // initialize boolean flags
-  verbose = false;
-  verboseTime = false;
-  debug = false;
+  this->verbose = false;
+  this->verboseTime = false;
+  this->debug = false;
   
   //stupid unneeded default values
-  binaryLabelPositive = -1;
-  binaryLabelNegative = -2;
-  knownClasses.clear();  
+  this->binaryLabelPositive = -1;
+  this->binaryLabelNegative = -2;
+  this->knownClasses.clear();  
   
   this->b_usePreviousAlphas = false;
   this->b_performRegression = false;
 }
 
-FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization( const bool & b_performRegression ) :FMKGPHyperparameterOptimization()
+FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization( const bool & b_performRegression ) 
 {
+  ///////////
+  // same code as in empty constructor - duplication can be avoided with C++11 allowing for constructor delegation
+  ///////////
+  
+  // initialize pointer variables
+  this->pf = NULL;
+  this->eig = NULL;
+  this->linsolver = NULL;
+  this->fmk = NULL;
+  this->q = NULL;
+  this->precomputedTForVarEst = NULL;
+  this->ikmsum  = NULL;
+  
+  // initialize boolean flags
+  this->verbose = false;
+  this->verboseTime = false;
+  this->debug = false;
+  
+  //stupid unneeded default values
+  this->binaryLabelPositive = -1;
+  this->binaryLabelNegative = -2;
+  this->knownClasses.clear();   
+  
+  this->b_usePreviousAlphas = false;
+  this->b_performRegression = false;  
+  
+  ///////////
+  // here comes the new code part different from the empty constructor
+  ///////////  
   this->b_performRegression = b_performRegression;
 }
 
 FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config *_conf, const string & _confSection )
-    : FMKGPHyperparameterOptimization()
 {
+  ///////////
+  // same code as in empty constructor - duplication can be avoided with C++11 allowing for constructor delegation
+  ///////////
+  
+  // initialize pointer variables
+  this->pf = NULL;
+  this->eig = NULL;
+  this->linsolver = NULL;
+  this->fmk = NULL;
+  this->q = NULL;
+  this->precomputedTForVarEst = NULL;
+  this->ikmsum  = NULL;
+  
+  // initialize boolean flags
+  this->verbose = false;
+  this->verboseTime = false;
+  this->debug = false;
+  
+  //stupid unneeded default values
+  this->binaryLabelPositive = -1;
+  this->binaryLabelNegative = -2;
+  this->knownClasses.clear();  
+  
+  this->b_usePreviousAlphas = false;
+  this->b_performRegression = false;  
+  
+  ///////////
+  // here comes the new code part different from the empty constructor
+  ///////////  
   this->initFromConfig ( _conf, _confSection );
 }
 
-FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config *_conf, ParameterizedFunction *_pf, FastMinKernel *_fmk, const string & _confSection )
-    : FMKGPHyperparameterOptimization()
+FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config *_conf, FastMinKernel *_fmk, const string & _confSection )
 {
+  ///////////
+  // same code as in empty constructor - duplication can be avoided with C++11 allowing for constructor delegation
+  ///////////
+  
+  // initialize pointer variables
+  this->pf = NULL;
+  this->eig = NULL;
+  this->linsolver = NULL;
+  this->fmk = NULL;
+  this->q = NULL;
+  this->precomputedTForVarEst = NULL;
+  this->ikmsum  = NULL;
+  
+  // initialize boolean flags
+  this->verbose = false;
+  this->verboseTime = false;
+  this->debug = false;
+  
+  //stupid unneeded default values
+  this->binaryLabelPositive = -1;
+  this->binaryLabelNegative = -2;
+  this->knownClasses.clear();    
+  
+  this->b_usePreviousAlphas = false;
+  this->b_performRegression = false;  
+  
+  ///////////
+  // here comes the new code part different from the empty constructor
+  ///////////  
   this->initFromConfig ( _conf, _confSection );
-  this->setParameterizedFunction( _pf );
   this->setFastMinKernel( _fmk );
 }
 
 FMKGPHyperparameterOptimization::~FMKGPHyperparameterOptimization()
 {
-  //pf will delete from outer program
-  if ( this->eig != NULL )
-    delete this->eig;
-  if ( this->linsolver != NULL )
-    delete this->linsolver;
+  
+  //////////////////////////////////////
+  // classification related variables //
+  //////////////////////////////////////
   if ( this->fmk != NULL )
     delete this->fmk;
+  
   if ( this->q != NULL )
     delete this->q;
+  
+  if ( this->pf != NULL )
+    delete this->pf;  
+  
+  for ( uint i = 0 ; i < this->precomputedT.size(); i++ )
+    delete [] ( this->precomputedT[i] );
+  
+  if ( this->ikmsum != NULL )
+    delete this->ikmsum;  
+  
+  //////////////////////////////////////////////
+  //           Iterative Linear Solver        //
+  //////////////////////////////////////////////
+  if ( this->linsolver != NULL )
+    delete this->linsolver; 
+  
+  //////////////////////////////////////////////
+  // likelihood computation related variables //
+  //////////////////////////////////////////////   
+  if ( this->eig != NULL )
+    delete this->eig;    
 
-  for ( uint i = 0 ; i < precomputedT.size(); i++ )
-    delete [] ( precomputedT[i] );
+  ////////////////////////////////////////////
+  // variance computation related variables //
+  ////////////////////////////////////////////  
+  if ( this->precomputedTForVarEst != NULL )
+    delete this->precomputedTForVarEst;
 
-  if ( precomputedTForVarEst != NULL )
-    delete precomputedTForVarEst;
 
-  if ( ikmsum != NULL )
-    delete ikmsum;
 }
 
 void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, const std::string & _confSection )
-{
-
-//   if ( _fmk != NULL )
-//   {
-//     if ( this->fmk != NULL )
-//     {
-//       delete this->fmk;
-//       fmk = NULL;
-//     }    
-//     this->fmk = _fmk;
-//   }
-//   
-//   this->pf = _pf;
- 
-  
+{ 
+  ///////////////////////////////////
+  // output/debug related settings //   
+  ///////////////////////////////////  
   this->verbose = _conf->gB ( _confSection, "verbose", false );
   this->verboseTime = _conf->gB ( _confSection, "verboseTime", false );
   this->debug = _conf->gB ( _confSection, "debug", false );
@@ -305,24 +402,12 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
     std::cerr << "------------" << std::endl;
   }
   
+  
+  //////////////////////////////////////
+  // classification related variables //
+  //////////////////////////////////////  
   this->b_performRegression = _conf->gB ( _confSection, "b_performRegression", false );
-
-
-  // this->eig = new EigValuesTRLAN();
-  // My time measurements show that both methods use equal time, a comparision
-  // of their numerical performance has not been done yet  
-  this->eig = new EVArnoldi ( _conf->gB ( _confSection, "eig_verbose", false ) /* verbose flag */, 10 );
-
-
-  this->parameterUpperBound = _conf->gD ( _confSection, "parameter_upper_bound", 2.5 );
-  this->parameterLowerBound = _conf->gD ( _confSection, "parameter_lower_bound", 1.0 );
-  this->parameterStepSize = _conf->gD ( _confSection, "parameter_step_size", 0.1 );
-
-  this->verifyApproximation = _conf->gB ( _confSection, "verify_approximation", false );
-  this->nrOfEigenvaluesToConsider = _conf->gI ( _confSection, "nrOfEigenvaluesToConsider", 1 );
-  this->nrOfEigenvaluesToConsiderForVarApprox = _conf->gI ( _confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 );
-
-
+  
   bool useQuantization = _conf->gB ( _confSection, "use_quantization", false );
   
   if ( verbose ) 
@@ -331,15 +416,45 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
     std::cerr << "use_quantization: " << useQuantization << std::endl;
   }
   
-  if ( _conf->gB ( _confSection, "use_quantization", false ) ) {
+  if ( _conf->gB ( _confSection, "use_quantization", false ) )
+  {
     int numBins = _conf->gI ( _confSection, "num_bins", 100 );
     if ( verbose )
       std::cerr << "FMKGPHyperparameterOptimization: quantization initialized with " << numBins << " bins." << std::endl;
     this->q = new Quantization ( numBins );
-  } else {
-    this->q = NULL;
   }
-
+  else
+  {
+    this->q = NULL;
+  }  
+  
+  this->parameterUpperBound = _conf->gD ( _confSection, "parameter_upper_bound", 2.5 );
+  this->parameterLowerBound = _conf->gD ( _confSection, "parameter_lower_bound", 1.0 );
+  
+  std::string transform = _conf->gS( _confSection, "transform", "absexp" );
+  
+  if ( transform == "absexp" )
+  {
+    this->pf = new NICE::PFAbsExp( 1.0, parameterLowerBound, parameterUpperBound );
+  }
+  else if ( transform == "exp" )
+  {
+    this->pf = new NICE::PFExp( 1.0, parameterLowerBound, parameterUpperBound );
+  }
+  else if ( transform == "MKL" )
+  {
+    //TODO generic, please :) load from a separate file or something like this!
+    std::set<int> steps; steps.insert(4000); steps.insert(6000); //specific for VISAPP
+    this->pf = new NICE::PFMKL( steps, parameterLowerBound, parameterUpperBound );
+  }
+  else
+  {
+    fthrow(Exception, "Transformation type is unknown " << transform);
+  }
+  
+  //////////////////////////////////////////////
+  //           Iterative Linear Solver        //
+  //////////////////////////////////////////////
   bool ils_verbose = _conf->gB ( _confSection, "ils_verbose", false );
   ils_max_iterations = _conf->gI ( _confSection, "ils_max_iterations", 1000 );
   if ( verbose )
@@ -379,9 +494,14 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   {
     std::cerr << "FMKGPHyperparameterOptimization: " << _confSection << ":ils_method (" << ils_method << ") does not match any type (CG,CGL,SYMMLQ,MINRES), I will use CG" << std::endl;
     this->linsolver = new ILSConjugateGradients ( ils_verbose , ils_max_iterations, ils_min_delta, ils_min_residual );
-  }
+  }  
+ 
   
-  string optimizationMethod_s = _conf->gS ( _confSection, "optimization_method", "greedy" );
+  /////////////////////////////////////
+  // optimization related parameters //
+  ///////////////////////////////////// 
+  
+  std::string optimizationMethod_s = _conf->gS ( _confSection, "optimization_method", "greedy" );
   if ( optimizationMethod_s == "greedy" )
     optimizationMethod = OPT_GREEDY;
   else if ( optimizationMethod_s == "downhillsimplex" )
@@ -394,14 +514,40 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   if ( verbose )
     std::cerr << "Using optimization method: " << optimizationMethod_s << std::endl;
 
+  this->parameterStepSize = _conf->gD ( _confSection, "parameter_step_size", 0.1 );  
+  
+  optimizeNoise = _conf->gB ( _confSection, "optimize_noise", false );
+  if ( verbose )
+    std::cerr << "Optimize noise: " << ( optimizeNoise ? "on" : "off" ) << std::endl;    
+
   downhillSimplexMaxIterations = _conf->gI ( _confSection, "downhillsimplex_max_iterations", 20 );
   // do not run longer than a day :)
   downhillSimplexTimeLimit = _conf->gD ( _confSection, "downhillsimplex_time_limit", 24 * 60 * 60 );
   downhillSimplexParamTol = _conf->gD ( _confSection, "downhillsimplex_delta", 0.01 );
 
-  optimizeNoise = _conf->gB ( _confSection, "optimize_noise", false );
-  if ( verbose )
-    std::cerr << "Optimize noise: " << ( optimizeNoise ? "on" : "off" ) << std::endl;
+
+  //////////////////////////////////////////////
+  // likelihood computation related variables //
+  ////////////////////////////////////////////// 
+
+  this->verifyApproximation = _conf->gB ( _confSection, "verify_approximation", false );  
+  
+  // this->eig = new EigValuesTRLAN();
+  // My time measurements show that both methods use equal time, a comparision
+  // of their numerical performance has not been done yet  
+  this->eig = new EVArnoldi ( _conf->gB ( _confSection, "eig_verbose", false ) /* verbose flag */, 10 );
+
+  this->nrOfEigenvaluesToConsider = _conf->gI ( _confSection, "nrOfEigenvaluesToConsider", 1 );
+  
+  ////////////////////////////////////////////
+  // variance computation related variables //
+  ////////////////////////////////////////////  
+  this->nrOfEigenvaluesToConsiderForVarApprox = _conf->gI ( _confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 );
+
+
+  /////////////////////////////////////////////////////
+  // online / incremental learning related variables //
+  /////////////////////////////////////////////////////
   
   this->b_usePreviousAlphas = _conf->gB ( _confSection, "b_usePreviousAlphas", true );
   
@@ -439,13 +585,6 @@ void FMKGPHyperparameterOptimization::setPerformRegression ( const bool & b_perf
     throw NICE::Exception ( "FMPGKHyperparameterOptimization already initialized - switching between classification and regression not allowed!" );
   else
     this->b_performRegression = b_performRegression;
-}
-
-
-void FMKGPHyperparameterOptimization::setParameterizedFunction ( ParameterizedFunction *pf )
-{
-  //TODO check previously whether we already trained  
-  this->pf = pf;
 }
 
 
@@ -1415,11 +1554,102 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
       if ( b_restoreVerbose )
         std::cerr << " currently restore section " << tmp << " in FMKGPHyperparameterOptimization" << std::endl;
       
-      if ( tmp.compare("fmk") == 0 )
+      ///////////////////////////////////
+      // output/debug related settings //   
+      ///////////////////////////////////
+      if ( tmp.compare("verbose") == 0 )
       {
-        fmk = new FastMinKernel;
+        is >> verbose;
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      else if ( tmp.compare("verboseTime") == 0 )
+      {
+        is >> verboseTime;
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      else if ( tmp.compare("debug") == 0 )
+      {
+        is >> debug;
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      } 
+      //////////////////////////////////////
+      // classification related variables //
+      //////////////////////////////////////
+      else if ( tmp.compare("b_performRegression") == 0 )
+      {
+        is >> b_performRegression;
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }     
+      else if ( tmp.compare("fmk") == 0 )
+      {
+        if ( fmk != NULL )
+          delete fmk;        
+        fmk = new FastMinKernel();
         fmk->restore( is, format );
 
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      else if ( tmp.compare("q") == 0 )
+      {
+        std::string isNull;
+        is >> isNull; // NOTNULL or NULL
+        if (isNull.compare("NOTNULL") == 0)
+        {   
+          if ( q != NULL )
+            delete q;
+          q = new Quantization();
+          q->restore ( is, format );
+        }
+        else
+        {
+          if ( q != NULL )
+            delete q;
+          q = NULL;
+        }
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );        
+      }
+      else if  ( tmp.compare("parameterUpperBound") == 0 )
+      {
+        is >> parameterUpperBound;        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      else if  ( tmp.compare("parameterLowerBound") == 0 )
+      {
+        is >> parameterLowerBound;        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }      
+      else if ( tmp.compare("pf") == 0 )
+      {
+      
+        is >> tmp; // start of block 
+        if ( this->isEndTag( tmp, "pf" ) )
+        {
+          std::cerr << " ParameterizedFunction object can not be restored. Aborting..." << std::endl;
+          throw;
+        } 
+        
+        std::string transform = this->removeStartTag ( tmp );
+        
+
+        if ( transform == "PFAbsExp" )
+        {
+          this->pf = new PFAbsExp ();
+        } else if ( transform == "PFExp" ) {
+          this->pf = new PFExp ();
+        } else {
+          fthrow(Exception, "Transformation type is unknown " << transform);
+        }
+        
+        pf->restore(is, format);
+        
         is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }      
@@ -1507,7 +1737,186 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
         
         is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
+      }
+      else if  ( tmp.compare("labels") == 0 )
+      {
+        is >> labels;        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
       }      
+      else if ( tmp.compare("binaryLabelPositive") == 0 )
+      {
+        is >> binaryLabelPositive;
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      else if  ( tmp.compare("binaryLabelNegative") == 0 )
+      {
+        is >> binaryLabelNegative;        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      else if ( tmp.compare("knownClasses") == 0 )
+      {
+        is >> tmp; // size
+        int knownClassesSize ( 0 );
+        is >> knownClassesSize;
+
+        knownClasses.clear();
+        
+        if ( knownClassesSize > 0 )
+        {          
+          for (int i = 0; i < knownClassesSize; i++)
+          {
+            int classNo;
+            is >> classNo;        
+            knownClasses.insert ( classNo );
+          }
+        } 
+        else
+        {
+          //nothing to do
+        }        
+        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );        
+      }
+      else if ( tmp.compare("ikmsum") == 0 )
+      {
+        bool b_endOfBlock ( false ) ;
+        
+        while ( !b_endOfBlock )
+        {
+          is >> tmp; // start of block 
+          
+          if ( this->isEndTag( tmp, "ikmsum" ) )
+          {
+            b_endOfBlock = true;
+            continue;
+          }      
+          
+          tmp = this->removeStartTag ( tmp );        
+          if ( tmp.compare("IKMNoise") == 0 )
+          {
+            IKMNoise * ikmnoise = new IKMNoise ();
+            ikmnoise->restore ( is, format );
+            
+            if ( b_restoreVerbose ) 
+              std::cerr << " add ikmnoise to ikmsum object " << std::endl;
+            ikmsum->addModel ( ikmnoise );        
+          }
+          else
+          { 
+            std::cerr << "WARNING -- unexpected ikmsum object -- " << tmp << " -- for restoration... aborting" << std::endl;
+            throw;
+          }         
+        }
+      }
+      //////////////////////////////////////////////
+      //           Iterative Linear Solver        //
+      //////////////////////////////////////////////
+      
+      else if  ( tmp.compare("linsolver") == 0 )
+      {
+        //TODO linsolver  
+        // current solution: hard coded with default values, since LinearSolver does not offer Persistent functionalities
+        this->linsolver = new ILSConjugateGradients ( false , 1000, 1e-7, 1e-7 );        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }      
+      else if  ( tmp.compare("ils_max_iterations") == 0 )
+      {
+        is >> ils_max_iterations;        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      /////////////////////////////////////
+      // optimization related parameters //
+      ///////////////////////////////////// 
+      
+      else if  ( tmp.compare("optimizationMethod") == 0 )
+      {
+        unsigned int ui_optimizationMethod;        
+        is >> ui_optimizationMethod;        
+        optimizationMethod = static_cast<OPTIMIZATIONTECHNIQUE> ( ui_optimizationMethod ) ;
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }      
+      else if  ( tmp.compare("optimizeNoise") == 0 )
+      {
+        is >> optimizeNoise;        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }        
+      else if  ( tmp.compare("parameterStepSize") == 0 )
+      {
+        is >> parameterStepSize;        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      else if  ( tmp.compare("downhillSimplexMaxIterations") == 0 )
+      {
+        is >> downhillSimplexMaxIterations;        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      else if  ( tmp.compare("downhillSimplexTimeLimit") == 0 )
+      {
+        is >> downhillSimplexTimeLimit;        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      else if  ( tmp.compare("downhillSimplexParamTol") == 0 )
+      {
+        is >> downhillSimplexParamTol;        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      //////////////////////////////////////////////
+      // likelihood computation related variables //
+      //////////////////////////////////////////////
+      else if ( tmp.compare("verifyApproximation") == 0 )
+      {
+        is >> verifyApproximation;
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      else if ( tmp.compare("eig") == 0 )
+      {
+        //TODO eig
+        // currently hard coded, since EV does not offer Persistent functionalities and 
+        // in addition, we currently have no other choice for EV then EVArnoldi
+        this->eig = new EVArnoldi ( false /*eig_verbose */, 10 );        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }     
+      else if ( tmp.compare("nrOfEigenvaluesToConsider") == 0 )
+      {
+        is >> nrOfEigenvaluesToConsider;
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      else if ( tmp.compare("eigenMax") == 0 )
+      {
+        is >> eigenMax;
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      else if ( tmp.compare("eigenMaxVectors") == 0 )
+      {
+        is >> eigenMaxVectors;
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      ////////////////////////////////////////////
+      // variance computation related variables //
+      ////////////////////////////////////////////
+      else if ( tmp.compare("nrOfEigenvaluesToConsiderForVarApprox") == 0 )
+      {
+        is >> nrOfEigenvaluesToConsiderForVarApprox;
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
       else if ( tmp.compare("precomputedAForVarEst") == 0 )
       {
         int sizeOfAForVarEst;
@@ -1556,68 +1965,10 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
         
         is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
-      }       
-      else if ( tmp.compare("eigenMax") == 0 )
-      {
-        is >> eigenMax;
-        is >> tmp; // end of block 
-        tmp = this->removeEndTag ( tmp );
-      }    
-      else if ( tmp.compare("eigenMaxVectors") == 0 )
-      {
-        is >> eigenMaxVectors;
-        is >> tmp; // end of block 
-        tmp = this->removeEndTag ( tmp );
-      }    
-      else if ( tmp.compare("ikmsum") == 0 )
-      {
-        bool b_endOfBlock ( false ) ;
-        
-        while ( !b_endOfBlock )
-        {
-          is >> tmp; // start of block 
-          
-          if ( this->isEndTag( tmp, "ikmsum" ) )
-          {
-            b_endOfBlock = true;
-            continue;
-          }      
-          
-          tmp = this->removeStartTag ( tmp );        
-          if ( tmp.compare("IKMNoise") == 0 )
-          {
-            IKMNoise * ikmnoise = new IKMNoise ();
-            ikmnoise->restore ( is, format );
-            
-            if ( b_restoreVerbose ) 
-              std::cerr << " add ikmnoise to ikmsum object " << std::endl;
-            ikmsum->addModel ( ikmnoise );        
-          }
-          else
-          { 
-            std::cerr << "WARNING -- unexpected ikmsum object -- " << tmp << " -- for restoration... aborting" << std::endl;
-            throw;
-          }         
-        }
-      }
-      else if ( tmp.compare("binaryLabelPositive") == 0 )
-      {
-        is >> binaryLabelPositive;
-        is >> tmp; // end of block 
-        tmp = this->removeEndTag ( tmp );
-      }
-      else if  ( tmp.compare("binaryLabelNegative") == 0 )
-      {
-        is >> binaryLabelNegative;        
-        is >> tmp; // end of block 
-        tmp = this->removeEndTag ( tmp );
-      }
-      else if  ( tmp.compare("labels") == 0 )
-      {
-        is >> labels;        
-        is >> tmp; // end of block 
-        tmp = this->removeEndTag ( tmp );
-      }
+      }  
+      /////////////////////////////////////////////////////
+      // online / incremental learning related variables //
+      /////////////////////////////////////////////////////
       else if  ( tmp.compare("b_usePreviousAlphas") == 0 )
       {
         is >> b_usePreviousAlphas;        
@@ -1704,16 +2055,62 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) co
   {
     // show starting point
     os << this->createStartTag( "FMKGPHyperparameterOptimization" ) << std::endl;
+
+//     os.precision ( numeric_limits<double>::digits10 + 1 );
+      
+    
+    ///////////////////////////////////
+    // output/debug related settings //   
+    ///////////////////////////////////
+    
+    os << this->createStartTag( "verbose" ) << std::endl;
+    os << verbose << std::endl;
+    os << this->createEndTag( "verbose" ) << std::endl;
+    
+    os << this->createStartTag( "verboseTime" ) << std::endl;
+    os << verboseTime << std::endl;
+    os << this->createEndTag( "verboseTime" ) << std::endl;
+    
+    os << this->createStartTag( "debug" ) << std::endl;
+    os << debug << std::endl;
+    os << this->createEndTag( "debug" ) << std::endl;
+    
+    //////////////////////////////////////
+    // classification related variables //
+    //////////////////////////////////////    
+    
+    os << this->createStartTag( "b_performRegression" ) << std::endl;
+    os << b_performRegression << std::endl;
+    os << this->createEndTag( "b_performRegression" ) << std::endl;
     
     os << this->createStartTag( "fmk" ) << std::endl;
     fmk->store ( os, format );
     os << this->createEndTag( "fmk" ) << std::endl;
-
-    os.precision ( numeric_limits<double>::digits10 + 1 );
-
-
-
-    //we only have to store the things we computed, since the remaining settings come with the config file afterwards
+    
+    os << this->createStartTag( "q" ) << std::endl;
+    if ( q != NULL )
+    {
+      os << "NOTNULL" << std::endl;
+      q->store ( os, format );
+    }
+    else
+    {
+      os << "NULL" << std::endl;
+    }
+    os << this->createEndTag( "q" ) << std::endl;
+    
+    os << this->createStartTag( "parameterUpperBound" ) << std::endl;
+    os << parameterUpperBound << std::endl;
+    os << this->createEndTag( "parameterUpperBound" ) << std::endl;
+    
+    
+    os << this->createStartTag( "parameterLowerBound" ) << std::endl;
+    os << parameterLowerBound << std::endl;
+    os << this->createEndTag( "parameterLowerBound" ) << std::endl;    
+    
+    os << this->createStartTag( "pf" ) << std::endl;
+    pf->store(os, format);
+    os << this->createEndTag( "pf" ) << std::endl;     
     
     os << this->createStartTag( "precomputedA" ) << std::endl;
     os << "size: " << precomputedA.size() << std::endl;
@@ -1758,9 +2155,117 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) co
         os << std::endl;
       }
     } 
-    os << this->createEndTag( "precomputedT" ) << std::endl; 
+    os << this->createEndTag( "precomputedT" ) << std::endl;
+    
+    
+    os << this->createStartTag( "labels" ) << std::endl;
+    os << labels << std::endl;
+    os << this->createEndTag( "labels" ) << std::endl;  
+    
+    //store the class numbers for binary settings (if mc-settings, these values will be negative by default)
+    os << this->createStartTag( "binaryLabelPositive" ) << std::endl;
+    os << binaryLabelPositive << std::endl;
+    os << this->createEndTag( "binaryLabelPositive" ) << std::endl; 
+    
+    os << this->createStartTag( "binaryLabelNegative" ) << std::endl;
+    os << binaryLabelNegative << std::endl;
+    os << this->createEndTag( "binaryLabelNegative" ) << std::endl;
+    
+    os << this->createStartTag( "knownClasses" ) << std::endl;
+    os << "size: " << knownClasses.size() << std::endl;
 
-    //now store the things needed for the variance estimation
+    for ( std::set< int >::const_iterator itKnownClasses = knownClasses.begin();
+          itKnownClasses != knownClasses.end();
+          itKnownClasses++
+        )
+    {
+      os << *itKnownClasses << " " << std::endl;
+    }   
+    os << this->createEndTag( "knownClasses" ) << std::endl;    
+    
+    os << this->createStartTag( "ikmsum" ) << std::endl;
+    for ( int j = 0; j < ikmsum->getNumberOfModels() - 1; j++ )
+    {
+      ( ikmsum->getModel ( j ) )->store ( os, format );
+    }
+    os << this->createEndTag( "ikmsum" ) << std::endl;    
+    
+    //////////////////////////////////////////////
+    //           Iterative Linear Solver        //
+    //////////////////////////////////////////////     
+    
+    os << this->createStartTag( "linsolver" ) << std::endl;
+    //TODO linsolver 
+    os << this->createEndTag( "linsolver" ) << std::endl;      
+       
+
+    os << this->createStartTag( "ils_max_iterations" ) << std::endl;
+    os << ils_max_iterations << std::endl;
+    os << this->createEndTag( "ils_max_iterations" ) << std::endl;  
+    
+    /////////////////////////////////////
+    // optimization related parameters //
+    /////////////////////////////////////    
+    
+    os << this->createStartTag( "optimizationMethod" ) << std::endl;
+    os << optimizationMethod << std::endl;
+    os << this->createEndTag( "optimizationMethod" ) << std::endl; 
+    
+    os << this->createStartTag( "optimizeNoise" ) << std::endl;
+    os << optimizeNoise << std::endl;
+    os << this->createEndTag( "optimizeNoise" ) << std::endl;
+    
+    os << this->createStartTag( "parameterStepSize" ) << std::endl;
+    os << parameterStepSize << std::endl;
+    os << this->createEndTag( "parameterStepSize" ) << std::endl;
+    
+    os << this->createStartTag( "downhillSimplexMaxIterations" ) << std::endl;
+    os << downhillSimplexMaxIterations << std::endl;
+    os << this->createEndTag( "downhillSimplexMaxIterations" ) << std::endl;
+    
+    
+    os << this->createStartTag( "downhillSimplexTimeLimit" ) << std::endl;
+    os << downhillSimplexTimeLimit << std::endl;
+    os << this->createEndTag( "downhillSimplexTimeLimit" ) << std::endl;
+    
+    
+    os << this->createStartTag( "downhillSimplexParamTol" ) << std::endl;
+    os << downhillSimplexParamTol << std::endl;
+    os << this->createEndTag( "downhillSimplexParamTol" ) << std::endl;
+    
+    //////////////////////////////////////////////
+    // likelihood computation related variables //
+    //////////////////////////////////////////////     
+    
+    os << this->createStartTag( "verifyApproximation" ) << std::endl;
+    os << verifyApproximation << std::endl;
+    os << this->createEndTag( "verifyApproximation" ) << std::endl;    
+    
+    os << this->createStartTag( "eig" ) << std::endl;
+    //TODO eig 
+    os << this->createEndTag( "eig" ) << std::endl;    
+       
+    
+    os << this->createStartTag( "nrOfEigenvaluesToConsider" ) << std::endl;
+    os << nrOfEigenvaluesToConsider << std::endl;
+    os << this->createEndTag( "nrOfEigenvaluesToConsider" ) << std::endl;
+    
+    os << this->createStartTag( "eigenMax" ) << std::endl;
+    os << eigenMax << std::endl;
+    os << this->createEndTag( "eigenMax" ) << std::endl;
+
+    os << this->createStartTag( "eigenMaxVectors" ) << std::endl;
+    os << eigenMaxVectors << std::endl;
+    os << this->createEndTag( "eigenMaxVectors" ) << std::endl;
+    
+    
+    ////////////////////////////////////////////
+    // variance computation related variables //
+    ////////////////////////////////////////////    
+    
+    os << this->createStartTag( "nrOfEigenvaluesToConsiderForVarApprox" ) << std::endl;
+    os << nrOfEigenvaluesToConsiderForVarApprox << std::endl;
+    os << this->createEndTag( "nrOfEigenvaluesToConsiderForVarApprox" ) << std::endl;
     
     os << this->createStartTag( "precomputedAForVarEst" ) << std::endl;
     os << precomputedAForVarEst.size() << std::endl;
@@ -1792,44 +2297,14 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) co
     {
       os << "NULL" << std::endl;
     }
-    os << this->createEndTag( "precomputedTForVarEst" ) << std::endl;
+    os << this->createEndTag( "precomputedTForVarEst" ) << std::endl;    
     
-    //store the eigenvalues and eigenvectors
-    os << this->createStartTag( "eigenMax" ) << std::endl;
-    os << eigenMax << std::endl;
-    os << this->createEndTag( "eigenMax" ) << std::endl;   
-
-    os << this->createStartTag( "eigenMaxVectors" ) << std::endl;
-    os << eigenMaxVectors << std::endl;
-    os << this->createEndTag( "eigenMaxVectors" ) << std::endl;       
-
-
-    os << this->createStartTag( "ikmsum" ) << std::endl;
-    for ( int j = 0; j < ikmsum->getNumberOfModels() - 1; j++ )
-    {
-      ( ikmsum->getModel ( j ) )->store ( os, format );
-    }
-    os << this->createEndTag( "ikmsum" ) << std::endl;
-
-    
-    //store the class numbers for binary settings (if mc-settings, these values will be negative by default)
-    os << this->createStartTag( "binaryLabelPositive" ) << std::endl;
-    os << binaryLabelPositive << std::endl;
-    os << this->createEndTag( "binaryLabelPositive" ) << std::endl; 
-    
-    os << this->createStartTag( "binaryLabelNegative" ) << std::endl;
-    os << binaryLabelNegative << std::endl;
-    os << this->createEndTag( "binaryLabelNegative" ) << std::endl; 
-    
-    
-    os << this->createStartTag( "labels" ) << std::endl;
-    os << labels << std::endl;
-    os << this->createEndTag( "labels" ) << std::endl;  
-    
-    
+    /////////////////////////////////////////////////////
+    // online / incremental learning related variables //
+    /////////////////////////////////////////////////////    
     os << this->createStartTag( "b_usePreviousAlphas" ) << std::endl;
     os << b_usePreviousAlphas << std::endl;
-    os << this->createEndTag( "b_usePreviousAlphas" ) << std::endl;
+    os << this->createEndTag( "b_usePreviousAlphas" ) << std::endl;    
     
     os << this->createStartTag( "previousAlphas" ) << std::endl;
     os << "size: " << previousAlphas.size() << std::endl;
@@ -1840,7 +2315,8 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) co
       os << prevAlphaIt->second << std::endl;
       prevAlphaIt++;
     }
-    os << this->createEndTag( "previousAlphas" ) << std::endl;       
+    os << this->createEndTag( "previousAlphas" ) << std::endl;
+
     
     
     // done

@@ -27,123 +27,116 @@ using namespace NICE;
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
 
-void GPHIKRegression::init(const Config *conf, const string & s_confSection)
-{
-  //copy the given config to have it accessible lateron
-  if ( this->confCopy != conf )
-  {
-    if ( this->confCopy != NULL )
-      delete this->confCopy;
-    
-    this->confCopy = new Config ( *conf );
-    //we do not want to read until end of file for restoring    
-    this->confCopy->setIoUntilEndOfFile(false);        
-  }
-  
 
-  
-  double parameterUpperBound = confCopy->gD(confSection, "parameter_upper_bound", 5.0 );
-  double parameterLowerBound = confCopy->gD(confSection, "parameter_lower_bound", 1.0 );  
-
-  this->noise = confCopy->gD(confSection, "noise", 0.01);
-
-  string transform = confCopy->gS(confSection, "transform", "absexp" );
-  
-  if (pf == NULL)
-  {
-    if ( transform == "absexp" )
-    {
-      this->pf = new PFAbsExp( 1.0, parameterLowerBound, parameterUpperBound );
-    } else if ( transform == "exp" ) {
-      this->pf = new PFExp( 1.0, parameterLowerBound, parameterUpperBound );
-    }else if ( transform == "MKL" ) {
-      //TODO generic, please :) load from a separate file or something like this!
-      std::set<int> steps; steps.insert(4000); steps.insert(6000); //specific for VISAPP
-      this->pf = new PFMKL( steps, parameterLowerBound, parameterUpperBound );
-    } else {
-      fthrow(Exception, "Transformation type is unknown " << transform);
-    }
-  }
-  else
-  {
-    //we already know the pf from the restore-function
-  }
-  this->confSection = confSection;
-  this->verbose = confCopy->gB(confSection, "verbose", false);
-  this->debug = confCopy->gB(confSection, "debug", false);
-  this->uncertaintyPredictionForRegression = confCopy->gB( confSection, "uncertaintyPredictionForRegression", false );
-  
-
-   
-  //how do we approximate the predictive variance for regression uncertainty?
-  string s_varianceApproximation = confCopy->gS(confSection, "varianceApproximation", "approximate_fine"); //default: fine approximative uncertainty prediction
-  if ( (s_varianceApproximation.compare("approximate_rough") == 0) || ((s_varianceApproximation.compare("1") == 0)) )
-  {
-    this->varianceApproximation = APPROXIMATE_ROUGH;
-    
-    //no additional eigenvalue is needed here at all.
-    this->confCopy->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 0 );
-  }
-  else if ( (s_varianceApproximation.compare("approximate_fine") == 0) || ((s_varianceApproximation.compare("2") == 0)) )
-  {
-    this->varianceApproximation = APPROXIMATE_FINE;
-    
-    //security check - compute at least one eigenvalue for this approximation strategy
-    this->confCopy->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", std::max( confCopy->gI(confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 ), 1) );
-  }
-  else if ( (s_varianceApproximation.compare("exact") == 0)  || ((s_varianceApproximation.compare("3") == 0)) )
-  {
-    this->varianceApproximation = EXACT;
-    
-    //no additional eigenvalue is needed here at all.
-    this->confCopy->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 );    
-  }
-  else
-  {
-    this->varianceApproximation = NONE;
-    
-    //no additional eigenvalue is needed here at all.
-    this->confCopy->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 );
-  } 
-  
-  if ( this->verbose )
-    std::cerr << "varianceApproximationStrategy: " << s_varianceApproximation  << std::endl;
-}
 
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
 //                 PUBLIC METHODS
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
+GPHIKRegression::GPHIKRegression( ) 
+{
+  this->b_isTrained = false;  
+  this->confSection = "";
+  
+  this->gphyper = new NICE::FMKGPHyperparameterOptimization();
+  
+  // in order to be sure about all necessary variables be setup with default values, we
+  // run initFromConfig with an empty config
+  NICE::Config tmpConfEmpty ;
+  this->initFromConfig ( &tmpConfEmpty, this->confSection ); 
+  
+  //indicate that we perform regression here
+  this->gphyper->setPerformRegression ( true );  
+}
+
 GPHIKRegression::GPHIKRegression( const Config *conf, const string & s_confSection ) 
 {
-  //default settings, may be overwritten lateron
-  gphyper = NULL;
-  pf = NULL;
-  confCopy = NULL;
-  //just a default value
-  uncertaintyPredictionForRegression = false;
+  ///////////
+  // same code as in empty constructor - duplication can be avoided with C++11 allowing for constructor delegation
+  ///////////  
+  this->b_isTrained = false;  
+  this->confSection = "";
   
-  this->confSection = s_confSection;
+  this->gphyper = new NICE::FMKGPHyperparameterOptimization();
+  
+  ///////////
+  // here comes the new code part different from the empty constructor
+  /////////// 
+  
+  this->confSection = s_confSection;  
   
   // if no config file was given, we either restore the classifier from an external file, or run ::init with 
   // an emtpy config (using default values thereby) when calling the train-method
   if ( conf != NULL )
   {
-    this->init(conf, confSection);
+    this->initFromConfig( conf, confSection );
   }
+  else
+  {
+    // if no config was given, we create an empty one
+    NICE::Config tmpConfEmpty ;
+    this->initFromConfig ( &tmpConfEmpty, this->confSection );      
+  }
+  
+  //indicate that we perform regression here
+  this->gphyper->setPerformRegression ( true );    
 }
 
 GPHIKRegression::~GPHIKRegression()
 {
   if ( gphyper != NULL )
     delete gphyper;
-  
-  if (pf != NULL)
-    delete pf;
+}
 
-  if ( confCopy != NULL )
-    delete confCopy;
+void GPHIKRegression::initFromConfig(const Config *conf, const string & s_confSection)
+{
+
+  this->noise = conf->gD(confSection, "noise", 0.01);
+
+  this->confSection = confSection;
+  this->verbose = conf->gB(confSection, "verbose", false);
+  this->debug = conf->gB(confSection, "debug", false);
+  this->uncertaintyPredictionForRegression = conf->gB( confSection, "uncertaintyPredictionForRegression", false );
+  
+
+   
+  //how do we approximate the predictive variance for regression uncertainty?
+  string s_varianceApproximation = conf->gS(confSection, "varianceApproximation", "approximate_fine"); //default: fine approximative uncertainty prediction
+  if ( (s_varianceApproximation.compare("approximate_rough") == 0) || ((s_varianceApproximation.compare("1") == 0)) )
+  {
+    this->varianceApproximation = APPROXIMATE_ROUGH;
+    
+    //no additional eigenvalue is needed here at all.
+    this->gphyper->setNrOfEigenvaluesToConsiderForVarApprox ( 0 );     
+  }
+  else if ( (s_varianceApproximation.compare("approximate_fine") == 0) || ((s_varianceApproximation.compare("2") == 0)) )
+  {
+    this->varianceApproximation = APPROXIMATE_FINE;
+    
+    //security check - compute at least one eigenvalue for this approximation strategy
+    this->gphyper->setNrOfEigenvaluesToConsiderForVarApprox ( std::max( conf->gI(confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 ), 1) );
+  }
+  else if ( (s_varianceApproximation.compare("exact") == 0)  || ((s_varianceApproximation.compare("3") == 0)) )
+  {
+    this->varianceApproximation = EXACT;
+    
+    //no additional eigenvalue is needed here at all.
+    this->gphyper->setNrOfEigenvaluesToConsiderForVarApprox ( 0 );
+  }
+  else
+  {
+    this->varianceApproximation = NONE;
+    
+    //no additional eigenvalue is needed here at all.
+    this->gphyper->setNrOfEigenvaluesToConsiderForVarApprox ( 0 );
+  } 
+  
+  if ( this->verbose )
+    std::cerr << "varianceApproximationStrategy: " << s_varianceApproximation  << std::endl;
+  
+  //NOTE init all member pointer variables here as well
+  this->gphyper->initFromConfig ( conf, confSection /*possibly delete the handing of confSection*/);  
 }
 
 ///////////////////// ///////////////////// /////////////////////
@@ -170,7 +163,7 @@ void GPHIKRegression::estimate ( const NICE::Vector * example,  double & result 
 
 void GPHIKRegression::estimate ( const SparseVector * example,  double & result, double & uncertainty ) const
 {
-  if (gphyper == NULL)
+  if ( ! this->b_isTrained )
      fthrow(Exception, "Regression object not trained yet -- aborting!" );
   
   NICE::SparseVector scores;
@@ -206,7 +199,7 @@ void GPHIKRegression::estimate ( const SparseVector * example,  double & result,
 
 void GPHIKRegression::estimate ( const NICE::Vector * example,  double & result, double & uncertainty ) const
 {
-  if (gphyper == NULL)
+  if ( ! this->b_isTrained )
      fthrow(Exception, "Regression object not trained yet -- aborting!" );  
   
   NICE::SparseVector scores;
@@ -253,34 +246,17 @@ void GPHIKRegression::train ( const std::vector< const NICE::SparseVector *> & e
   {
     std::cerr << "GPHIKRegression::train" << std::endl;
   }
-  
-  if ( this->confCopy == NULL )
-  {
-    std::cerr << "WARNING -- No config used so far, initialize values with empty config file now..." << std::endl;
-    NICE::Config tmpConfEmpty ;
-    this->init ( &tmpConfEmpty, this->confSection );
-  }
 
   Timer t;
   t.start();
+  
   FastMinKernel *fmk = new FastMinKernel ( examples, noise, this->debug );
+  gphyper->setFastMinKernel ( fmk );
   
   t.stop();
   if (verbose)
     std::cerr << "Time used for setting up the fmk object: " << t.getLast() << std::endl;  
   
-  if (gphyper != NULL)
-     delete gphyper;
-  
-  
-  if ( ( varianceApproximation != APPROXIMATE_FINE) )
-    confCopy->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 0);
-
-  // add flag for gphyper that only regression is performed
-  // thereby, all the binary-label-stuff should be skipped :)  
-  confCopy->sB ( confSection, "b_performRegression", true );
-  gphyper = new FMKGPHyperparameterOptimization ( confCopy, pf, fmk, confSection ); 
-
   if (verbose)
     cerr << "Learning ..." << endl;
 
@@ -315,7 +291,9 @@ void GPHIKRegression::train ( const std::vector< const NICE::SparseVector *> & e
     }
   }
 
-
+  //indicate that we finished training successfully
+  this->b_isTrained = true;
+  
   // clean up all examples ??
   if (verbose)
     std::cerr << "Learning finished" << std::endl;
@@ -331,7 +309,7 @@ GPHIKRegression *GPHIKRegression::clone () const
   
 void GPHIKRegression::predictUncertainty( const NICE::SparseVector * example, double & uncertainty ) const
 {  
-  if (gphyper == NULL)
+  if ( ! this->b_isTrained )
      fthrow(Exception, "Regression object not trained yet -- aborting!" );  
   
   switch (varianceApproximation)    
@@ -360,7 +338,7 @@ void GPHIKRegression::predictUncertainty( const NICE::SparseVector * example, do
 
 void GPHIKRegression::predictUncertainty( const NICE::Vector * example, double & uncertainty ) const
 {  
-  if (gphyper == NULL)
+  if ( ! this->b_isTrained )
      fthrow(Exception, "Regression object not trained yet -- aborting!" );  
   
   switch (varianceApproximation)    
@@ -415,16 +393,6 @@ void GPHIKRegression::restore ( std::istream & is, int format )
       throw;
     }   
     
-    if (pf != NULL)
-    {
-      delete pf;
-      pf = NULL;
-    }
-    if ( confCopy != NULL )
-    {
-      delete confCopy;
-      confCopy = NULL;
-    }
     if (gphyper != NULL)
     {
       delete gphyper;
@@ -456,49 +424,6 @@ void GPHIKRegression::restore ( std::istream & is, int format )
         is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
-      else if ( tmp.compare("pf") == 0 )
-      {
-      
-        is >> tmp; // start of block 
-        if ( this->isEndTag( tmp, "pf" ) )
-        {
-          std::cerr << " ParameterizedFunction object can not be restored. Aborting..." << std::endl;
-          throw;
-        } 
-        
-        std::string transform = this->removeStartTag ( tmp );
-        
-
-        if ( transform == "PFAbsExp" )
-        {
-          this->pf = new PFAbsExp ();
-        } else if ( transform == "PFExp" ) {
-          this->pf = new PFExp ();
-        } else {
-          fthrow(Exception, "Transformation type is unknown " << transform);
-        }
-        
-        pf->restore(is, format);
-        
-        is >> tmp; // end of block 
-        tmp = this->removeEndTag ( tmp );
-      } 
-      else if ( tmp.compare("ConfigCopy") == 0 )
-      {
-        // possibly obsolete safety checks
-        if ( confCopy == NULL )
-          confCopy = new Config;
-        confCopy->clear();
-        
-        
-        //we do not want to read until the end of the file
-        confCopy->setIoUntilEndOfFile( false );
-        //load every options we determined explicitely
-        confCopy->restore(is, format);
-        
-        is >> tmp; // end of block 
-        tmp = this->removeEndTag ( tmp );
-      }
       else if ( tmp.compare("gphyper") == 0 )
       {
         if ( gphyper == NULL )
@@ -510,20 +435,51 @@ void GPHIKRegression::restore ( std::istream & is, int format )
           
         is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
-      }       
+      }
+      else if ( tmp.compare("b_isTrained") == 0 )
+      {
+        is >> b_isTrained;        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      else if ( tmp.compare("noise") == 0 )
+      {
+        is >> noise;        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }      
+      else if ( tmp.compare("verbose") == 0 )
+      {
+        is >> verbose;        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }      
+      else if ( tmp.compare("debug") == 0 )
+      {
+        is >> debug;        
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }
+      else if ( tmp.compare("uncertaintyPredictionForRegression") == 0 )
+      {
+        is >> uncertaintyPredictionForRegression;
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }      
+      else if ( tmp.compare("varianceApproximation") == 0 )
+      {
+        unsigned int ui_varianceApproximation;
+        is >> ui_varianceApproximation;        
+        varianceApproximation = static_cast<VarianceApproximation> ( ui_varianceApproximation );
+        is >> tmp; // end of block 
+        tmp = this->removeEndTag ( tmp );
+      }      
       else
       {
       std::cerr << "WARNING -- unexpected GPHIKRegression object -- " << tmp << " -- for restoration... aborting" << std::endl;
       throw;
       }
     }
-
-    //load every settings as well as default options
-    std::cerr << "run this->init" << std::endl;
-    this->init(confCopy, confSection);    
-    std::cerr << "run gphyper->initialize" << std::endl;
-    //TODO!
-    gphyper->initFromConfig ( confCopy, confSection ); //pf, NULL, confSection );
   }
   else
   {
@@ -548,22 +504,38 @@ void GPHIKRegression::store ( std::ostream & os, int format ) const
     os << confSection << std::endl;
     os << this->createEndTag( "confSection" ) << std::endl; 
     
-    os << this->createStartTag( "pf" ) << std::endl;
-    pf->store(os, format);
-    os << this->createEndTag( "pf" ) << std::endl; 
-
-    os << this->createStartTag( "ConfigCopy" ) << std::endl;
-    //we do not want to read until end of file for restoring    
-    confCopy->setIoUntilEndOfFile(false);
-    confCopy->store(os,format);
-    os << this->createEndTag( "ConfigCopy" ) << std::endl; 
-    
     os << this->createStartTag( "gphyper" ) << std::endl;
     //store the underlying data
     //will be done in gphyper->store(of,format)
     //store the optimized parameter values and all that stuff
     gphyper->store(os, format);
     os << this->createEndTag( "gphyper" ) << std::endl;   
+    
+    os << this->createStartTag( "b_isTrained" ) << std::endl;
+    os << b_isTrained << std::endl;
+    os << this->createEndTag( "b_isTrained" ) << std::endl; 
+    
+    os << this->createStartTag( "noise" ) << std::endl;
+    os << noise << std::endl;
+    os << this->createEndTag( "noise" ) << std::endl;
+    
+    
+    os << this->createStartTag( "verbose" ) << std::endl;
+    os << verbose << std::endl;
+    os << this->createEndTag( "verbose" ) << std::endl; 
+    
+    os << this->createStartTag( "debug" ) << std::endl;
+    os << debug << std::endl;
+    os << this->createEndTag( "debug" ) << std::endl; 
+    
+    os << this->createStartTag( "uncertaintyPredictionForRegression" ) << std::endl;
+    os << uncertaintyPredictionForRegression << std::endl;
+    os << this->createEndTag( "uncertaintyPredictionForRegression" ) << std::endl;
+    
+    os << this->createStartTag( "varianceApproximation" ) << std::endl;
+    os << varianceApproximation << std::endl;
+    os << this->createEndTag( "varianceApproximation" ) << std::endl;     
+      
     
     
     // done
@@ -582,18 +554,6 @@ void GPHIKRegression::clear ()
     delete gphyper;
     gphyper = NULL;
   }
-  
-  if (pf != NULL)
-  {
-    delete pf;
-    pf = NULL;
-  }
-
-  if ( confCopy != NULL )
-  {
-    delete confCopy; 
-    confCopy = NULL;
-  } 
 }
 
 ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
@@ -606,7 +566,7 @@ void GPHIKRegression::addExample( const NICE::SparseVector * example,
 			   )
 {
   
-  if ( this->gphyper == NULL )
+  if ( ! this->b_isTrained )
   {
     //call train method instead
     std::cerr << "Regression object not initially trained yet -- run initial training instead of incremental extension!"  << std::endl;

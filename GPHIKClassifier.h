@@ -20,7 +20,7 @@
 // gp-hik-core includes
 #include "gp-hik-core/FMKGPHyperparameterOptimization.h"
 #include "gp-hik-core/OnlineLearnable.h"
-#include "gp-hik-core/parameterizedFunctions/ParameterizedFunction.h"
+
 
 namespace NICE {
   
@@ -41,29 +41,31 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
     /////////////////////////
     /////////////////////////
     
-    // output/debug related settings
+    ///////////////////////////////////
+    // output/debug related settings //   
+    ///////////////////////////////////
     
     /** verbose flag for useful output*/
     bool verbose;
     /** debug flag for several outputs useful for debugging*/
     bool debug;
     
-    // general specifications
+    //////////////////////////////////////
+    //      general specifications      //
+    //////////////////////////////////////
     
     /** Header in configfile where variable settings are stored */
-    std::string confSection;
-//     /** Configuration file specifying variable settings */
-//     NICE::Config *confCopy; 
+    std::string confSection;    
     
-    // internal objects 
+    //////////////////////////////////////
+    // classification related variables //
+    //////////////////////////////////////    
+    /** memorize whether the classifier was already trained*/
+    bool b_isTrained;
+    
     
     /** Main object doing all the jobs: training, classification, optimization, ... */
     NICE::FMKGPHyperparameterOptimization *gphyper;    
-    
-    /** Possibility for transforming feature values, parameters can be optimized */
-    NICE::ParameterizedFunction *pf;    
-    
-    
     
     
     /** Gaussian label noise for model regularization */
