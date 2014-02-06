@@ -415,7 +415,7 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     
     /**
     * @brief classify an example that is given as non-sparse vector
-    * NOTE: whenever possible, you should sparse vectors to obtain significantly smaller computation times
+    * NOTE: whenever possible, you should use sparse vectors to obtain significantly smaller computation times
     * 
     * @date 18-06-2013 (dd-mm-yyyy)
     * @author Alexander Freytag

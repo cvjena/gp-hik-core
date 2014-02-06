@@ -92,6 +92,22 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
     // alpha = (binaryLabels[classCnt] * (1.0 / eigenmax[0]) );
     double factor ( 1.0 / this->eigenMax[0] );
     
+    // if we came from an OCC setting and are going to a binary setting,
+    // we have to be aware that the 'positive' label is always the one associated with the previous alpha
+    // otherwise, we would get into trouble when going to more classes...
+    // note that this is needed, since knownClasses is a map, so we loose the order of insertion
+    if ( ( this->previousAlphas.size () == 1 ) && ( this->knownClasses.size () == 2 ) )
+    {
+      // if the first class has a larger value then the currently added second class, we have to 
+      // switch the index, which unfortunately is not sooo easy in the map
+      if ( this->previousAlphas.begin()->first == this->binaryLabelNegative )
+      {
+        this->previousAlphas.insert( std::pair<int, NICE::Vector> ( this->binaryLabelPositive, this->previousAlphas.begin()->second) );
+        this->previousAlphas.erase( this->binaryLabelNegative );
+      }
+    }
+    
+    
     std::map<int, NICE::Vector>::const_iterator binaryLabelsIt = binaryLabels.begin();
     
     for ( std::map<int, NICE::Vector>::iterator prevAlphaIt = this->previousAlphas.begin();
@@ -847,7 +863,7 @@ int FMKGPHyperparameterOptimization::prepareBinaryLabels ( std::map<int, NICE::V
   if ( nrOfClasses > 2 )
   {
     //resize every labelVector and set all entries to -1.0
-    for ( set<int>::const_iterator k = myClasses.begin(); k != myClasses.end(); k++ )
+    for ( std::set<int>::const_iterator k = myClasses.begin(); k != myClasses.end(); k++ )
     {
       binaryLabels[ *k ].resize ( y.size() );
       binaryLabels[ *k ].set ( -1.0 );
@@ -860,12 +876,12 @@ int FMKGPHyperparameterOptimization::prepareBinaryLabels ( std::map<int, NICE::V
   }
   else if ( nrOfClasses == 2 )
   {
-    //binary setting -- prepare two binary label vectors with opposite signs
+    //binary setting -- prepare a binary label vector
     NICE::Vector yb ( y );
 
-    binaryLabelNegative = *(myClasses.begin());
+    this->binaryLabelNegative = *(myClasses.begin());
     std::set<int>::const_iterator classIt = myClasses.begin(); classIt++;
-    binaryLabelPositive = *classIt;
+    this->binaryLabelPositive = *classIt;
     
     if ( verbose )
       std::cerr << "positiveClass : " << binaryLabelPositive << " negativeClass: " << binaryLabelNegative << std::endl;
@@ -2359,7 +2375,14 @@ void FMKGPHyperparameterOptimization::addExample( const NICE::SparseVector * exa
   {
     this->knownClasses.insert( label );
     newClasses.insert( label );
-  }    
+  }
+  
+  // If we currently have been in a binary setting, we now have to take care
+  // that we also compute an alpha vector for the second class, which previously 
+  // could be dealt with implicitely.
+  // Therefore, we insert its label here...
+  if ( (newClasses.size() > 0 ) && ( (this->knownClasses.size() - newClasses.size() ) == 2 ) )
+    newClasses.insert( binaryLabelNegative );    
 
   // add the new example to our data structure
   // It is necessary to do this already here and not lateron for internal reasons (see GMHIKernel for more details)
@@ -2416,15 +2439,34 @@ void FMKGPHyperparameterOptimization::addMultipleExamples( const std::vector< co
   if ( !this->b_performRegression)
   {
     for ( NICE::Vector::const_iterator vecIt = newLabels.begin(); 
-	vecIt != newLabels.end(); vecIt++
-	)
+          vecIt != newLabels.end();
+          vecIt++
+      )
     {  
-	if ( this->knownClasses.find( *vecIt ) == this->knownClasses.end() )
+      if ( this->knownClasses.find( *vecIt ) == this->knownClasses.end() )
       {
-	this->knownClasses.insert( *vecIt );
-	newClasses.insert( *vecIt );
+        this->knownClasses.insert( *vecIt );
+        newClasses.insert( *vecIt );
       } 
     }
+
+    // If we currently have been in a OCC setting, and only add a single new class
+    // we have to take care that are still efficient, i.e., that we solve for alpha
+    // only ones, since scores are symmetric in binary cases
+    // Therefore, we remove the label of the secodn class from newClasses, to skip
+    // alpha computations for this class lateron...
+    // 
+    // Therefore, we insert its label here...
+    if ( (newClasses.size() == 1 ) && ( (this->knownClasses.size() - newClasses.size() ) == 1 ) )
+      newClasses.clear();
+
+    // If we currently have been in a binary setting, we now have to take care
+    // that we also compute an alpha vector for the second class, which previously 
+    // could be dealt with implicitely.
+    // Therefore, we insert its label here...
+    if ( (newClasses.size() > 0 ) && ( (this->knownClasses.size() - newClasses.size() ) == 2 ) )
+      newClasses.insert( binaryLabelNegative );      
+      
   }
   // in a regression setting, we do not have to remember any "class labels"
   else{}
@@ -2440,7 +2482,7 @@ void FMKGPHyperparameterOptimization::addMultipleExamples( const std::vector< co
   
   // add examples to all implicite kernel matrices we currently use
   this->ikmsum->addMultipleExamples ( newExamples, newLabels, performOptimizationAfterIncrement );
-    
+  
   // update the corresponding matrices A, B and lookup tables T  
   // optional: do the optimization again using the previously known solutions as initialization
   this->updateAfterIncrement ( newClasses, performOptimizationAfterIncrement );
