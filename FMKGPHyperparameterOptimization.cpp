@@ -37,6 +37,7 @@
 #include "gp-hik-core/parameterizedFunctions/PFAbsExp.h"
 #include "gp-hik-core/parameterizedFunctions/PFExp.h"
 #include "gp-hik-core/parameterizedFunctions/PFMKL.h"
+#include "gp-hik-core/parameterizedFunctions/PFWeightedDim.h"
 
 
 
@@ -446,6 +447,11 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
     //TODO generic, please :) load from a separate file or something like this!
     std::set<int> steps; steps.insert(4000); steps.insert(6000); //specific for VISAPP
     this->pf = new NICE::PFMKL( steps, parameterLowerBound, parameterUpperBound );
+  }
+  else if ( transform == "weightedDim" )
+  {
+    int pf_dim = _conf->gI ( _confSection, "pf_dim", 8 );
+    this->pf = new NICE::PFWeightedDim( pf_dim, parameterLowerBound, parameterUpperBound );
   }
   else
   {

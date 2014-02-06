@@ -278,7 +278,7 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     * @param confSection
     *
     */
-    FMKGPHyperparameterOptimization( const Config *conf, const std::string & confSection = "GPHIKClassifier" );
+    FMKGPHyperparameterOptimization( const Config *conf, const std::string & confSection = "FMKGPHyperparameterOptimization" );
     
     
     /**
@@ -289,7 +289,7 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     * @param fmk pointer to a pre-initialized structure (will be deleted)
     * @param confSection
     */
-    FMKGPHyperparameterOptimization( const Config *conf, FastMinKernel *_fmk, const std::string & confSection = "GPHIKClassifier" );
+    FMKGPHyperparameterOptimization( const Config *conf, FastMinKernel *_fmk, const std::string & confSection = "FMKGPHyperparameterOptimization" );
       
     /**
     * @brief standard destructor
@@ -301,7 +301,7 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     * @brief Set variables and parameters to default or config-specified values
     * @author Alexander Freytag
     */       
-    void initFromConfig( const Config *conf, const std::string & confSection = "GPHIKClassifier" );
+    void initFromConfig( const Config *conf, const std::string & confSection = "FMKGPHyperparameterOptimization" );
     
     
     ///////////////////// ///////////////////// /////////////////////
