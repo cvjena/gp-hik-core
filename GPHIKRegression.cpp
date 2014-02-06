@@ -522,7 +522,8 @@ void GPHIKRegression::restore ( std::istream & is, int format )
     std::cerr << "run this->init" << std::endl;
     this->init(confCopy, confSection);    
     std::cerr << "run gphyper->initialize" << std::endl;
-    gphyper->initialize ( confCopy, pf, NULL, confSection );
+    //TODO!
+    gphyper->initFromConfig ( confCopy, confSection ); //pf, NULL, confSection );
   }
   else
   {

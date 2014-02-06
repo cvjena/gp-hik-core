@@ -212,7 +212,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
 
-FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization( const bool & b_performRegression )
+FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization( )
 {
   // initialize pointer variables
   pf = NULL;
@@ -231,31 +231,29 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization( const bool & b
   //stupid unneeded default values
   binaryLabelPositive = -1;
   binaryLabelNegative = -2;
+  knownClasses.clear();  
   
   this->b_usePreviousAlphas = false;
+  this->b_performRegression = false;
+}
+
+FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization( const bool & b_performRegression ) :FMKGPHyperparameterOptimization()
+{
   this->b_performRegression = b_performRegression;
 }
 
-FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config *_conf, ParameterizedFunction *_pf, FastMinKernel *_fmk, const string & _confSection )
+FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config *_conf, const string & _confSection )
+    : FMKGPHyperparameterOptimization()
 {
-   // initialize pointer variables
-  pf = NULL;
-  eig = NULL;
-  linsolver = NULL;
-  fmk = NULL;
-  q = NULL;
-  precomputedTForVarEst = NULL;
-  ikmsum = NULL;
-  
-  //stupid unneeded default values
-  binaryLabelPositive = -1;
-  binaryLabelNegative = -2;  
-  knownClasses.clear();
-  
-  if ( _fmk == NULL )
-    this->initialize ( _conf, _pf ); //then the confSection is also the default value
-  else
-    this->initialize ( _conf, _pf, _fmk, _confSection );
+  this->initFromConfig ( _conf, _confSection );
+}
+
+FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config *_conf, ParameterizedFunction *_pf, FastMinKernel *_fmk, const string & _confSection )
+    : FMKGPHyperparameterOptimization()
+{
+  this->initFromConfig ( _conf, _confSection );
+  this->setParameterizedFunction( _pf );
+  this->setFastMinKernel( _fmk );
 }
 
 FMKGPHyperparameterOptimization::~FMKGPHyperparameterOptimization()
@@ -280,20 +278,20 @@ FMKGPHyperparameterOptimization::~FMKGPHyperparameterOptimization()
     delete ikmsum;
 }
 
-void FMKGPHyperparameterOptimization::initialize ( const Config *_conf, ParameterizedFunction *_pf, FastMinKernel *_fmk, const std::string & _confSection )
+void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, const std::string & _confSection )
 {
 
-  if ( _fmk != NULL )
-  {
-    if ( this->fmk != NULL )
-    {
-      delete this->fmk;
-      fmk = NULL;
-    }    
-    this->fmk = _fmk;
-  }
-  
-  this->pf = _pf;
+//   if ( _fmk != NULL )
+//   {
+//     if ( this->fmk != NULL )
+//     {
+//       delete this->fmk;
+//       fmk = NULL;
+//     }    
+//     this->fmk = _fmk;
+//   }
+//   
+//   this->pf = _pf;
  
   
   this->verbose = _conf->gB ( _confSection, "verbose", false );
@@ -434,6 +432,42 @@ std::set<int> FMKGPHyperparameterOptimization::getKnownClassNumbers ( ) const
   return this->knownClasses;
 }
 
+void FMKGPHyperparameterOptimization::setPerformRegression ( const bool & b_performRegression )
+{
+  //TODO check previously whether we already trained
+  if ( false )
+    throw NICE::Exception ( "FMPGKHyperparameterOptimization already initialized - switching between classification and regression not allowed!" );
+  else
+    this->b_performRegression = b_performRegression;
+}
+
+
+void FMKGPHyperparameterOptimization::setParameterizedFunction ( ParameterizedFunction *pf )
+{
+  //TODO check previously whether we already trained  
+  this->pf = pf;
+}
+
+
+void FMKGPHyperparameterOptimization::setFastMinKernel ( FastMinKernel * _fmk )
+{
+  //TODO check previously whether we already trained  
+  if ( _fmk != NULL )
+  {
+    if ( this->fmk != NULL )
+    {
+      delete this->fmk;
+      this->fmk = NULL;
+    }    
+    this->fmk = _fmk;
+  }  
+}
+
+void FMKGPHyperparameterOptimization::setNrOfEigenvaluesToConsiderForVarApprox ( const int & i_nrOfEigenvaluesToConsiderForVarApprox )
+{
+  //TODO check previously whether we already trained
+  this->nrOfEigenvaluesToConsiderForVarApprox = i_nrOfEigenvaluesToConsiderForVarApprox;  
+}
 
 
 ///////////////////// ///////////////////// /////////////////////

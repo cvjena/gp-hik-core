@@ -246,27 +246,50 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
 
     
   public:  
+
+    /**
+    * @brief default constructor
+    * @author Alexander Freytag
+    */
+    FMKGPHyperparameterOptimization( );
     
     /**
     * @brief simple constructor
     * @author Alexander Freytag
     */
-    FMKGPHyperparameterOptimization( const bool & b_performRegression = false);
-        
+    FMKGPHyperparameterOptimization( const bool & b_performRegression );
+
     /**
-    * @brief standard constructor
+    * @brief recommended constructor, only calls this->initialize with same input arguments
     *
     * @param pf pointer to a parameterized function used within the minimum kernel min(f(x_i), f(x_j)) (will not be deleted)
     * @param noise GP label noise
     * @param fmk pointer to a pre-initialized structure (will be deleted)
     */
-    FMKGPHyperparameterOptimization( const Config *conf, ParameterizedFunction *pf, FastMinKernel *fmk = NULL, const std::string & confSection = "GPHIKClassifier" );
+    FMKGPHyperparameterOptimization( const Config *conf, const std::string & confSection = "GPHIKClassifier" );
+    
+    
+    /**
+    * @brief recommended constructor, only calls this->initialize with same input arguments
+    *
+    * @param pf pointer to a parameterized function used within the minimum kernel min(f(x_i), f(x_j)) (will not be deleted)
+    * @param noise GP label noise
+    * @param fmk pointer to a pre-initialized structure (will be deleted)
+    */
+    FMKGPHyperparameterOptimization( const Config *conf, ParameterizedFunction *_pf, FastMinKernel *_fmk, const std::string & confSection = "GPHIKClassifier" );
       
     /**
     * @brief standard destructor
     * @author Alexander Freytag
     */
     virtual ~FMKGPHyperparameterOptimization();
+    
+    /**
+    * @brief Set variables and parameters to default or config-specified values
+    * @author Alexander Freytag
+    */       
+    void initFromConfig( const Config *conf, const std::string & confSection = "GPHIKClassifier" );
+    
     
     ///////////////////// ///////////////////// /////////////////////
     //                         GET / SET
@@ -289,15 +312,38 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     */    
     std::set<int> getKnownClassNumbers ( ) const;
     
+    /**
+     * @brief Change between classification and regression, only allowed if not trained. Otherwise, exceptions will be thrown...
+     * @author Alexander Freytag
+     * @date 05-02-2014 (dd-mm-yyyy)
+     */
+    void setPerformRegression ( const bool & b_performRegression );
+
+      /**
+     * @brief Set the ParameterizedFunction object. Only allowed if not trained. Otherwise, exceptions will be thrown...
+     * @author Alexander Freytag
+     * @date 05-02-2014 (dd-mm-yyyy)
+     */
+    void setParameterizedFunction ( ParameterizedFunction *pf );
+    
+    /**
+     * @brief Set the FastMinKernel object. Only allowed if not trained. Otherwise, exceptions will be thrown...
+     * @author Alexander Freytag
+     * @date 05-02-2014 (dd-mm-yyyy)
+     */    
+    void setFastMinKernel ( FastMinKernel *fmk );  
+
+    /**
+     * @brief Set the number of EV we considere for variance approximation. Only allowed if not trained. Otherwise, exceptions will be thrown...
+     * @author Alexander Freytag
+     * @date 06-02-2014 (dd-mm-yyyy)
+     */        
+    void setNrOfEigenvaluesToConsiderForVarApprox ( const int & i_nrOfEigenvaluesToConsiderForVarApprox );
+    
     ///////////////////// ///////////////////// /////////////////////
     //                      CLASSIFIER STUFF
     ///////////////////// ///////////////////// /////////////////////  
     
-    /**
-    * @brief Set variables and parameters to default or config-specified values
-    * @author Alexander Freytag
-    */       
-    void initialize( const Config *conf, ParameterizedFunction *pf, FastMinKernel *fmk = NULL, const std::string & confSection = "GPHIKClassifier" );
        
 #ifdef NICE_USELIB_MATIO
     /**

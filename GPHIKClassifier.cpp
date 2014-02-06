@@ -28,27 +28,61 @@ using namespace NICE;
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
 
-void GPHIKClassifier::init(const Config *conf, const string & s_confSection)
+
+
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+//                 PUBLIC METHODS
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+GPHIKClassifier::GPHIKClassifier( ) 
 {
-  //copy the given config to have it accessible lateron
-  if ( this->confCopy != conf )
+  //default settings, may be overwritten lateron
+  gphyper = NULL;
+  pf = NULL;
+  //just a default value
+  uncertaintyPredictionForClassification = false;
+  
+  this->confSection = "";
+  
+}
+
+GPHIKClassifier::GPHIKClassifier( const Config *conf, const string & s_confSection ) 
+{
+  //default settings, may be overwritten lateron
+  gphyper = NULL;
+  pf = NULL;
+  //just a default value
+  uncertaintyPredictionForClassification = false;
+  
+  this->confSection = s_confSection;
+  
+  // if no config file was given, we either restore the classifier from an external file, or run ::init with 
+  // an emtpy config (using default values thereby) when calling the train-method
+  if ( conf != NULL )
   {
-    if ( this->confCopy != NULL )
-      delete this->confCopy;
-    
-    this->confCopy = new Config ( *conf );
-    //we do not want to read until end of file for restoring    
-    this->confCopy->setIoUntilEndOfFile(false);        
+    this->initFromConfig(conf, confSection);
   }
+}
+
+GPHIKClassifier::~GPHIKClassifier()
+{
+  if ( gphyper != NULL )
+    delete gphyper;
   
+  if (pf != NULL)
+    delete pf;
 
-  
-  double parameterUpperBound = confCopy->gD(confSection, "parameter_upper_bound", 5.0 );
-  double parameterLowerBound = confCopy->gD(confSection, "parameter_lower_bound", 1.0 );  
+}
 
-  this->noise = confCopy->gD(confSection, "noise", 0.01);
+void GPHIKClassifier::initFromConfig(const Config *conf, const string & s_confSection)
+{ 
+  double parameterUpperBound = conf->gD(confSection, "parameter_upper_bound", 5.0 );
+  double parameterLowerBound = conf->gD(confSection, "parameter_lower_bound", 1.0 );  
 
-  string transform = confCopy->gS(confSection, "transform", "absexp" );
+  this->noise = conf->gD(confSection, "noise", 0.01);
+
+  string transform = conf->gS(confSection, "transform", "absexp" );
   
   if (pf == NULL)
   {
@@ -70,81 +104,52 @@ void GPHIKClassifier::init(const Config *conf, const string & s_confSection)
     //we already know the pf from the restore-function
   }
   this->confSection = confSection;
-  this->verbose = confCopy->gB(confSection, "verbose", false);
-  this->debug = confCopy->gB(confSection, "debug", false);
-  this->uncertaintyPredictionForClassification = confCopy->gB( confSection, "uncertaintyPredictionForClassification", false );
+  this->verbose = conf->gB(confSection, "verbose", false);
+  this->debug = conf->gB(confSection, "debug", false);
+  this->uncertaintyPredictionForClassification = conf->gB( confSection, "uncertaintyPredictionForClassification", false );
   
 
    
   //how do we approximate the predictive variance for classification uncertainty?
-  string s_varianceApproximation = confCopy->gS(confSection, "varianceApproximation", "approximate_fine"); //default: fine approximative uncertainty prediction
+  string s_varianceApproximation = conf->gS(confSection, "varianceApproximation", "approximate_fine"); //default: fine approximative uncertainty prediction
   if ( (s_varianceApproximation.compare("approximate_rough") == 0) || ((s_varianceApproximation.compare("1") == 0)) )
   {
     this->varianceApproximation = APPROXIMATE_ROUGH;
     
     //no additional eigenvalue is needed here at all.
-    this->confCopy->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 0 );
+    this->gphyper->setNrOfEigenvaluesToConsiderForVarApprox ( 0 );
+    //this->conf->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 0 );
   }
   else if ( (s_varianceApproximation.compare("approximate_fine") == 0) || ((s_varianceApproximation.compare("2") == 0)) )
   {
     this->varianceApproximation = APPROXIMATE_FINE;
     
     //security check - compute at least one eigenvalue for this approximation strategy
-    this->confCopy->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", std::max( confCopy->gI(confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 ), 1) );
+    this->gphyper->setNrOfEigenvaluesToConsiderForVarApprox ( std::max( conf->gI(confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 ), 1) );
+    //this->conf->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", std::max( conf->gI(confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 ), 1) );
   }
   else if ( (s_varianceApproximation.compare("exact") == 0)  || ((s_varianceApproximation.compare("3") == 0)) )
   {
     this->varianceApproximation = EXACT;
     
     //no additional eigenvalue is needed here at all.
-    this->confCopy->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 );    
+    this->gphyper->setNrOfEigenvaluesToConsiderForVarApprox ( 1 );
+    //this->conf->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 );    
+    //TODO check why here 1, and 0 above    
   }
   else
   {
     this->varianceApproximation = NONE;
     
     //no additional eigenvalue is needed here at all.
-    this->confCopy->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 );
+    this->gphyper->setNrOfEigenvaluesToConsiderForVarApprox ( 1 );
+    //this->conf->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 );
   } 
   
   if ( this->verbose )
     std::cerr << "varianceApproximationStrategy: " << s_varianceApproximation  << std::endl;
-}
-
-/////////////////////////////////////////////////////
-/////////////////////////////////////////////////////
-//                 PUBLIC METHODS
-/////////////////////////////////////////////////////
-/////////////////////////////////////////////////////
-GPHIKClassifier::GPHIKClassifier( const Config *conf, const string & s_confSection ) 
-{
-  //default settings, may be overwritten lateron
-  gphyper = NULL;
-  pf = NULL;
-  confCopy = NULL;
-  //just a default value
-  uncertaintyPredictionForClassification = false;
   
-  this->confSection = s_confSection;
-  
-  // if no config file was given, we either restore the classifier from an external file, or run ::init with 
-  // an emtpy config (using default values thereby) when calling the train-method
-  if ( conf != NULL )
-  {
-    this->init(conf, confSection);
-  }
-}
-
-GPHIKClassifier::~GPHIKClassifier()
-{
-  if ( gphyper != NULL )
-    delete gphyper;
-  
-  if (pf != NULL)
-    delete pf;
-
-  if ( confCopy != NULL )
-    delete confCopy;
+  this->gphyper->initFromConfig ( conf, confSection /*possibly delete the handing of confSection*/);
 }
 
 ///////////////////// ///////////////////// /////////////////////
@@ -254,11 +259,12 @@ void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & e
     std::cerr << "GPHIKClassifier::train" << std::endl;
   }
   
-  if ( this->confCopy == NULL )
+//   if ( this->conf == NULL )
+  if ( this->pf == NULL ) // pf will only be set in ::init or in ::restore
   {
     std::cerr << "WARNING -- No config used so far, initialize values with empty config file now..." << std::endl;
     NICE::Config tmpConfEmpty ;
-    this->init ( &tmpConfEmpty, this->confSection );
+    this->initFromConfig ( &tmpConfEmpty, this->confSection );
   }
 
   Timer t;
@@ -269,14 +275,28 @@ void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & e
   if (verbose)
     std::cerr << "Time used for setting up the fmk object: " << t.getLast() << std::endl;  
   
-  if (gphyper != NULL)
+ /* if (gphyper != NULL)
      delete gphyper;
-  
+ */ 
+  if ( gphyper == NULL )
+  {
+    // security check, which should always be skipped since gphyper is created in this->init
+    NICE::Config tmpConfEmpty ;
+    gphyper = new FMKGPHyperparameterOptimization ( &tmpConfEmpty, confSection ); 
+  }
   
   if ( ( varianceApproximation != APPROXIMATE_FINE) )
-    confCopy->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 0);
-  
-  gphyper = new FMKGPHyperparameterOptimization ( confCopy, pf, fmk, confSection ); 
+  {
+    //TODO check whether this is easier then the version above
+    this->gphyper->setNrOfEigenvaluesToConsiderForVarApprox ( 0 );
+    //conf->sI ( confSection, "nrOfEigenvaluesToConsiderForVarApprox", 0);
+  }
+   
+  //those two methods replace the previous call of the "full" constructor
+  gphyper->setParameterizedFunction ( pf );
+  gphyper->setFastMinKernel ( fmk );  
+//   gphyper->init (pf, fmk ); 
+//   gphyper = new FMKGPHyperparameterOptimization ( conf, pf, fmk, confSection ); 
 
   if (verbose)
     cerr << "Learning ..." << endl;
@@ -336,11 +356,12 @@ void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & e
   if (verbose)
     std::cerr << "GPHIKClassifier::train" << std::endl;
   
-  if ( this->confCopy == NULL )
+//   if ( this->conf == NULL )
+  if ( this->pf == NULL ) // pf will only be set in ::init or in ::restore
   {
     std::cerr << "WARNING -- No config used so far, initialize values with empty config file now..." << std::endl;
     NICE::Config tmpConfEmpty ;
-    this->init ( &tmpConfEmpty, this->confSection );
+    this->initFromConfig ( &tmpConfEmpty, this->confSection );
   }  
 
   Timer t;
@@ -350,9 +371,18 @@ void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & e
   if (verbose)
     std::cerr << "Time used for setting up the fmk object: " << t.getLast() << std::endl;  
   
-  if (gphyper != NULL)
-     delete gphyper;
-  gphyper = new FMKGPHyperparameterOptimization ( confCopy, pf, fmk, confSection ); 
+//   if (gphyper != NULL)
+//      delete gphyper;
+  if ( gphyper == NULL )
+  {
+    // security check, which should always be skipped since gphyper is created in this->init
+    NICE::Config tmpConfEmpty ;
+    gphyper = new FMKGPHyperparameterOptimization ( &tmpConfEmpty, confSection ); 
+  }
+  //those two methods replace the previous call of the "full" constructor
+  gphyper->setParameterizedFunction ( pf );
+  gphyper->setFastMinKernel ( fmk );
+
 
   if (verbose)
     cerr << "Learning ..." << endl;
@@ -496,11 +526,7 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
       delete pf;
       pf = NULL;
     }
-    if ( confCopy != NULL )
-    {
-      delete confCopy;
-      confCopy = NULL;
-    }
+    //
     if (gphyper != NULL)
     {
       delete gphyper;
@@ -559,22 +585,6 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
         is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       } 
-      else if ( tmp.compare("ConfigCopy") == 0 )
-      {
-        // possibly obsolete safety checks
-        if ( confCopy == NULL )
-          confCopy = new Config;
-        confCopy->clear();
-        
-        
-        //we do not want to read until the end of the file
-        confCopy->setIoUntilEndOfFile( false );
-        //load every options we determined explicitely
-        confCopy->restore(is, format);
-        
-        is >> tmp; // end of block 
-        tmp = this->removeEndTag ( tmp );
-      }
       else if ( tmp.compare("gphyper") == 0 )
       {
         if ( gphyper == NULL )
@@ -595,10 +605,11 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
     }
 
     //load every settings as well as default options
-    std::cerr << "run this->init" << std::endl;
-    this->init(confCopy, confSection);    
-    std::cerr << "run gphyper->initialize" << std::endl;
-    gphyper->initialize ( confCopy, pf, NULL, confSection );
+    //TODO check that this is not needed anymore!!!
+//     std::cerr << "run this->init" << std::endl;
+//     this->init(confCopy, confSection);    
+//     std::cerr << "run gphyper->initialize" << std::endl;
+//     gphyper->initialize ( confCopy, pf, NULL, confSection );
   }
   else
   {
@@ -626,13 +637,7 @@ void GPHIKClassifier::store ( std::ostream & os, int format ) const
     os << this->createStartTag( "pf" ) << std::endl;
     pf->store(os, format);
     os << this->createEndTag( "pf" ) << std::endl; 
-
-    os << this->createStartTag( "ConfigCopy" ) << std::endl;
-    //we do not want to read until end of file for restoring    
-    confCopy->setIoUntilEndOfFile(false);
-    confCopy->store(os,format);
-    os << this->createEndTag( "ConfigCopy" ) << std::endl; 
-    
+   
     os << this->createStartTag( "gphyper" ) << std::endl;
     //store the underlying data
     //will be done in gphyper->store(of,format)
@@ -664,11 +669,6 @@ void GPHIKClassifier::clear ()
     pf = NULL;
   }
 
-  if ( confCopy != NULL )
-  {
-    delete confCopy; 
-    confCopy = NULL;
-  } 
 }
 
 ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////

@@ -52,8 +52,8 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
     
     /** Header in configfile where variable settings are stored */
     std::string confSection;
-    /** Configuration file specifying variable settings */
-    NICE::Config *confCopy; 
+//     /** Configuration file specifying variable settings */
+//     NICE::Config *confCopy; 
     
     // internal objects 
     
@@ -87,6 +87,29 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
     //  PROTECTED METHODS  //
     /////////////////////////
     /////////////////////////
+          
+
+  public:
+
+    /** 
+     * @brief default constructor
+     * @author Alexander Freytag
+     * @date 05-02-2014 ( dd-mm-yyyy)
+     */
+    GPHIKClassifier( );
+     
+    
+    /** 
+     * @brief standard constructor
+     * @author Alexander Freytag
+     */
+    GPHIKClassifier( const NICE::Config *conf , const std::string & s_confSection = "GPHIKClassifier" );
+      
+    /**
+     * @brief simple destructor
+     * @author Alexander Freytag
+     */
+    ~GPHIKClassifier();
     
     /** 
     * @brief Setup internal variables and objects used
@@ -94,22 +117,7 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
     * @param conf Config file to specify variable settings
     * @param s_confSection
     */    
-    void init(const NICE::Config *conf, const std::string & s_confSection);
-       
-
-  public:
-
-    /** 
-     * @brief standard constructor
-     * @author Alexander Freytag
-     */
-    GPHIKClassifier( const NICE::Config *conf = NULL, const std::string & s_confSection = "GPHIKClassifier" );
-      
-    /**
-     * @brief simple destructor
-     * @author Alexander Freytag
-     */
-    ~GPHIKClassifier();
+    void initFromConfig(const NICE::Config *conf, const std::string & s_confSection);    
     
     ///////////////////// ///////////////////// /////////////////////
     //                         GET / SET

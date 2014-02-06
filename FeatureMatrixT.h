@@ -38,7 +38,7 @@ namespace NICE {
  * @author Alexander Freytag
  */  
   
-template<class T> class FeatureMatrixT : NICE::Persistent
+template<class T> class FeatureMatrixT : public NICE::Persistent
 {
 
   protected:
@@ -273,7 +273,7 @@ template<class T> class FeatureMatrixT : NICE::Persistent
     * @author Alexander Freytag
     * @date 11-01-2012 (dd-mm-yyyy)
     */
-    double computeSparsityRatio();
+    double computeSparsityRatio() const;
 
     /** 
     * @brief add a new feature and insert its elements in the already ordered structure
