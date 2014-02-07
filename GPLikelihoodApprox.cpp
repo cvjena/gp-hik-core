@@ -308,7 +308,14 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
     NICE::Vector alpha;
     if ( this->initialAlphaGuess != NULL )
     {
-      alpha = this->initialAlphaGuess->find(classCnt)->second;
+      std::map<int, NICE::Vector>::iterator myIt = this->initialAlphaGuess->find(classCnt);
+      if ( myIt != this->initialAlphaGuess->end() )
+        alpha = myIt->second;
+      else
+      {
+        //NOTE this should never happen in theory...
+        alpha = (binaryLabels[classCnt] * (1.0 / eigenmax[0]) );
+      }
     }
     else
     {

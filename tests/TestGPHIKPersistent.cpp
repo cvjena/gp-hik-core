@@ -24,6 +24,7 @@ using namespace std; //C basics
 using namespace NICE;  // nice-core
 
 const bool verboseStartEnd = true;
+const bool verbose = true;
 
 
 CPPUNIT_TEST_SUITE_REGISTRATION( TestGPHIKPersistent );
@@ -77,8 +78,15 @@ void TestGPHIKPersistent::testPersistentMethods()
   // TRAIN CLASSIFIER FROM SCRATCH
   
   classifier = new GPHIKClassifier ( &conf );  
-    
-  classifier->train ( examplesTrain , yMultiTrain );
+  
+  yBinTrain *= 2;
+  yBinTrain -= 1;
+  yBinTrain *= -1;
+  
+  std::cerr << yBinTrain << std::endl;
+  
+  std::cerr << "train classifier with artifially disturbed labels" << std::endl;
+  classifier->train ( examplesTrain , yBinTrain);//yMultiTrain );
   
   
   // TEST STORING ABILITIES
@@ -96,7 +104,7 @@ void TestGPHIKPersistent::testPersistentMethods()
   
   // TEST RESTORING ABILITIES
     
-  NICE::GPHIKClassifier * classifierRestored = new GPHIKClassifier;  
+  NICE::GPHIKClassifier * classifierRestored = new GPHIKClassifier();  
       
   std::string s_destination_load ( "myClassifier.txt" );
   
@@ -170,6 +178,21 @@ void TestGPHIKPersistent::testPersistentMethods()
       mapClNoToIdxTest.insert ( std::pair<int,int> ( *clTestIt, i )  ); 
           
   
+  if ( verbose )
+  {
+    std::cout << "Train data mapping: " << std::endl;
+    for ( std::map<int,int>::const_iterator clTrainIt = mapClNoToIdxTrain.begin(); clTrainIt != mapClNoToIdxTrain.end(); clTrainIt++ )
+    {
+      std::cout << " " << clTrainIt->first << " " << clTrainIt->second << std::endl;
+    }
+
+    std::cout << "Test data mapping: " << std::endl;
+    for ( std::map<int,int>::const_iterator clTestIt = mapClNoToIdxTest.begin(); clTestIt != mapClNoToIdxTest.end(); clTestIt++ )
+    {
+      std::cout << " " << clTestIt->first << " " << clTestIt->second << std::endl;
+    }    
+  }
+  
   NICE::Matrix confusionMatrix         ( noClassesKnownTraining, noClassesKnownTest, 0.0);
   NICE::Matrix confusionMatrixRestored ( noClassesKnownTraining, noClassesKnownTest, 0.0);
   
@@ -202,6 +225,15 @@ void TestGPHIKPersistent::testPersistentMethods()
 
   confusionMatrixRestored.normalizeColumnsL1();
   double arrRestored ( confusionMatrixRestored.trace()/confusionMatrixRestored.cols() );
+  
+  if ( verbose )
+  {
+    std::cout << "confusionMatrix: " << confusionMatrix << std::endl;
+    std::cout << "confusionMatrixRestored: " << confusionMatrixRestored << std::endl;
+    std::cout << "arr: " << arr << std::endl;
+    std::cout << "arrRestored: " << arrRestored << std::endl;   
+    
+  }
 
   
   CPPUNIT_ASSERT_DOUBLES_EQUAL( arr, arrRestored, 1e-8);

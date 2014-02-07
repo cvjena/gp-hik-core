@@ -485,7 +485,7 @@ namespace NICE {
     
     //Computes the ratio of sparsity across the matrix
     template <typename T>
-    double FeatureMatrixT<T>:: computeSparsityRatio()
+    double FeatureMatrixT<T>:: computeSparsityRatio() const
     {
       double ratio(0.0);
       for (typename std::vector<NICE::SortedVectorSparse<T> >::const_iterator it = features.begin(); it != features.end(); it++)

@@ -112,6 +112,46 @@ void evaluateClassifier ( NICE::Matrix & confusionMatrix,
   }
 }
 
+void compareClassifierOutputs ( const NICE::GPHIKClassifier * classifier,
+                                const NICE::GPHIKClassifier * classifierScratch, 
+                                const NICE::Matrix & data
+                              )
+{
+  int i_loopEnd  ( (int)data.rows() );  
+  
+  for (int i = 0; i < i_loopEnd ; i++)
+  {
+    NICE::Vector example ( data.getRow(i) );
+    
+    NICE::SparseVector scores;
+    int result;    
+    
+    // classify with incrementally trained classifier 
+    classifier->classify( &example, result, scores );
+
+    
+    NICE::SparseVector scoresScratch;
+    int resultScratch;
+    classifierScratch->classify( &example, resultScratch, scoresScratch );
+    
+    
+    bool equal(true);
+    NICE::SparseVector::const_iterator itScores        = scores.begin();
+    NICE::SparseVector::const_iterator itScoresScratch = scoresScratch.begin();
+    for ( ; itScores != scores.end(); itScores++, itScoresScratch++)
+    {
+      if ( fabs( itScores->second - itScores->second ) > 10e-3)
+      {
+        std::cerr << " itScores->second: " << itScores->second << " itScores->second: " << itScores->second << std::endl;
+        equal = false;
+        break;
+      }        
+    }
+    
+    CPPUNIT_ASSERT_EQUAL ( equal, true );     
+  }  
+}
+
 void TestGPHIKOnlineLearnable::testOnlineLearningStartEmpty()
 {
   if (verboseStartEnd)
@@ -145,7 +185,7 @@ void TestGPHIKOnlineLearnable::testOnlineLearningStartEmpty()
   //create classifier object
   NICE::GPHIKClassifier * classifier;
   classifier = new NICE::GPHIKClassifier ( &conf );  
-  bool performOptimizationAfterIncrement ( false );
+  bool performOptimizationAfterIncrement ( true );
 
   // add training samples, but without running training method first
   classifier->addMultipleExamples ( examplesTrain,yMultiTrain, performOptimizationAfterIncrement );  
@@ -253,6 +293,10 @@ void TestGPHIKOnlineLearnable::testOnlineLearningOCCtoBinary()
   
   examplesTrain.resize( dataTrain.rows() );
   
+  // to check whether non-consecutive and even wrongly odered class numbers work as well
+  int clNoFirst  ( 2 );
+  int clNoSecond ( 0 );
+  
   std::vector< const NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin();
   for (int i = 0; i < (int)dataTrain.rows(); i++, exTrainIt++)
   {
@@ -261,20 +305,22 @@ void TestGPHIKOnlineLearnable::testOnlineLearningOCCtoBinary()
     if ( yBinTrain[i] == 1 )
     {
       examplesTrainPlus.push_back ( *exTrainIt );
+      yBinTrain[i] = clNoFirst;
     }
     else
     {
        examplesTrainMinus.push_back ( *exTrainIt );
+       yBinTrain[i] = clNoSecond;
     }
   }
-  NICE::Vector yBinPlus  ( examplesTrainPlus.size(), 1 ) ;
-  NICE::Vector yBinMinus ( examplesTrainMinus.size(), 0 );
+  NICE::Vector yBinPlus  ( examplesTrainPlus.size(), clNoFirst ) ;
+  NICE::Vector yBinMinus ( examplesTrainMinus.size(), clNoSecond );
   
   
   //create classifier object
   NICE::GPHIKClassifier * classifier;
   classifier = new NICE::GPHIKClassifier ( &conf );  
-  bool performOptimizationAfterIncrement ( false );
+  bool performOptimizationAfterIncrement ( true );
 
   // training with examples for positive class only
   classifier->train ( examplesTrainPlus, yBinPlus );
@@ -365,6 +411,7 @@ void TestGPHIKOnlineLearnable::testOnlineLearningBinarytoMultiClass()
   
   conf.sB ( "GPHIKClassifier", "eig_verbose", false);
   conf.sS ( "GPHIKClassifier", "optimization_method", "downhillsimplex");
+//   conf.sS ( "GPHIKClassifier", "optimization_method", "none");
   
   std::string s_trainData = conf.gS( "main", "trainData", "toyExampleSmallScaleTrain.data" );
   
@@ -413,11 +460,11 @@ void TestGPHIKOnlineLearnable::testOnlineLearningBinarytoMultiClass()
   //create classifier object
   NICE::GPHIKClassifier * classifier;
   classifier = new NICE::GPHIKClassifier ( &conf );  
-  bool performOptimizationAfterIncrement ( false );
+  bool performOptimizationAfterIncrement ( true );
 
-  // training with examples for positive class only
+  // training with examples for first and second class only
   classifier->train ( examplesTrain12, yMulti12 );
-  // add samples for negative class, thereby going from OCC to binary setting
+  // add samples for third class, thereby going from binary to multi-class setting
   classifier->addMultipleExamples ( examplesTrain3, yMulti3, performOptimizationAfterIncrement );  
   
   // create second object trained in the standard way
@@ -457,6 +504,8 @@ void TestGPHIKOnlineLearnable::testOnlineLearningBinarytoMultiClass()
   // ------------------------------------------
   // ------------- CLASSIFICATION --------------
   // ------------------------------------------  
+  
+  compareClassifierOutputs ( classifier, classifierScratch, dataTest ); 
   evaluateClassifier ( confusionMatrix, classifier, dataTest, yMultiTest,
                           mapClNoToIdxTrain,mapClNoToIdxTest ); 
   

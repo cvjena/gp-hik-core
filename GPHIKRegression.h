@@ -41,31 +41,35 @@ class GPHIKRegression : public NICE::Persistent, public NICE::OnlineLearnable
     /////////////////////////
     /////////////////////////
     
-    // output/debug related settings
+    ///////////////////////////////////
+    // output/debug related settings //   
+    ///////////////////////////////////
     
     /** verbose flag for useful output*/
     bool verbose;
     /** debug flag for several outputs useful for debugging*/
     bool debug;
     
-    // general specifications
+    
+    //////////////////////////////////////
+    //      general specifications      //
+    //////////////////////////////////////
     
     /** Header in configfile where variable settings are stored */
     std::string confSection;
-    /** Configuration file specifying variable settings */
-    NICE::Config *confCopy; 
+    
+    //////////////////////////////////////
+    // classification related variables //
+    //////////////////////////////////////     
+    /** memorize whether the classifier was already trained*/    
+    bool b_isTrained;      
     
     // internal objects 
     
     /** Main object doing all the jobs: training, regression, optimization, ... */
     NICE::FMKGPHyperparameterOptimization *gphyper;    
-    
-    /** Possibility for transforming feature values, parameters can be optimized */
-    NICE::ParameterizedFunction *pf;    
-    
-    
-    
-    
+  
+        
     /** Gaussian label noise for model regularization */
     double noise;
 
@@ -88,17 +92,15 @@ class GPHIKRegression : public NICE::Persistent, public NICE::OnlineLearnable
     /////////////////////////
     /////////////////////////
     
-    /** 
-    * @brief Setup internal variables and objects used
-    * @author Alexander Freytag
-    * @param conf Config file to specify variable settings
-    * @param s_confSection
-    */    
-    void init(const NICE::Config *conf, const std::string & s_confSection);
-       
-
   public:
 
+    /** 
+     * @brief default constructor
+     * @author Alexander Freytag
+     * @brief 06-02-2014 (dd-mm-yyyy)
+     */
+    GPHIKRegression( );    
+    
     /** 
      * @brief standard constructor
      * @author Alexander Freytag
@@ -110,6 +112,14 @@ class GPHIKRegression : public NICE::Persistent, public NICE::OnlineLearnable
      * @author Alexander Freytag
      */
     ~GPHIKRegression();
+    
+    /** 
+    * @brief Setup internal variables and objects used
+    * @author Alexander Freytag
+    * @param conf Config file to specify variable settings
+    * @param s_confSection
+    */    
+    void initFromConfig(const NICE::Config *conf, const std::string & s_confSection);    
     
     ///////////////////// ///////////////////// /////////////////////
     //                         GET / SET

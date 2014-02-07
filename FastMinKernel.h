@@ -93,14 +93,14 @@ namespace NICE {
       //------------------------------------------------------
       
       /** 
-      * @brief dummy constructor
+      * @brief default constructor
       * @author Alexander Freytag
       * @date 20-04-2012 (dd-mm-yyyy)
       */
       FastMinKernel();      
       
       /** 
-      * @brief initialize with some data
+      * @brief recommended constructor, initialize with some data
       * @author Alexander Freytag
       * @date 06-12-2011 (dd-mm-yyyy)
       */
@@ -108,7 +108,7 @@ namespace NICE {
 
       
       /**
-      * @brief Just another sparse data structure
+      * @brief recommended constructor, just another sparse data structure
       *
       * @param X vector of sparse vector pointers
       * @param noise GP noise
@@ -117,7 +117,7 @@ namespace NICE {
 
 #ifdef NICE_USELIB_MATIO
       /**
-      * @brief intialize with some data given in a matlab-sparse struct and restricted with an example index
+      * @brief recommended constructor, intialize with some data given in a matlab-sparse struct and restricted with an example index
       *
       * @param X matlab-struct containing the feature vectors
       * @param noise additional noise variance of the labels
@@ -133,9 +133,10 @@ namespace NICE {
       */
       ~FastMinKernel();
 
-      //------------------------------------------------------
-      // several get and set methods including access operators
-      //------------------------------------------------------
+    ///////////////////// ///////////////////// /////////////////////
+    //                         GET / SET
+    //                   INCLUDING ACCESS OPERATORS
+    ///////////////////// ///////////////////// /////////////////////       
       
       
       void setApproximationScheme(const ApproximationScheme & _approxScheme = MEDIAN) {approxScheme = _approxScheme;};
@@ -147,21 +148,21 @@ namespace NICE {
       * @author Alexander Freytag
       * @date 07-12-2011 (dd-mm-yyyy)
       */
-      int get_n() const {return n;};
+      int get_n() const;
       
       /** 
       * @brief Get number of dimensions
       * @author Alexander Freytag
       * @date 07-12-2011 (dd-mm-yyyy)
       */
-      int get_d() const {return d;};
+      int get_d() const;
 
       /** 
       * @brief Computes the ratio of sparsity across the matrix
       * @author Alexander Freytag
       * @date 11-01-2012 (dd-mm-yyyy)
       */
-      double getSparsityRatio(){return X_sorted.computeSparsityRatio();};
+      double getSparsityRatio() const;
       
       /** set verbose flag used for restore-functionality*/
       void setVerbose( const bool & _verbose);

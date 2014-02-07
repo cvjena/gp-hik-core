@@ -1,23 +1,25 @@
 /** 
 * @file Quantization.h
 * @brief Quantization of one-dimensional signals with a standard range of [0,1] (Interface)
-* @author Erik Rodner
+* @author Erik Rodner, Alexander Freytag
 * @date 01/09/2012
 */
 #ifndef _NICE_QUANTIZATIONINCLUDE
 #define _NICE_QUANTIZATIONINCLUDE
 
+// NICE-core includes
 #include <core/basics/types.h>
+#include <core/basics/Persistent.h>
 
 namespace NICE {
   
  /** 
  * @class Quantization
  * @brief Quantization of one-dimensional signals with a standard range of [0,1]
- * @author Erik Rodner
+ * @author Erik Rodner, Alexander Freytag
  */
  
-class Quantization
+class Quantization  : public NICE::Persistent
 {
 
   /** TODO
@@ -28,11 +30,23 @@ class Quantization
 
   protected:
 
-  uint numBins;
+    uint numBins;
 
   public:
 
-  /** simple constructor */
+  /** 
+   * @brief default constructor
+   * @author Alexander Freytag
+   * @date 06-02-2014
+   */
+  
+  Quantization( );
+  
+  /**
+   * @brief simple constructor
+   * @author Erik Rodner
+   * @date 
+   */
   Quantization( uint numBins );
     
   /** simple destructor */
@@ -61,6 +75,13 @@ class Quantization
   * @return index of the bin entry corresponding to the given signal value
   */
   virtual uint quantize (double value) const;
+  
+  ///////////////////// INTERFACE PERSISTENT /////////////////////
+  // interface specific methods for store and restore
+  ///////////////////// INTERFACE PERSISTENT /////////////////////
+  virtual void restore ( std::istream & is, int format = 0 );
+  virtual void store ( std::ostream & os, int format = 0 ) const; 
+  virtual void clear () {};  
      
 };
 
