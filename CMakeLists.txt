@@ -4,20 +4,13 @@
 #library name (name is appended to "nice_" to form the target library name)
 set(the_library "gp-hik-core")
 
-#define variable nice_<libname>_HDR and nice_<libname>_SRC for library header and source files (don't include progs and test source files here)
-include( corefiles.cmake)
-
-#define variable nice_<libname>_PROGFILES_HDR and nice_<libname>_PROGFILES_SRC for program header and source files (don't include library and test source files here)
-include( progfiles.cmake)
-
-#define variable nice_<libname>_TESTFILES_HDR and nice_<libname>_TESTFILES_SRC for unit test header and source files (don't include library and progs source files here)
-include( testfiles.cmake)	
-
 #add linkage dependencies to other libraries here
 set("nice_${the_library}_LINKING_DEPENDENCIES" "nice_core")
 
 #####################################################
 message(STATUS "adding library ${the_library}")
+
+nice_get_source_files()
 
 nice_build_library()
 
