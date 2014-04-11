@@ -17,29 +17,11 @@
 
 namespace NICE {
 
- /** 
- * @class ConverterNICEToMatlab
- * @author Alexander Freytag
- * @brief Several methods for converting Matlab data into NICE containers
- */
-
-class ConverterNICEToMatlab
-{
-
-  protected:
-  
-  public:
-
-    /**
-     * @brief Default constructor
-     **/
-    ConverterNICEToMatlab();
-
-    /**
-     *@brief Default destructor
-     **/    
-    ~ConverterNICEToMatlab();
-  
+/**
+* @author Alexander Freytag, Johannes Ruehle
+* @brief Several methods for converting Matlab data into NICE containers
+*/
+namespace MatlabConversion {
 
     /**
      * @brief Convert a SparseVector into a Matlab 1xD sparse matrix
@@ -50,7 +32,7 @@ class ConverterNICEToMatlab
      * @param b_adaptIndexCtoM if true, dim k will be inserted as k, not as k+1 (which would be the default for C->M) Defaults to false.
      * @return mxArray*
      **/
-    mxArray* convertSparseVectorFromNice( const NICE::SparseVector & niceSvec, const bool & b_adaptIndexCtoM = false ) const;
+    mxArray* convertSparseVectorFromNice( const NICE::SparseVector & niceSvec, const bool & b_adaptIndexCtoM = false );
 
     /**
      * @brief Convert a NICE::Matrix into a full Matlab MxD matrix
@@ -60,7 +42,7 @@ class ConverterNICEToMatlab
      * @param niceMatrix a NICE::Matrix
      * @return mxArray*
      **/
-    mxArray* convertMatrixFromNice( const NICE::Matrix & niceMatrix ) const;
+    mxArray* convertMatrixFromNice( const NICE::Matrix & niceMatrix );
     
     /**
      * @brief Convert a NICE::Vector into a full Matlab 1xD matrix
@@ -71,9 +53,9 @@ class ConverterNICEToMatlab
      * @return mxArray*
      **/
     
-    mxArray* convertVectorFromNice( const NICE::Vector & niceVector ) const;
+    mxArray* convertVectorFromNice( const NICE::Vector & niceVector );
 
-};
+} // ns MatlabConversion
 
 }
 

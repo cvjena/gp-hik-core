@@ -2,18 +2,10 @@
 #include "ConverterNICEToMatlab.h"
 
 using namespace NICE;
-
-ConverterNICEToMatlab::ConverterNICEToMatlab()
-{
-}
-
-ConverterNICEToMatlab::~ConverterNICEToMatlab()
-{
-}
-
+using namespace NICE::MatlabConversion;
 
 // b_adaptIndexCtoM: if true, dim k will be inserted as k, not as k+1 (which would be the default for C->M)
-mxArray* ConverterNICEToMatlab::convertSparseVectorFromNice( const NICE::SparseVector & niceSvec, const bool & b_adaptIndexCtoM ) const
+mxArray* MatlabConversion::convertSparseVectorFromNice( const NICE::SparseVector & niceSvec, const bool & b_adaptIndexCtoM )
 {
     mxArray * matlabSparseVec = mxCreateSparse( niceSvec.getDim() /*m*/, 1/*n*/, niceSvec.size()/*nzmax*/, mxREAL);
     
@@ -49,7 +41,7 @@ mxArray* ConverterNICEToMatlab::convertSparseVectorFromNice( const NICE::SparseV
     return matlabSparseVec;
 }
 
-mxArray* ConverterNICEToMatlab::convertMatrixFromNice( const NICE::Matrix & niceMatrix ) const
+mxArray* MatlabConversion::convertMatrixFromNice( const NICE::Matrix & niceMatrix )
 {
   mxArray *matlabMatrix = mxCreateDoubleMatrix( niceMatrix.rows(), niceMatrix.cols(), mxREAL );
   double* matlabMatrixPtr = mxGetPr( matlabMatrix );
@@ -65,7 +57,7 @@ mxArray* ConverterNICEToMatlab::convertMatrixFromNice( const NICE::Matrix & nice
   return matlabMatrix;
 }
 
-mxArray* ConverterNICEToMatlab::convertVectorFromNice( const NICE::Vector & niceVector ) const
+mxArray* MatlabConversion::convertVectorFromNice( const NICE::Vector & niceVector )
 {
   mxArray *matlabVector = mxCreateDoubleMatrix( niceVector.size(), 1, mxREAL );
   double* matlabVectorPtr = mxGetPr( matlabVector );

@@ -18,6 +18,10 @@
 
 #define CLASS_HANDLE_SIGNATURE 0xFF00F0A3
 
+namespace NICE {
+
+namespace MatlabConversion {
+
   /** 
   * @class ClassHandle
   * @brief Generic class to pass C++ objects to matlab
@@ -138,6 +142,10 @@ template<class objectClass> inline void destroyObject(const mxArray *in)
     
     // storage is freed, so users can savely clear the mex file again at any time...
     mexUnlock();
+}
+
+}
+
 }
 
 #endif // _NICE_CLASSHANDLEMTOCINCLUDE

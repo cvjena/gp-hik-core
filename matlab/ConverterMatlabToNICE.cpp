@@ -3,21 +3,13 @@
 
 using namespace NICE;
 
-ConverterMatlabToNICE::ConverterMatlabToNICE()
-{
-}
-
-ConverterMatlabToNICE::~ConverterMatlabToNICE()
-{
-}
-
 /* Pass analyze_sparse a pointer to a sparse mxArray.  A sparse mxArray
    only stores its nonzero elements.  The values of the nonzero elements 
    are stored in the pr and pi arrays.  The tricky part of analyzing
    sparse mxArray's is figuring out the indices where the nonzero
    elements are stored.  (See the mxSetIr and mxSetJc reference pages
    for details. */  
-std::vector< const NICE::SparseVector * > ConverterMatlabToNICE::convertSparseMatrixToNice( const mxArray *array_ptr ) const
+std::vector< const NICE::SparseVector * > MatlabConversion::convertSparseMatrixToNice( const mxArray *array_ptr )
 {
   double   *pr;//, *pi;
   mwIndex  *ir, *jc;
@@ -79,10 +71,10 @@ std::vector< const NICE::SparseVector * > ConverterMatlabToNICE::convertSparseMa
 }
 
 // b_adaptIndexMtoC: if true, dim k will be inserted as k, not as k-1 (which would be the default for  M->C)
-NICE::SparseVector ConverterMatlabToNICE::convertSparseVectorToNice(
+NICE::SparseVector MatlabConversion::convertSparseVectorToNice(
                const mxArray* array_ptr,
                const bool & b_adaptIndexMtoC
-    )  const
+    )
 {
   double   *pr, *pi;
   mwIndex  *ir, *jc;
@@ -147,7 +139,7 @@ NICE::SparseVector ConverterMatlabToNICE::convertSparseVectorToNice(
   return svec;
 }
 
-NICE::Matrix ConverterMatlabToNICE::convertDoubleMatrixToNice( const mxArray* matlabMatrix ) const
+NICE::Matrix MatlabConversion::convertDoubleMatrixToNice( const mxArray* matlabMatrix )
 {
   if( !mxIsDouble( matlabMatrix ) )
     mexErrMsgIdAndTxt( "mexnice:error","Expected double in convertDoubleMatrixToNice" );
@@ -169,7 +161,7 @@ NICE::Matrix ConverterMatlabToNICE::convertDoubleMatrixToNice( const mxArray* ma
 }
 
 
-NICE::Vector ConverterMatlabToNICE::convertDoubleVectorToNice( const mxArray* matlabMatrix ) const
+NICE::Vector MatlabConversion::convertDoubleVectorToNice( const mxArray* matlabMatrix )
 {
   if( !mxIsDouble( matlabMatrix ) )
     mexErrMsgIdAndTxt( "mexnice:error","Expected double in convertDoubleVectorToNice" );
@@ -202,7 +194,7 @@ NICE::Vector ConverterMatlabToNICE::convertDoubleVectorToNice( const mxArray* ma
 
 
 
-std::string ConverterMatlabToNICE::convertMatlabToString( const mxArray *matlabString ) const
+std::string MatlabConversion::convertMatlabToString( const mxArray *matlabString )
 {
   if( !mxIsChar( matlabString ) )
     mexErrMsgIdAndTxt("mexnice:error","Expected string");
@@ -214,7 +206,7 @@ std::string ConverterMatlabToNICE::convertMatlabToString( const mxArray *matlabS
 }
 
 
-int ConverterMatlabToNICE::convertMatlabToInt32( const mxArray *matlabInt32 ) const
+int MatlabConversion::convertMatlabToInt32( const mxArray *matlabInt32 )
 {
   if( !mxIsInt32( matlabInt32 ) )
     mexErrMsgIdAndTxt("mexnice:error","Expected int32");
@@ -223,7 +215,7 @@ int ConverterMatlabToNICE::convertMatlabToInt32( const mxArray *matlabInt32 ) co
   return ptr[0];
 }
 
-double ConverterMatlabToNICE::convertMatlabToDouble( const mxArray *matlabDouble ) const
+double MatlabConversion::convertMatlabToDouble( const mxArray *matlabDouble )
 {
   if( !mxIsDouble(matlabDouble) )
     mexErrMsgIdAndTxt("mexnice:error","Expected double");
@@ -232,7 +224,7 @@ double ConverterMatlabToNICE::convertMatlabToDouble( const mxArray *matlabDouble
   return ptr[0];
 }
 
-bool ConverterMatlabToNICE::convertMatlabToBool( const mxArray *matlabBool ) const
+bool MatlabConversion::convertMatlabToBool( const mxArray *matlabBool )
 {
   if( !mxIsLogical( matlabBool ) )
     mexErrMsgIdAndTxt("mexnice:error","Expected bool");
