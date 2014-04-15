@@ -68,7 +68,7 @@ namespace NICE {
     std::string convertMatlabToString( const mxArray *matlabString );
 
     /**
-     * @brief Convert a Matlab int32 variable into an std::int
+     * @brief Convert a Matlab int32 scalar variable into an std::int
      *
      * @param matlabInt32 a matlab int32 variable
      * @return int
