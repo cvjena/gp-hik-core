@@ -5,5 +5,7 @@ matlab/ConverterNICEToMatlab.cpp
 matlab/ConverterNICEToMatlab.h
 matlab/GPHIKClassifierMex.cpp
 matlab/GPHIKRegressionMex.cpp	
+matlab/testMex.cpp	
+matlab/testMatlabConversionFunctionsMex.cpp
 )
 
