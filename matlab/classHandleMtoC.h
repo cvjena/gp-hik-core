@@ -1,3 +1,4 @@
+#ifdef NICE_USELIB_MEX
 /** 
 * @file classHandleMtoC.h
 * @brief Generic class to pass C++ objects to matlab (Interface and inline implementations)
@@ -149,3 +150,4 @@ template<class objectClass> inline void destroyObject(const mxArray *in)
 }
 
 #endif // _NICE_CLASSHANDLEMTOCINCLUDE
+#endif

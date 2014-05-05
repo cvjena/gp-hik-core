@@ -1,3 +1,4 @@
+#ifdef NICE_USELIB_MEX
 
 #include "ConverterNICEToMatlab.h"
 
@@ -68,3 +69,4 @@ mxArray* MatlabConversion::convertVectorFromNice( const NICE::Vector & niceVecto
   }
   return matlabVector;
 }
+#endif

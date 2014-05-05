@@ -1,3 +1,4 @@
+#ifdef NICE_USELIB_MEX
 /** 
 * @file ConverterMatlabToNICE.h
 * @author Alexander Freytag
@@ -95,4 +96,5 @@ namespace NICE {
 
 }
 
+#endif
 #endif

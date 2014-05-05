@@ -1,3 +1,4 @@
+#ifdef NICE_USELIB_MEX
 
 #include "ConverterMatlabToNICE.h"
 
@@ -232,3 +233,4 @@ bool MatlabConversion::convertMatlabToBool( const mxArray *matlabBool )
   bool* ptr = (bool*) mxGetData( matlabBool );
   return ptr[0];
 }
+#endif

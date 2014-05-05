@@ -1,3 +1,4 @@
+#ifdef NICE_USELIB_MEX
 /** 
 * @file GPHIKClassifierMex.cpp
 * @author Alexander Freytag
@@ -723,3 +724,4 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     mexErrMsgTxt( errorMsg.c_str() );
 
 }
+#endif

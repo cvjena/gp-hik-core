@@ -1,3 +1,4 @@
+#ifdef NICE_USELIB_MEX
 /** 
 * @file ConverterNICEToMatlab.h
 * @author Alexander Freytag
@@ -59,4 +60,5 @@ namespace MatlabConversion {
 
 }
 
+#endif
 #endif
