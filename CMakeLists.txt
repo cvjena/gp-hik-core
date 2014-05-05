@@ -16,6 +16,8 @@ nice_build_library()
 
 nice_add_progs()
 
+nice_add_mexes()
+
 nice_add_unittests()
 
 #####
