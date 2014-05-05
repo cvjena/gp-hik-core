@@ -5,7 +5,7 @@
 set(the_library "gp-hik-core")
 
 #add linkage dependencies to other libraries here
-set("nice_${the_library}_LINKING_DEPENDENCIES" "nice_core")
+set("nice_${the_library}_LINKING_DEPENDENCIES" "nice_core" ${MEX_LIBRARIES})
 
 #####################################################
 message(STATUS "adding library ${the_library}")
