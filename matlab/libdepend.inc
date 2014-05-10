@@ -1,0 +1,1 @@
+$(call PKG_DEPEND_EXT,MEX)
