@@ -92,7 +92,11 @@ void mapClassNumbersToIndices( const NICE::Vector & labels, std::map<int,int> & 
 
 int main (int argc, char* argv[])
 {  
+#ifndef __clang__
+#ifndef __llvm__
   std::set_terminate(__gnu_cxx::__verbose_terminate_handler);
+#endif
+#endif
 
   NICE::Config conf ( argc, argv );
  
