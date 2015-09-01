@@ -55,7 +55,7 @@ class ParameterizedFunction : public NICE::Persistent
     /**
     * @brief Function evaluation
     *
-    * @param index component of the vectoR
+    * @param index component of the vector
     * @param x function argument
     *
     * @return function value, which depends on the stored parameters

@@ -34,6 +34,7 @@
 #include "gp-hik-core/GMHIKernel.h"
 #include "gp-hik-core/IKMNoise.h"
 // 
+#include "gp-hik-core/parameterizedFunctions/PFIdentity.h"
 #include "gp-hik-core/parameterizedFunctions/PFAbsExp.h"
 #include "gp-hik-core/parameterizedFunctions/PFExp.h"
 #include "gp-hik-core/parameterizedFunctions/PFMKL.h"
@@ -412,7 +413,7 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   this->verboseTime = _conf->gB ( _confSection, "verboseTime", false );
   this->debug = _conf->gB ( _confSection, "debug", false );
 
-  if ( verbose )
+  if ( this->verbose )
   {  
     std::cerr << "------------" << std::endl;
     std::cerr << "|  set-up  |" << std::endl;
@@ -427,7 +428,7 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   
   bool useQuantization = _conf->gB ( _confSection, "use_quantization", false );
   
-  if ( verbose ) 
+  if ( this->verbose ) 
   {
     std::cerr << "_confSection: " << _confSection << std::endl;
     std::cerr << "use_quantization: " << useQuantization << std::endl;
@@ -436,7 +437,7 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   if ( _conf->gB ( _confSection, "use_quantization", false ) )
   {
     int numBins = _conf->gI ( _confSection, "num_bins", 100 );
-    if ( verbose )
+    if ( this->verbose )
       std::cerr << "FMKGPHyperparameterOptimization: quantization initialized with " << numBins << " bins." << std::endl;
     this->q = new Quantization ( numBins );
   }
@@ -450,7 +451,11 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   
   std::string transform = _conf->gS( _confSection, "transform", "absexp" );
   
-  if ( transform == "absexp" )
+  if ( transform == "identity" )
+  {
+    this->pf = new NICE::PFIdentity( );
+  }  
+  else if ( transform == "absexp" )
   {
     this->pf = new NICE::PFAbsExp( 1.0, parameterLowerBound, parameterUpperBound );
   }
@@ -479,7 +484,7 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   //////////////////////////////////////////////
   bool ils_verbose = _conf->gB ( _confSection, "ils_verbose", false );
   ils_max_iterations = _conf->gI ( _confSection, "ils_max_iterations", 1000 );
-  if ( verbose )
+  if ( this->verbose )
     std::cerr << "FMKGPHyperparameterOptimization: maximum number of iterations is " << ils_max_iterations << std::endl;
 
   double ils_min_delta = _conf->gD ( _confSection, "ils_min_delta", 1e-7 );
@@ -488,28 +493,28 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   string ils_method = _conf->gS ( _confSection, "ils_method", "CG" );
   if ( ils_method.compare ( "CG" ) == 0 )
   {
-    if ( verbose )
+    if ( this->verbose )
       std::cerr << "We use CG with " << ils_max_iterations << " iterations, " << ils_min_delta << " as min delta, and " << ils_min_residual << " as min res " << std::endl;
     this->linsolver = new ILSConjugateGradients ( ils_verbose , ils_max_iterations, ils_min_delta, ils_min_residual );
-    if ( verbose )
+    if ( this->verbose )
       std::cerr << "FMKGPHyperparameterOptimization: using ILS ConjugateGradients" << std::endl;
   }
   else if ( ils_method.compare ( "CGL" ) == 0 )
   {
     this->linsolver = new ILSConjugateGradientsLanczos ( ils_verbose , ils_max_iterations );
-    if ( verbose )
+    if ( this->verbose )
       std::cerr << "FMKGPHyperparameterOptimization: using ILS ConjugateGradients (Lanczos)" << std::endl;
   }
   else if ( ils_method.compare ( "SYMMLQ" ) == 0 )
   {
     this->linsolver = new ILSSymmLqLanczos ( ils_verbose , ils_max_iterations );
-    if ( verbose )
+    if ( this->verbose )
       std::cerr << "FMKGPHyperparameterOptimization: using ILS SYMMLQ" << std::endl;
   }
   else if ( ils_method.compare ( "MINRES" ) == 0 )
   {
     this->linsolver = new ILSMinResLanczos ( ils_verbose , ils_max_iterations );
-    if ( verbose )
+    if ( this->verbose )
       std::cerr << "FMKGPHyperparameterOptimization: using ILS MINRES" << std::endl;
   }
   else
@@ -533,19 +538,28 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   else
     fthrow ( Exception, "Optimization method " << optimizationMethod_s << " is not known." );
 
-  if ( verbose )
+  if ( this->verbose )
     std::cerr << "Using optimization method: " << optimizationMethod_s << std::endl;
 
   this->parameterStepSize = _conf->gD ( _confSection, "parameter_step_size", 0.1 );  
   
-  optimizeNoise = _conf->gB ( _confSection, "optimize_noise", false );
-  if ( verbose )
+  this->optimizeNoise = _conf->gB ( _confSection, "optimize_noise", false );
+  if ( this->verbose )
     std::cerr << "Optimize noise: " << ( optimizeNoise ? "on" : "off" ) << std::endl;    
+  
+  // if nothing is to be optimized and we have no other hyperparameters, then we could explicitly switch-off the optimization
+  if ( !optimizeNoise && (transform == "identity") && (optimizationMethod != OPT_NONE) )
+  {
+    std::cerr << "FMKGPHyperparameterOptimization::initFromConfig No hyperparameter to optimize but optimization chosen... We ignore optimization. You might want to check this!" << std::endl;
+    
+    this->optimizationMethod = OPT_NONE;
+  }
+  
 
   downhillSimplexMaxIterations = _conf->gI ( _confSection, "downhillsimplex_max_iterations", 20 );
   // do not run longer than a day :)
-  downhillSimplexTimeLimit = _conf->gD ( _confSection, "downhillsimplex_time_limit", 24 * 60 * 60 );
-  downhillSimplexParamTol = _conf->gD ( _confSection, "downhillsimplex_delta", 0.01 );
+  downhillSimplexTimeLimit     = _conf->gD ( _confSection, "downhillsimplex_time_limit", 24 * 60 * 60 );
+  downhillSimplexParamTol      = _conf->gD ( _confSection, "downhillsimplex_delta", 0.01 );
 
 
   //////////////////////////////////////////////
@@ -573,7 +587,7 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   
   this->b_usePreviousAlphas = _conf->gB ( _confSection, "b_usePreviousAlphas", true );
   
-  if ( verbose )
+  if ( this->verbose )
   {
     std::cerr << "------------" << std::endl;
     std::cerr << "|   start   |" << std::endl;
@@ -639,7 +653,7 @@ inline void FMKGPHyperparameterOptimization::setupGPLikelihoodApprox ( GPLikelih
 {
   gplike = new GPLikelihoodApprox ( binaryLabels, ikmsum, linsolver, eig, verifyApproximation, nrOfEigenvaluesToConsider );
   gplike->setDebug( debug );
-  gplike->setVerbose( verbose );
+  gplike->setVerbose( this->verbose );
   parameterVectorSize = ikmsum->getNumParameters();
 }
 
@@ -667,7 +681,7 @@ void FMKGPHyperparameterOptimization::performOptimization ( GPLikelihoodApprox &
     
   if ( optimizationMethod == OPT_GREEDY )
   {
-    if ( verbose )    
+    if ( this->verbose )    
       std::cerr << "OPT_GREEDY!!! " << std::endl;
     
     // simple greedy strategy
@@ -677,7 +691,7 @@ void FMKGPHyperparameterOptimization::performOptimization ( GPLikelihoodApprox &
     NICE::Vector lB = ikmsum->getParameterLowerBounds();
     NICE::Vector uB = ikmsum->getParameterUpperBounds();
     
-    if ( verbose )
+    if ( this->verbose )
       std::cerr << "lower bound " << lB << " upper bound " << uB << " parameterStepSize: " << parameterStepSize << std::endl;
 
     
@@ -690,7 +704,7 @@ void FMKGPHyperparameterOptimization::performOptimization ( GPLikelihoodApprox &
   else if ( optimizationMethod == OPT_DOWNHILLSIMPLEX )
   {
     //standard as before, normal optimization
-    if ( verbose )    
+    if ( this->verbose )    
         std::cerr << "DOWNHILLSIMPLEX!!! " << std::endl;
 
     // downhill simplex strategy
@@ -704,7 +718,7 @@ void FMKGPHyperparameterOptimization::performOptimization ( GPLikelihoodApprox &
     for ( uint i = 0 ; i < parameterVectorSize; i++ )
       initialParams(i,0) = currentParameters[ i ];
 
-    if ( verbose )      
+    if ( this->verbose )      
       std::cerr << "Initial parameters: " << initialParams << std::endl;
 
     //the scales object does not really matter in the actual implementation of Downhill Simplex
@@ -721,14 +735,14 @@ void FMKGPHyperparameterOptimization::performOptimization ( GPLikelihoodApprox &
   }
   else if ( optimizationMethod == OPT_NONE )
   {
-    if ( verbose )
+    if ( this->verbose )
       std::cerr << "NO OPTIMIZATION!!! " << std::endl;
 
     // without optimization
     if ( optimizeNoise )
       fthrow ( Exception, "Deactivate optimize_noise!" );
     
-    if ( verbose )
+    if ( this->verbose )
       std::cerr << "Optimization is deactivated!" << std::endl;
     
     double value (1.0);
@@ -746,7 +760,7 @@ void FMKGPHyperparameterOptimization::performOptimization ( GPLikelihoodApprox &
     gplike.computeAlphaDirect( hyperp, eigenMax );
   }
 
-  if ( verbose )
+  if ( this->verbose )
   {
     std::cerr << "Optimal hyperparameter was: " << gplike.getBestParameters() << std::endl;
   }
@@ -883,7 +897,7 @@ int FMKGPHyperparameterOptimization::prepareBinaryLabels ( std::map<int, NICE::V
     std::set<int>::const_iterator classIt = myClasses.begin(); classIt++;
     this->binaryLabelPositive = *classIt;
     
-    if ( verbose )
+    if ( this->verbose )
       std::cerr << "positiveClass : " << binaryLabelPositive << " negativeClass: " << binaryLabelNegative << std::endl;
 
     for ( uint i = 0 ; i < yb.size() ; i++ )
@@ -962,7 +976,7 @@ void FMKGPHyperparameterOptimization::optimize ( std::map<int, NICE::Vector> & b
   //setup the kernel combination
   ikmsum = new IKMLinearCombination ();
 
-  if ( verbose )
+  if ( this->verbose )
   {
     std::cerr << "binaryLabels.size(): " << binaryLabels.size() << std::endl;
   }
@@ -1002,7 +1016,7 @@ void FMKGPHyperparameterOptimization::optimize ( std::map<int, NICE::Vector> & b
   if (verboseTime)
     std::cerr << "Time used for setting up the eigenvectors-objects: " << t1.getLast() << std::endl;
 
-  if ( verbose )
+  if ( this->verbose )
     std::cerr << "resulting eigenvalues for first class: " << eigenMax[0] << std::endl;
 
   t1.start();
@@ -1011,7 +1025,7 @@ void FMKGPHyperparameterOptimization::optimize ( std::map<int, NICE::Vector> & b
   if (verboseTime)
     std::cerr << "Time used for performing the optimization: " << t1.getLast() << std::endl;
 
-  if ( verbose )
+  if ( this->verbose )
     std::cerr << "Preparing classification ..." << std::endl;
 
   t1.start();

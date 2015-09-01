@@ -54,9 +54,12 @@ NICE::Config parseParametersGPHIKClassifier(const mxArray *prhs[], int nrhs)
     /////////////////////////////////////////
     // READ STANDARD BOOLEAN VARIABLES
     /////////////////////////////////////////
-    if( (variable == "verboseTime") || (variable == "verbose") ||
-        (variable == "optimize_noise") || (variable == "uncertaintyPredictionForClassification") ||
-        (variable == "use_quantization") || (variable == "ils_verbose")
+    if( (variable == "verboseTime") || 
+        (variable == "verbose") ||
+        (variable == "optimize_noise") || 
+        (variable == "uncertaintyPredictionForClassification") ||
+        (variable == "use_quantization") || 
+        (variable == "ils_verbose")
       )
     {
       if ( mxIsChar( prhs[i+1] ) )
@@ -111,7 +114,8 @@ NICE::Config parseParametersGPHIKClassifier(const mxArray *prhs[], int nrhs)
     /////////////////////////////////////////
     // READ STRICT POSITIVE INT VARIABLES
     /////////////////////////////////////////
-    if ( (variable == "num_bins") || (variable == "ils_max_iterations")
+    if ( (variable == "num_bins") || 
+         (variable == "ils_max_iterations")
        )
     {
       if ( mxIsDouble( prhs[i+1] ) )
@@ -142,9 +146,30 @@ NICE::Config parseParametersGPHIKClassifier(const mxArray *prhs[], int nrhs)
     }
     
     /////////////////////////////////////////
+    // READ STANDARD DOUBLE VARIABLES
+    /////////////////////////////////////////
+    if ( (variable == "parameter_upper_bound") || 
+         (variable == "parameter_lower_bound")
+       )
+    {
+      if ( mxIsDouble( prhs[i+1] ) )
+      {
+        double value = MatlabConversion::convertMatlabToDouble(prhs[i+1]);
+
+        conf.sD("GPHIKClassifier", variable, value);        
+      }
+      else
+      {
+          std::string errorMsg = "Unexpected parameter value for \'" +  variable + "\'. Double expected.";
+          mexErrMsgIdAndTxt( "mexnice:error", errorMsg.c_str() );         
+      }     
+    }        
+    
+    /////////////////////////////////////////
     // READ POSITIVE DOUBLE VARIABLES
     /////////////////////////////////////////
-    if ( (variable == "ils_min_delta") || (variable == "ils_min_residual") ||
+    if ( (variable == "ils_min_delta") || 
+         (variable == "ils_min_residual") ||
          (variable == "noise")
        )
     {
@@ -189,8 +214,8 @@ NICE::Config parseParametersGPHIKClassifier(const mxArray *prhs[], int nrhs)
     if(variable == "transform")
     {
       string value = MatlabConversion::convertMatlabToString( prhs[i+1] );
-      if(value != "absexp" && value != "exp" && value != "MKL" && value != "WeightedDim")
-        mexErrMsgIdAndTxt("mexnice:error","Unexpected parameter value for \'transform\'. \'absexp\', \'exp\' , \'MKL\' or \'WeightedDim\' expected.");
+      if( value != "identity" && value != "absexp" && value != "exp" && value != "MKL" && value != "WeightedDim")
+        mexErrMsgIdAndTxt("mexnice:error","Unexpected parameter value for \'transform\'. \'identity\', \'absexp\', \'exp\' , \'MKL\' or \'WeightedDim\' expected.");
         conf.sS("GPHIKClassifier", variable, value);
     }
 

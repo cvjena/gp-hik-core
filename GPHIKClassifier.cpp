@@ -44,7 +44,6 @@ GPHIKClassifier::GPHIKClassifier( )
   NICE::Config tmpConfEmpty ;
   this->initFromConfig ( &tmpConfEmpty, this->confSection );  
   
-
 }
 
 GPHIKClassifier::GPHIKClassifier( const Config *conf, const string & s_confSection )
