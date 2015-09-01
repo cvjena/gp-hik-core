@@ -8,20 +8,85 @@ myData = cat(2,myData , 1-myData);
 myValues = [0.3; 0.0; 1.0; 1.4];
 
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% boolean
+%interested in time measurements?
+b_verboseTime                       = false;
+
+%interested in outputs?
+b_verbose                           = false;  
+
+% important for plotting!
+b_uncertaintyPredictionForRegression ...
+                                    = true; 
+b_optimize_noise                    = false;
+b_use_quantization                  = false;
+b_ils_verbose                       = false;
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% integer
+i_nrOfEigenvaluesToConsiderForVarApprox ...
+                                    = 2;
+i_num_bins                          = 100; % default
+i_ils_max_iterations                = 1000; % default
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% double    
+d_ils_min_delta                     = 1e-7; % default
+d_ils_min_residual                  = 1e-7; % default
+
+% model regularization
+d_noise                             = 0.000001; 
+
+% adapt parameter bounds if you are interested in optimization
+d_parameter_lower_bound             = 1.0;
+d_parameter_upper_bound             = 1.0;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% string    
+s_ils_method                        = 'CG'; % default
+
+% options: 'none', 'greedy', 'downhillsimplex'
+s_optimization_method               = 'downhillsimplex';
+
+% options:  'identity', 'abs', 'absexp'
+% with settings above, this equals 'identity'
+s_transform                         = 'absexp'; 
+
+% options: 'exact', 'approximate_fine', 'approximate_rough', and 'none'
+s_varianceApproximation             = 'exact'; 
+
+
 % init new GPHIKRegression object
-myGPHIKRegression = GPHIKRegression ( 'verbose', 'false', ...
-    'optimization_method', 'none', ...
-    'varianceApproximation', 'exact',...
-    'nrOfEigenvaluesToConsiderForVarApprox',1,...
-    'uncertaintyPredictionForRegression', true, ...
-    'noise', 0.000001 ...
-    );
+myGPHIKRegression = ...
+        GPHIKRegression ( ...
+                          'verboseTime',                               b_verboseTime, ...
+                          'verbose',                                   b_verbose, ...
+                          'uncertaintyPredictionForRegression',        b_uncertaintyPredictionForRegression, ...
+                          'optimize_noise',                            b_optimize_noise, ...
+                          'use_quantization',                          b_use_quantization, ...
+                          'ils_verbose',                               b_ils_verbose, ...
+                          ...        
+                          'nrOfEigenvaluesToConsiderForVarApprox',     i_nrOfEigenvaluesToConsiderForVarApprox, ...                          
+                          'num_bins',                                  i_num_bins, ...                           
+                          'ils_max_iterations',                        i_ils_max_iterations, ...                          
+                          ...
+                          'ils_min_delta',                             d_ils_min_delta, ...
+                          'ils_min_residual',                          d_ils_min_residual, ...
+                          'noise',                                     d_noise, ...        
+                          'parameter_lower_bound',                     d_parameter_lower_bound, ...
+                          'parameter_upper_bound',                     d_parameter_upper_bound, ...
+                          ...
+                          'ils_method',                                s_ils_method, ...
+                          'optimization_method',                       s_optimization_method, ...   
+                          'transform',                                 s_transform, ...
+                          'varianceApproximation',                     s_varianceApproximation ...
+        );
+    
 
-    %'varianceApproximation', 'approximate_fine',...
-    %'varianceApproximation', 'exact',...
-
-% run train method
+%% run train method
 myGPHIKRegression.train( myData, myValues );
+
+
+%% evaluate model on test data
 
 myDataTest = 0:0.01:1;
 % create l1-normalized 'histograms'
@@ -35,6 +100,7 @@ for i=1:size(myDataTest,1)
     [ scores(i), uncertainties(i)] = myGPHIKRegression.estimate( example );
 end
 
+%% plot results
 
 % create figure and set title
 classificationFig = figure;
@@ -88,7 +154,7 @@ set(get(gca,'YLabel'), 'FontSize', i_fontSizeAxis);
 
    
 
-% clean up and delete object
+%% clean up and delete object
 myGPHIKRegression.delete();
 
 clear ( 'myGPHIKRegression' );
