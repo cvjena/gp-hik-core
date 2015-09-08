@@ -48,22 +48,26 @@ class GPLikelihoodApprox : public OPTIMIZATION::CostFunction
     ImplicitKernelMatrix *ikm;
 
     /** set of binary label vectors */
-    std::map<int, Vector> binaryLabels;
+    std::map<uint, Vector> binaryLabels;
    
     /** number of classes */
-    int nrOfClasses;
+    uint nrOfClasses;
     
     /** To define how fine the approximation of the squared frobenius norm will be*/
     int nrOfEigenvaluesToConsider;
     
     //! only for debugging purposes, printing some statistics
-    void calculateLikelihood ( double mypara, const FeatureMatrix & f, const std::map< int, NICE::Vector > & yset, double noise, double lambdaMax );
+    void calculateLikelihood ( double _mypara, 
+                               const FeatureMatrix & _f, 
+                               const std::map< uint, NICE::Vector > & _yset, 
+                               double _noise, 
+                               double _lambdaMax );
 
     //! last alpha vectors computed (from previous IL-step)
-    std::map<int, NICE::Vector> * initialAlphaGuess;
+    std::map<uint, NICE::Vector> * initialAlphaGuess;
     
     //! alpha vectors of the best solution
-    std::map<int, Vector> min_alphas;
+    std::map<uint, Vector> min_alphas;
 
     //! minimal value of the likelihood
     double min_nlikelihood;
@@ -92,11 +96,11 @@ class GPLikelihoodApprox : public OPTIMIZATION::CostFunction
 
     // ------ constructors and destructors ------
     /** simple constructor */
-    GPLikelihoodApprox( const std::map<int, Vector> & binaryLabels, 
-                        ImplicitKernelMatrix *ikm,
-                        IterativeLinearSolver *linsolver,
-                        EigValues *eig,
-                        bool verifyApproximation = false,
+    GPLikelihoodApprox( const std::map<uint, Vector> & _binaryLabels, 
+                        ImplicitKernelMatrix *_ikm,
+                        IterativeLinearSolver *_linsolver,
+                        EigValues *_eig,
+                        bool _verifyApproximation = false,
                         int _nrOfEigenvaluesToConsider = 1
                       );
       
@@ -112,7 +116,9 @@ class GPLikelihoodApprox : public OPTIMIZATION::CostFunction
     *
     * @return void
     */    
-    void computeAlphaDirect(const OPTIMIZATION::matrix_type & x, const NICE::Vector & eigenValues);
+    void computeAlphaDirect(const OPTIMIZATION::matrix_type & _x, 
+                            const NICE::Vector & _eigenValues
+                           );
     
     /**
     * @brief Evaluate the likelihood for given hyperparameters
@@ -126,13 +132,13 @@ class GPLikelihoodApprox : public OPTIMIZATION::CostFunction
     
     // ------ get and set methods ------
     const NICE::Vector & getBestParameters () const { return min_parameter; };
-    const std::map<int, Vector> & getBestAlphas () const;
+    const std::map<uint, Vector> & getBestAlphas () const;
     
     void setParameterLowerBound(const double & _parameterLowerBound);
     void setParameterUpperBound(const double & _parameterUpperBound);
     
-    void setInitialAlphaGuess(std::map<int, NICE::Vector> * _initialAlphaGuess);
-    void setBinaryLabels(const std::map<int, Vector> & _binaryLabels);
+    void setInitialAlphaGuess(std::map<uint, NICE::Vector> * _initialAlphaGuess);
+    void setBinaryLabels(const std::map<uint, Vector> & _binaryLabels);
     
     void setVerbose( const bool & _verbose );
     void setDebug( const bool & _debug );

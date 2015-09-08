@@ -45,7 +45,7 @@ d_parameter_upper_bound             = 1.0;
 s_ils_method                        = 'CG'; % default
 
 % options: 'none', 'greedy', 'downhillsimplex'
-s_optimization_method               = 'downhillsimplex';
+s_optimization_method               = 'none';
 
 % options:  'identity', 'abs', 'absexp'
 % with settings above, this equals 'identity'
@@ -83,7 +83,7 @@ myGPHIKRegression = ...
     
 
 %% run train method
-myGPHIKRegression.train( myData, myValues );
+myGPHIKRegression.train( sparse(myData), myValues );
 
 
 %% evaluate model on test data
@@ -96,7 +96,7 @@ myDataTest = cat(1, myDataTest, 1-myDataTest)';
 scores = zeros(size(myDataTest,1),1);
 uncertainties = zeros(size(myDataTest,1),1);
 for i=1:size(myDataTest,1)
-    example = myDataTest(i,:);
+    example = sparse(myDataTest(i,:));
     [ scores(i), uncertainties(i)] = myGPHIKRegression.estimate( example );
 end
 

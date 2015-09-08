@@ -34,28 +34,28 @@ using namespace NICE;
 using namespace OPTIMIZATION;
 
 
-GPLikelihoodApprox::GPLikelihoodApprox( const std::map<int, NICE::Vector> & binaryLabels,
-                                        ImplicitKernelMatrix *ikm,
-                                        IterativeLinearSolver *linsolver, 
-                                        EigValues *eig,
-                                        bool verifyApproximation,
+GPLikelihoodApprox::GPLikelihoodApprox( const std::map<uint, NICE::Vector> & _binaryLabels,
+                                        ImplicitKernelMatrix *_ikm,
+                                        IterativeLinearSolver *_linsolver, 
+                                        EigValues *_eig,
+                                        bool _verifyApproximation,
                                         int _nrOfEigenvaluesToConsider
                                       ) 
 
-      : CostFunction( ikm->getNumParameters() )
+      : CostFunction( _ikm->getNumParameters() )
 {
-  this->binaryLabels = binaryLabels;
-  this->ikm = ikm;
-  this->linsolver = linsolver;
-  this->eig = eig;
+  this->binaryLabels = _binaryLabels;
+  this->ikm = _ikm;
+  this->linsolver = _linsolver;
+  this->eig = _eig;
 
-  if ( binaryLabels.size() == 1 )
+  if ( _binaryLabels.size() == 1 )
     this->nrOfClasses = 2;
   else
-    this->nrOfClasses = binaryLabels.size();
+    this->nrOfClasses = _binaryLabels.size();
 
   this->min_nlikelihood = std::numeric_limits<double>::max();
-  this->verifyApproximation = verifyApproximation;
+  this->verifyApproximation = _verifyApproximation;
   
   this->nrOfEigenvaluesToConsider = _nrOfEigenvaluesToConsider;
     
@@ -73,7 +73,7 @@ GPLikelihoodApprox::~GPLikelihoodApprox()
     this->initialAlphaGuess = NULL;
 }
 
-const std::map<int, Vector> & GPLikelihoodApprox::getBestAlphas () const
+const std::map<uint, Vector> & GPLikelihoodApprox::getBestAlphas () const
 {
   if ( this->min_alphas.size() > 0 )
   {
@@ -91,7 +91,12 @@ const std::map<int, Vector> & GPLikelihoodApprox::getBestAlphas () const
   return this->min_alphas;
 }
 
-void GPLikelihoodApprox::calculateLikelihood ( double mypara, const FeatureMatrix & f, const std::map< int, NICE::Vector > & yset, double noise, double lambdaMax )
+void GPLikelihoodApprox::calculateLikelihood ( double _mypara, 
+                                               const FeatureMatrix & _f, 
+                                               const std::map< uint, NICE::Vector > & _yset, 
+                                               double _noise, 
+                                               double lambdaMax 
+                                             )
 {
   // robust cholesky routine without noise !!
   CholeskyRobust cr ( true /*verbose*/, 0.0, false /*useCuda*/ );
@@ -102,8 +107,8 @@ void GPLikelihoodApprox::calculateLikelihood ( double mypara, const FeatureMatri
   Matrix K;
   IntersectionKernelFunction<double> hik;
   //old version, not needed anymore - we explore sparsity
-//   K = hik.computeKernelMatrix(data_matrix, noise); // = K + sigma^2 I
-  K = hik.computeKernelMatrix(f, noise);
+//   K = hik.computeKernelMatrix(data_matrix, _noise); // = K + sigma^2 I
+  K = hik.computeKernelMatrix(_f, _noise);
   t.stop();
   cerr << "VERIFY: Time used for calculating kernel matrix is: " << t.getLast() << endl;
 
@@ -116,11 +121,11 @@ void GPLikelihoodApprox::calculateLikelihood ( double mypara, const FeatureMatri
   t.start();
   Matrix choleskyMatrix; 
   cr.robustChol ( K, choleskyMatrix ); // K = choleskyMatrix^T * choleskyMatrix
-  double gt_logdet = (yset.size()) * cr.getLastLogDet();
+  double gt_logdet = (_yset.size()) * cr.getLastLogDet();
   cerr << "chol * chol^T: " << ( choleskyMatrix * choleskyMatrix.transpose() )(0,0,4,4) << endl;
 
   double gt_dataterm = 0.0;
-  for ( std::map< int, NICE::Vector >::const_iterator i = yset.begin(); i != yset.end(); i++ )
+  for ( std::map< uint, NICE::Vector >::const_iterator i = _yset.begin(); i != _yset.end(); i++ )
   {
     const NICE::Vector & y = i->second;
     Vector gt_alpha;
@@ -137,10 +142,12 @@ void GPLikelihoodApprox::calculateLikelihood ( double mypara, const FeatureMatri
   
   
   double gt_nlikelihood = gt_logdet + gt_dataterm;
-  cerr << "OPTGT: " << mypara << " " << gt_nlikelihood << " " << gt_logdet << " " << gt_dataterm << endl;
+  cerr << "OPTGT: " << _mypara << " " << gt_nlikelihood << " " << gt_logdet << " " << gt_dataterm << endl;
 }
 
-void GPLikelihoodApprox::computeAlphaDirect(const OPTIMIZATION::matrix_type & x, const NICE::Vector & eigenValues )
+void GPLikelihoodApprox::computeAlphaDirect(const OPTIMIZATION::matrix_type & _x, 
+                                            const NICE::Vector & _eigenValues 
+                                           )
 {
   Timer t;
   
@@ -155,15 +162,15 @@ void GPLikelihoodApprox::computeAlphaDirect(const OPTIMIZATION::matrix_type & x,
   
 
   // all alpha vectors will be stored!
-  std::map<int, NICE::Vector> alphas;
+  std::map<uint, NICE::Vector> alphas;
 
   // This has to be done m times for the multi-class case
   if ( this->verbose )
     std::cerr << "run ILS for every bin label. binaryLabels.size(): " << binaryLabels.size() << std::endl;
-  for ( std::map<int, NICE::Vector>::const_iterator j = binaryLabels.begin(); j != binaryLabels.end() ; j++)
+  for ( std::map<uint, NICE::Vector>::const_iterator j = binaryLabels.begin(); j != binaryLabels.end() ; j++)
   {
     // (b) y^T (K+sI)^{-1} y
-    int classCnt = j->first;
+    uint classCnt = j->first;
     if ( this->verbose )
     {
       std::cerr << "Solving linear equation system for class " << classCnt << " ..." << std::endl;
@@ -185,7 +192,7 @@ void GPLikelihoodApprox::computeAlphaDirect(const OPTIMIZATION::matrix_type & x,
      */
     NICE::Vector alpha;
     
-    alpha = (binaryLabels[classCnt] * (1.0 / eigenValues[0]) );
+    alpha = (binaryLabels[classCnt] * (1.0 / _eigenValues[0]) );
     
     if ( verbose )
       std::cerr << "Using the standard solver ..." << std::endl;
@@ -194,7 +201,7 @@ void GPLikelihoodApprox::computeAlphaDirect(const OPTIMIZATION::matrix_type & x,
     linsolver->solveLin ( *ikm, binaryLabels[classCnt], alpha );
     t.stop();
    
-    alphas.insert( std::pair<int, NICE::Vector> ( classCnt, alpha) );
+    alphas.insert( std::pair<uint, NICE::Vector> ( classCnt, alpha) );
   }  
   
   // save the parameter value and alpha vectors
@@ -202,13 +209,13 @@ void GPLikelihoodApprox::computeAlphaDirect(const OPTIMIZATION::matrix_type & x,
   this->min_alphas = alphas;
 }
 
-double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
+double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & _x)
 {
   NICE::Vector xv;
    
-  xv.resize ( x.rows() );
-  for ( uint i = 0 ; i < x.rows(); i++ )
-    xv[i] = x(i,0);
+  xv.resize ( _x.rows() );
+  for ( uint i = 0 ; i < _x.rows(); i++ )
+    xv[i] = _x(i,0);
 
   // check whether we have been here before
   unsigned long hashValue = xv.getHashValue();
@@ -275,16 +282,16 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
   
 
   // all alpha vectors will be stored!
-  std::map<int, NICE::Vector> alphas;
+  std::map<uint, NICE::Vector> alphas;
 
   // This has to be done m times for the multi-class case
   if ( this->verbose )
     std::cerr << "run ILS for every bin label. binaryLabels.size(): " << binaryLabels.size() << std::endl;
   
-  for ( std::map<int, NICE::Vector>::const_iterator j = binaryLabels.begin(); j != binaryLabels.end() ; j++)
+  for ( std::map<uint, NICE::Vector>::const_iterator j = binaryLabels.begin(); j != binaryLabels.end() ; j++)
   {
     // (b) y^T (K+sI)^{-1} y
-    int classCnt = j->first;
+    uint classCnt = j->first;
     if ( this->verbose )
     {
       std::cerr << "Solving linear equation system for class " << classCnt << " ..." << std::endl;
@@ -308,7 +315,7 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
     NICE::Vector alpha;
     if ( this->initialAlphaGuess != NULL )
     {
-      std::map<int, NICE::Vector>::iterator myIt = this->initialAlphaGuess->find(classCnt);
+      std::map<uint, NICE::Vector>::iterator myIt = this->initialAlphaGuess->find(classCnt);
       if ( myIt != this->initialAlphaGuess->end() )
         alpha = myIt->second;
       else
@@ -375,8 +382,8 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
     cerr << "Time used for approximating logdet(K): " << t.getLast() << endl;
 
   // (c) adding the two terms
-  double nlikelihood = nrOfClasses*logdet;
-  double dataterm = binaryDataterms.sum();
+  double nlikelihood = this->nrOfClasses*logdet;
+  double dataterm    = binaryDataterms.sum();
   nlikelihood += dataterm;
 
   if ( this->verbose )
@@ -386,32 +393,32 @@ double GPLikelihoodApprox::evaluate(const OPTIMIZATION::matrix_type & x)
   {
     min_nlikelihood = nlikelihood;
     ikm->getParameters ( min_parameter );
-    min_alphas = alphas;
+    this->min_alphas = alphas;
   }
 
-  alreadyVisited.insert ( pair<int, double> ( hashValue, nlikelihood ) );
+  this->alreadyVisited.insert ( std::pair<unsigned long, double> ( hashValue, nlikelihood ) );
   return nlikelihood;
 }
 
 void GPLikelihoodApprox::setParameterLowerBound(const double & _parameterLowerBound)
 {
-  parameterLowerBound = _parameterLowerBound;
+  this->parameterLowerBound = _parameterLowerBound;
 }
   
 void GPLikelihoodApprox::setParameterUpperBound(const double & _parameterUpperBound)
 {
-  parameterUpperBound = _parameterUpperBound;
+  this->parameterUpperBound = _parameterUpperBound;
 }
 
-void GPLikelihoodApprox::setInitialAlphaGuess(std::map< int, NICE::Vector >* _initialAlphaGuess)
+void GPLikelihoodApprox::setInitialAlphaGuess(std::map< uint, NICE::Vector >* _initialAlphaGuess)
 {
   this->initialAlphaGuess = _initialAlphaGuess;
 }
 
 
-void GPLikelihoodApprox::setBinaryLabels(const std::map<int, Vector> & _binaryLabels)
+void GPLikelihoodApprox::setBinaryLabels(const std::map<uint, Vector> & _binaryLabels)
 {
-  binaryLabels = _binaryLabels;
+  this->binaryLabels = _binaryLabels;
 }
 
 void GPLikelihoodApprox::setVerbose( const bool & _verbose )

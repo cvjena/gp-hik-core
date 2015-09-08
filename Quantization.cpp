@@ -13,12 +13,12 @@ using namespace NICE;
 
 Quantization::Quantization( )
 {
-  this->numBins = 1;
+  this->ui_numBins = 1;
 }
 
-Quantization::Quantization( uint numBins )
+Quantization::Quantization( uint _numBins )
 {
-  this->numBins = numBins;
+  this->ui_numBins = _numBins;
 }
 
 Quantization::~Quantization()
@@ -27,26 +27,31 @@ Quantization::~Quantization()
 
 uint Quantization::size() const
 {
-  return numBins;
+  return this->ui_numBins;
 }
   
-double Quantization::getPrototype (uint bin) const
+double Quantization::getPrototype (uint _bin) const
 {
-  return bin / (double)(numBins-1);
+  return _bin / (double)(this->ui_numBins-1);
 }
   
-uint Quantization::quantize (double value) const
+uint Quantization::quantize (double _value) const
 {
-  if ( value <= 0.0 ) return 0;
-  else if ( value >= 1.0 ) return numBins-1;
-  else return (uint)( value * (numBins-1) + 0.5 );
+  if ( _value <= 0.0 ) 
+    return 0;
+  else if ( _value >= 1.0 ) 
+    return this->ui_numBins-1;
+  else 
+    return (uint)( _value * (this->ui_numBins-1) + 0.5 );
 }
 
 // ---------------------- STORE AND RESTORE FUNCTIONS ----------------------
 
-void Quantization::restore ( std::istream & is, int format )
+void Quantization::restore ( std::istream & _is, 
+                             int _format 
+                           )
 {
-  if (is.good())
+  if ( _is.good() )
   {    
     std::string tmp;    
 
@@ -54,7 +59,7 @@ void Quantization::restore ( std::istream & is, int format )
     
     while ( !b_endOfBlock )
     {
-      is >> tmp; // start of block 
+      _is >> tmp; // start of block 
       
       if ( this->isEndTag( tmp, "Quantization" ) )
       {
@@ -64,9 +69,9 @@ void Quantization::restore ( std::istream & is, int format )
       
       tmp = this->removeStartTag ( tmp );
       
-      if ( tmp.compare("numBins") == 0 )
+      if ( tmp.compare("ui_numBins") == 0 )
       {
-          is >> numBins;
+          _is >> this->ui_numBins;
       }
       else
       {
@@ -74,7 +79,7 @@ void Quantization::restore ( std::istream & is, int format )
         throw;  
       }
       
-      is >> tmp; // end of block 
+      _is >> tmp; // end of block 
       tmp = this->removeEndTag ( tmp );      
     }
    }
@@ -84,15 +89,17 @@ void Quantization::restore ( std::istream & is, int format )
   }
 }
 
-void Quantization::store ( std::ostream & os, int format ) const
+void Quantization::store ( std::ostream & _os, 
+                           int _format 
+                         ) const
 {
   // show starting point
-  os << this->createStartTag( "Quantization" ) << std::endl;
+  _os << this->createStartTag( "Quantization" ) << std::endl;
   
-  os << this->createStartTag( "numBins" ) << std::endl;
-  os << numBins << std::endl;
-  os << this->createEndTag( "numBins" ) << std::endl;
+  _os << this->createStartTag( "ui_numBins" ) << std::endl;
+  _os << this->ui_numBins << std::endl;
+  _os << this->createEndTag( "ui_numBins" ) << std::endl;
     
   // done
-  os << this->createEndTag( "Quantization" ) << std::endl;
+  _os << this->createEndTag( "Quantization" ) << std::endl;
 }

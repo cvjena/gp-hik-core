@@ -46,7 +46,9 @@ GPHIKClassifier::GPHIKClassifier( )
   
 }
 
-GPHIKClassifier::GPHIKClassifier( const Config *conf, const string & s_confSection )
+GPHIKClassifier::GPHIKClassifier( const Config *_conf, 
+                                  const string & _confSection 
+                                )
 {
   ///////////
   // same code as in empty constructor - duplication can be avoided with C++11 allowing for constructor delegation
@@ -61,13 +63,13 @@ GPHIKClassifier::GPHIKClassifier( const Config *conf, const string & s_confSecti
   // here comes the new code part different from the empty constructor
   ///////////
   
-  this->confSection = s_confSection;  
+  this->confSection = _confSection;  
   
   // if no config file was given, we either restore the classifier from an external file, or run ::init with 
   // an emtpy config (using default values thereby) when calling the train-method
-  if ( conf != NULL )
+  if ( _conf != NULL )
   {
-    this->initFromConfig( conf, confSection );
+    this->initFromConfig( _conf, _confSection );
   }
   else
   {
@@ -79,23 +81,26 @@ GPHIKClassifier::GPHIKClassifier( const Config *conf, const string & s_confSecti
 
 GPHIKClassifier::~GPHIKClassifier()
 {
-  if ( gphyper != NULL )
-    delete gphyper;
+  if ( this->gphyper != NULL )
+    delete this->gphyper;
 }
 
-void GPHIKClassifier::initFromConfig(const Config *conf, const string & s_confSection)
+void GPHIKClassifier::initFromConfig(const Config *_conf, 
+                                     const string & _confSection
+                                    )
 { 
-  this->noise = conf->gD(confSection, "noise", 0.01);
+  this->d_noise     = _conf->gD( _confSection, "noise", 0.01);
 
-  this->confSection = confSection;
-  this->verbose = conf->gB(confSection, "verbose", false);
-  this->debug = conf->gB(confSection, "debug", false);
-  this->uncertaintyPredictionForClassification = conf->gB( confSection, "uncertaintyPredictionForClassification", false );
+  this->confSection = _confSection;
+  this->b_verbose   = _conf->gB( _confSection, "verbose", false);
+  this->b_debug     = _conf->gB( _confSection, "debug", false);
+  this->uncertaintyPredictionForClassification 
+                    = _conf->gB( _confSection, "uncertaintyPredictionForClassification", false );
   
 
    
   //how do we approximate the predictive variance for classification uncertainty?
-  string s_varianceApproximation = conf->gS(confSection, "varianceApproximation", "approximate_fine"); //default: fine approximative uncertainty prediction
+  string s_varianceApproximation = _conf->gS(_confSection, "varianceApproximation", "approximate_fine"); //default: fine approximative uncertainty prediction
   if ( (s_varianceApproximation.compare("approximate_rough") == 0) || ((s_varianceApproximation.compare("1") == 0)) )
   {
     this->varianceApproximation = APPROXIMATE_ROUGH;
@@ -108,7 +113,7 @@ void GPHIKClassifier::initFromConfig(const Config *conf, const string & s_confSe
     this->varianceApproximation = APPROXIMATE_FINE;    
     
     //security check - compute at least one eigenvalue for this approximation strategy
-    this->gphyper->setNrOfEigenvaluesToConsiderForVarApprox ( std::max( conf->gI(confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 ), 1) );
+    this->gphyper->setNrOfEigenvaluesToConsiderForVarApprox ( std::max( _conf->gI(_confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 ), 1) );
   }
   else if ( (s_varianceApproximation.compare("exact") == 0)  || ((s_varianceApproximation.compare("3") == 0)) )
   {
@@ -125,18 +130,18 @@ void GPHIKClassifier::initFromConfig(const Config *conf, const string & s_confSe
     this->gphyper->setNrOfEigenvaluesToConsiderForVarApprox ( 0 );
   } 
   
-  if ( this->verbose )
+  if ( this->b_verbose )
     std::cerr << "varianceApproximationStrategy: " << s_varianceApproximation  << std::endl;
   
   //NOTE init all member pointer variables here as well
-  this->gphyper->initFromConfig ( conf, confSection /*possibly delete the handing of confSection*/);
+  this->gphyper->initFromConfig ( _conf, _confSection /*possibly delete the handing of confSection*/);
 }
 
 ///////////////////// ///////////////////// /////////////////////
 //                         GET / SET
 ///////////////////// ///////////////////// ///////////////////// 
 
-std::set<int> GPHIKClassifier::getKnownClassNumbers ( ) const
+std::set<uint> GPHIKClassifier::getKnownClassNumbers ( ) const
 {
   if ( ! this->b_isTrained )
      fthrow(Exception, "Classifier not trained yet -- aborting!" );  
@@ -149,92 +154,146 @@ std::set<int> GPHIKClassifier::getKnownClassNumbers ( ) const
 //                      CLASSIFIER STUFF
 ///////////////////// ///////////////////// /////////////////////
 
-void GPHIKClassifier::classify ( const SparseVector * example,  int & result, SparseVector & scores ) const
+void GPHIKClassifier::classify ( const SparseVector * _example,  
+                                 uint & _result, 
+                                 SparseVector & _scores 
+                               ) const
 {
   double tmpUncertainty;
-  this->classify( example, result, scores, tmpUncertainty );
+  this->classify( _example, _result, _scores, tmpUncertainty );
 }
 
-void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, SparseVector & scores ) const
+void GPHIKClassifier::classify ( const NICE::Vector * _example,  
+                                 uint & _result, 
+                                 SparseVector & _scores 
+                               ) const
 {
   double tmpUncertainty;
-  this->classify( example, result, scores, tmpUncertainty );
+  this->classify( _example, _result, _scores, tmpUncertainty );
 }
 
-void GPHIKClassifier::classify ( const SparseVector * example,  int & result, SparseVector & scores, double & uncertainty ) const
+void GPHIKClassifier::classify ( const SparseVector * _example,  
+                                 uint & _result, 
+                                 SparseVector & _scores, 
+                                 double & _uncertainty 
+                               ) const
 {
   if ( ! this->b_isTrained )
      fthrow(Exception, "Classifier not trained yet -- aborting!" );
+    
+  _scores.clear(); 
   
-  scores.clear();
-  
-  result = gphyper->classify ( *example, scores );
+  if ( this->b_debug )
+  {
+    std::cerr << "GPHIKClassifier::classify (sparse)" << std::endl;
+    _example->store( std::cerr );  
+  }
+ 
+  _result = gphyper->classify ( *_example, _scores );
 
-  if ( scores.size() == 0 ) {
-    fthrow(Exception, "Zero scores, something is likely to be wrong here: svec.size() = " << example->size() );
+  if ( this->b_debug )
+  {  
+    _scores.store ( std::cerr ); 
+    std::cerr << "_result: " << _result << std::endl;
+  }
+
+  if ( _scores.size() == 0 ) {
+    fthrow(Exception, "Zero scores, something is likely to be wrong here: svec.size() = " << _example->size() );
   }
   
-  if (uncertaintyPredictionForClassification)
+  if ( this->uncertaintyPredictionForClassification )
   {
-    if (varianceApproximation != NONE)
+    if ( this->b_debug )
     {
-      this->predictUncertainty( example, uncertainty );
+      std::cerr << "GPHIKClassifier::classify -- uncertaintyPredictionForClassification is true"  << std::endl;
+    }
+    
+    if ( this->varianceApproximation != NONE)
+    {
+      this->predictUncertainty( _example, _uncertainty );
     }  
     else
     {
-      //do nothing
-      uncertainty = std::numeric_limits<double>::max();
+//       //do nothing
+      _uncertainty = std::numeric_limits<double>::max();
     }
   }
   else
   {
+    if ( this->b_debug )
+    {
+      std::cerr << "GPHIKClassifier::classify -- uncertaintyPredictionForClassification is false"  << std::endl;
+    }    
+    
     //do nothing
-    uncertainty = std::numeric_limits<double>::max();
+    _uncertainty = std::numeric_limits<double>::max();
   }    
 }
 
-void GPHIKClassifier::classify ( const NICE::Vector * example,  int & result, SparseVector & scores, double & uncertainty ) const
+void GPHIKClassifier::classify ( const NICE::Vector * _example,  
+                                 uint & _result, 
+                                 SparseVector & _scores, 
+                                 double & _uncertainty 
+                               ) const
 {
+  
   if ( ! this->b_isTrained )
      fthrow(Exception, "Classifier not trained yet -- aborting!" );  
   
-  scores.clear();
+  _scores.clear();
   
-  result = gphyper->classify ( *example, scores );
-
-  if ( scores.size() == 0 ) {
-    fthrow(Exception, "Zero scores, something is likely to be wrong here: svec.size() = " << example->size() );
+  if ( this->b_debug )
+  {  
+    std::cerr << "GPHIKClassifier::classify (non-sparse)" << std::endl;
+    std::cerr << *_example << std::endl;
   }
     
-  if (uncertaintyPredictionForClassification)
+  _result = this->gphyper->classify ( *_example, _scores );
+  
+  if ( this->b_debug )
+  {  
+    std::cerr << "GPHIKClassifier::classify (non-sparse) -- classification done " << std::endl;
+  }
+ 
+
+  if ( _scores.size() == 0 ) {
+    fthrow(Exception, "Zero scores, something is likely to be wrong here: svec.size() = " << _example->size() );
+  }
+    
+  if ( this->uncertaintyPredictionForClassification )
   {
-    if (varianceApproximation != NONE)
+    if ( this->varianceApproximation != NONE)
     {
-      this->predictUncertainty( example, uncertainty );
+      this->predictUncertainty( _example, _uncertainty );
     }  
     else
     {
       //do nothing
-      uncertainty = std::numeric_limits<double>::max();
+      _uncertainty = std::numeric_limits<double>::max();
     }
   }
   else
   {
     //do nothing
-    uncertainty = std::numeric_limits<double>::max();
+    _uncertainty = std::numeric_limits<double>::max();
   }  
 }
 
 /** training process */
-void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & examples, const NICE::Vector & labels )
+void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & _examples, 
+                              const NICE::Vector & _labels 
+                            )
 {
+  
+  //FIXME add check whether the classifier has been trained already. if so, discard all previous results.
+    
   // security-check: examples and labels have to be of same size
-  if ( examples.size() != labels.size() ) 
+  if ( _examples.size() != _labels.size() ) 
   {
     fthrow(Exception, "Given examples do not match label vector in size -- aborting!" );  
   }  
   
-  if (verbose)
+  if (b_verbose)
   {
     std::cerr << "GPHIKClassifier::train" << std::endl;
   }
@@ -242,34 +301,35 @@ void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & e
   Timer t;
   t.start();
   
-  FastMinKernel *fmk = new FastMinKernel ( examples, noise, this->debug );
-  gphyper->setFastMinKernel ( fmk ); 
+  FastMinKernel *fmk = new FastMinKernel ( _examples, d_noise, this->b_debug );
+
+  this->gphyper->setFastMinKernel ( fmk ); 
   
   t.stop();
-  if (verbose)
+  if (b_verbose)
     std::cerr << "Time used for setting up the fmk object: " << t.getLast() << std::endl;  
  
 
-  if (verbose)
-    cerr << "Learning ..." << endl;
+  if (b_verbose)
+    std::cerr << "Learning ..." << endl;
 
   // go go go
-  gphyper->optimize ( labels );
-  if (verbose)
+  this->gphyper->optimize ( _labels );
+  if (b_verbose)
     std::cerr << "optimization done" << std::endl;
   
-  if ( ( varianceApproximation != NONE ) )
+  if ( ( this->varianceApproximation != NONE ) )
   {    
-    switch (varianceApproximation)    
+    switch ( this->varianceApproximation )    
     {
       case APPROXIMATE_ROUGH:
       {
-        gphyper->prepareVarianceApproximationRough();
+        this->gphyper->prepareVarianceApproximationRough();
         break;
       }
       case APPROXIMATE_FINE:
       {
-        gphyper->prepareVarianceApproximationFine();
+        this->gphyper->prepareVarianceApproximationFine();
         break;
       }    
       case EXACT:
@@ -288,50 +348,54 @@ void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & e
   this->b_isTrained = true;
 
   // clean up all examples ??
-  if (verbose)
+  if (b_verbose)
     std::cerr << "Learning finished" << std::endl;
 }
 
 /** training process */
-void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & examples, std::map<int, NICE::Vector> & binLabels )
+void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & _examples, 
+                              std::map<uint, NICE::Vector> & _binLabels 
+                            )
 { 
   // security-check: examples and labels have to be of same size
-  for ( std::map< int, NICE::Vector >::const_iterator binLabIt = binLabels.begin();
-        binLabIt != binLabels.end();
+  for ( std::map< uint, NICE::Vector >::const_iterator binLabIt = _binLabels.begin();
+        binLabIt != _binLabels.end();
         binLabIt++ 
       )
   {
-    if ( examples.size() != binLabIt->second.size() ) 
+    if ( _examples.size() != binLabIt->second.size() ) 
     {
       fthrow(Exception, "Given examples do not match label vector in size -- aborting!" );  
     }
   }
   
-  if (verbose)
+  if ( this->b_verbose )
     std::cerr << "GPHIKClassifier::train" << std::endl;
  
   Timer t;
   t.start();
   
-  FastMinKernel *fmk = new FastMinKernel ( examples, noise, this->debug );
-  gphyper->setFastMinKernel ( fmk );  
+  FastMinKernel *fmk = new FastMinKernel ( _examples, d_noise, this->b_debug );
+  this->gphyper->setFastMinKernel ( fmk );  
   
   t.stop();
-  if (verbose)
+  if ( this->b_verbose )
     std::cerr << "Time used for setting up the fmk object: " << t.getLast() << std::endl;  
 
 
 
-  if (verbose)
-    cerr << "Learning ..." << endl;
+  if ( this->b_verbose )
+    std::cerr << "Learning ..." << std::endl;
+  
   // go go go
-  gphyper->optimize ( binLabels );
-  if (verbose)
+  this->gphyper->optimize ( _binLabels );
+  
+  if ( this->b_verbose )
     std::cerr << "optimization done, now prepare for the uncertainty prediction" << std::endl;
   
-  if ( ( varianceApproximation != NONE ) )
+  if ( ( this->varianceApproximation != NONE ) )
   {    
-    switch (varianceApproximation)    
+    switch ( this->varianceApproximation )    
     {
       case APPROXIMATE_ROUGH:
       {
@@ -359,7 +423,7 @@ void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & e
   this->b_isTrained = true;
 
   // clean up all examples ??
-  if (verbose)
+  if ( this->b_verbose )
     std::cerr << "Learning finished" << std::endl;
 }
 
@@ -370,27 +434,30 @@ GPHIKClassifier *GPHIKClassifier::clone () const
   return NULL;
 }
   
-void GPHIKClassifier::predictUncertainty( const NICE::SparseVector * example, double & uncertainty ) const
+void GPHIKClassifier::predictUncertainty( const NICE::SparseVector * _example, 
+                                          double & _uncertainty 
+                                        ) const
 {  
-  if (gphyper == NULL)
+  if ( this->gphyper == NULL )
      fthrow(Exception, "Classifier not trained yet -- aborting!" );  
   
   //we directly store the predictive variances in the vector, that contains the classification uncertainties lateron to save storage
-  switch (varianceApproximation)    
+  switch ( this->varianceApproximation )    
   {
     case APPROXIMATE_ROUGH:
     {
-      gphyper->computePredictiveVarianceApproximateRough( *example, uncertainty );
+      this->gphyper->computePredictiveVarianceApproximateRough( *_example, _uncertainty );
       break;
     }
     case APPROXIMATE_FINE:
     {
-      gphyper->computePredictiveVarianceApproximateFine( *example, uncertainty );
+      std::cerr << "gphyper->computePredictiveVarianceApproximateFine" << std::endl;
+      this->gphyper->computePredictiveVarianceApproximateFine( *_example, _uncertainty );
       break;
     }    
     case EXACT:
     {
-      gphyper->computePredictiveVarianceExact( *example, uncertainty );
+      this->gphyper->computePredictiveVarianceExact( *_example, _uncertainty );
       break;
     }
     default:
@@ -400,27 +467,29 @@ void GPHIKClassifier::predictUncertainty( const NICE::SparseVector * example, do
   }
 }
 
-void GPHIKClassifier::predictUncertainty( const NICE::Vector * example, double & uncertainty ) const
+void GPHIKClassifier::predictUncertainty( const NICE::Vector * _example, 
+                                          double & _uncertainty 
+                                        ) const
 {  
-  if (gphyper == NULL)
+  if ( this->gphyper == NULL )
      fthrow(Exception, "Classifier not trained yet -- aborting!" );  
   
   //we directly store the predictive variances in the vector, that contains the classification uncertainties lateron to save storage
-  switch (varianceApproximation)    
+  switch ( this->varianceApproximation )    
   {
     case APPROXIMATE_ROUGH:
     {
-      gphyper->computePredictiveVarianceApproximateRough( *example, uncertainty );
+      this->gphyper->computePredictiveVarianceApproximateRough( *_example, _uncertainty );
       break;
     }
     case APPROXIMATE_FINE:
     {
-      gphyper->computePredictiveVarianceApproximateFine( *example, uncertainty );
+      this->gphyper->computePredictiveVarianceApproximateFine( *_example, _uncertainty );
       break;
     }    
     case EXACT:
     {
-      gphyper->computePredictiveVarianceExact( *example, uncertainty );
+      this->gphyper->computePredictiveVarianceExact( *_example, _uncertainty );
       break;
     }
     default:
@@ -434,7 +503,9 @@ void GPHIKClassifier::predictUncertainty( const NICE::Vector * example, double &
 // interface specific methods for store and restore
 ///////////////////// INTERFACE PERSISTENT ///////////////////// 
 
-void GPHIKClassifier::restore ( std::istream & is, int format )
+void GPHIKClassifier::restore ( std::istream & _is, 
+                                int _format 
+                              )
 {
   //delete everything we knew so far...
   this->clear();
@@ -444,13 +515,13 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
   b_restoreVerbose = true;
 #endif  
   
-  if ( is.good() )
+  if ( _is.good() )
   {
     if ( b_restoreVerbose ) 
       std::cerr << " restore GPHIKClassifier" << std::endl;
     
     std::string tmp;
-    is >> tmp; //class name 
+    _is >> tmp; //class name 
     
     if ( ! this->isStartTag( tmp, "GPHIKClassifier" ) )
     {
@@ -464,13 +535,13 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
       gphyper = NULL;
     }    
     
-    is.precision (numeric_limits<double>::digits10 + 1);
+    _is.precision (numeric_limits<double>::digits10 + 1);
     
     bool b_endOfBlock ( false ) ;
     
     while ( !b_endOfBlock )
     {
-      is >> tmp; // start of block 
+      _is >> tmp; // start of block 
       
       if ( this->isEndTag( tmp, "GPHIKClassifier" ) )
       {
@@ -485,58 +556,58 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
       
       if ( tmp.compare("confSection") == 0 )
       {
-        is >> confSection;        
-        is >> tmp; // end of block 
+        _is >> confSection;        
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else if ( tmp.compare("gphyper") == 0 )
       {
-        if ( gphyper == NULL )
-          gphyper = new NICE::FMKGPHyperparameterOptimization();
+        if ( this->gphyper == NULL )
+          this->gphyper = new NICE::FMKGPHyperparameterOptimization();
         
         //then, load everything that we stored explicitely,
         // including precomputed matrices, LUTs, eigenvalues, ... and all that stuff
-        gphyper->restore(is, format);  
+        this->gphyper->restore( _is, _format );  
           
-        is >> tmp; // end of block 
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }   
       else if ( tmp.compare("b_isTrained") == 0 )
       {
-        is >> b_isTrained;        
-        is >> tmp; // end of block 
+        _is >> b_isTrained;        
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
-      else if ( tmp.compare("noise") == 0 )
+      else if ( tmp.compare("d_noise") == 0 )
       {
-        is >> noise;        
-        is >> tmp; // end of block 
+        _is >> d_noise;        
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }      
-      else if ( tmp.compare("verbose") == 0 )
+      else if ( tmp.compare("b_verbose") == 0 )
       {
-        is >> verbose;        
-        is >> tmp; // end of block 
+        _is >> b_verbose;        
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }      
-      else if ( tmp.compare("debug") == 0 )
+      else if ( tmp.compare("b_debug") == 0 )
       {
-        is >> debug;        
-        is >> tmp; // end of block 
+        _is >> b_debug;        
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }      
       else if ( tmp.compare("uncertaintyPredictionForClassification") == 0 )
       {
-        is >> uncertaintyPredictionForClassification;        
-        is >> tmp; // end of block 
+        _is >> uncertaintyPredictionForClassification;        
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else if ( tmp.compare("varianceApproximation") == 0 )
       {
         unsigned int ui_varianceApproximation;
-        is >> ui_varianceApproximation;        
+        _is >> ui_varianceApproximation;        
         varianceApproximation = static_cast<VarianceApproximation> ( ui_varianceApproximation );
-        is >> tmp; // end of block 
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else
@@ -553,59 +624,61 @@ void GPHIKClassifier::restore ( std::istream & is, int format )
   }
 }
 
-void GPHIKClassifier::store ( std::ostream & os, int format ) const
+void GPHIKClassifier::store ( std::ostream & _os, 
+                              int _format 
+                            ) const
 { 
-  if (os.good())
+  if ( _os.good() )
   {
     // show starting point
-    os << this->createStartTag( "GPHIKClassifier" ) << std::endl;    
+    _os << this->createStartTag( "GPHIKClassifier" ) << std::endl;    
     
-    os.precision (numeric_limits<double>::digits10 + 1);
+    _os.precision (numeric_limits<double>::digits10 + 1);
     
-    os << this->createStartTag( "confSection" ) << std::endl;
-    os << confSection << std::endl;
-    os << this->createEndTag( "confSection" ) << std::endl; 
+    _os << this->createStartTag( "confSection" ) << std::endl;
+    _os << confSection << std::endl;
+    _os << this->createEndTag( "confSection" ) << std::endl; 
    
-    os << this->createStartTag( "gphyper" ) << std::endl;
+    _os << this->createStartTag( "gphyper" ) << std::endl;
     //store the underlying data
     //will be done in gphyper->store(of,format)
     //store the optimized parameter values and all that stuff
-    gphyper->store(os, format);
-    os << this->createEndTag( "gphyper" ) << std::endl; 
+    this->gphyper->store( _os, _format );
+    _os << this->createEndTag( "gphyper" ) << std::endl; 
     
     
     /////////////////////////////////////////////////////////
     // store variables which we previously set via config    
     /////////////////////////////////////////////////////////
-    os << this->createStartTag( "b_isTrained" ) << std::endl;
-    os << b_isTrained << std::endl;
-    os << this->createEndTag( "b_isTrained" ) << std::endl; 
+    _os << this->createStartTag( "b_isTrained" ) << std::endl;
+    _os << b_isTrained << std::endl;
+    _os << this->createEndTag( "b_isTrained" ) << std::endl; 
     
-    os << this->createStartTag( "noise" ) << std::endl;
-    os << noise << std::endl;
-    os << this->createEndTag( "noise" ) << std::endl;
+    _os << this->createStartTag( "d_noise" ) << std::endl;
+    _os << d_noise << std::endl;
+    _os << this->createEndTag( "d_noise" ) << std::endl;
     
     
-    os << this->createStartTag( "verbose" ) << std::endl;
-    os << verbose << std::endl;
-    os << this->createEndTag( "verbose" ) << std::endl; 
+    _os << this->createStartTag( "b_verbose" ) << std::endl;
+    _os << b_verbose << std::endl;
+    _os << this->createEndTag( "b_verbose" ) << std::endl; 
     
-    os << this->createStartTag( "debug" ) << std::endl;
-    os << debug << std::endl;
-    os << this->createEndTag( "debug" ) << std::endl; 
+    _os << this->createStartTag( "b_debug" ) << std::endl;
+    _os << b_debug << std::endl;
+    _os << this->createEndTag( "b_debug" ) << std::endl; 
     
-    os << this->createStartTag( "uncertaintyPredictionForClassification" ) << std::endl;
-    os << uncertaintyPredictionForClassification << std::endl;
-    os << this->createEndTag( "uncertaintyPredictionForClassification" ) << std::endl;
+    _os << this->createStartTag( "uncertaintyPredictionForClassification" ) << std::endl;
+    _os << uncertaintyPredictionForClassification << std::endl;
+    _os << this->createEndTag( "uncertaintyPredictionForClassification" ) << std::endl;
     
-    os << this->createStartTag( "varianceApproximation" ) << std::endl;
-    os << varianceApproximation << std::endl;
-    os << this->createEndTag( "varianceApproximation" ) << std::endl;     
+    _os << this->createStartTag( "varianceApproximation" ) << std::endl;
+    _os << varianceApproximation << std::endl;
+    _os << this->createEndTag( "varianceApproximation" ) << std::endl;     
   
     
     
     // done
-    os << this->createEndTag( "GPHIKClassifier" ) << std::endl;    
+    _os << this->createEndTag( "GPHIKClassifier" ) << std::endl;    
   }
   else
   {
@@ -615,10 +688,10 @@ void GPHIKClassifier::store ( std::ostream & os, int format ) const
 
 void GPHIKClassifier::clear ()
 {
-  if ( gphyper != NULL )
+  if ( this->gphyper != NULL )
   {
-    delete gphyper;
-    gphyper = NULL;
+    delete this->gphyper;
+    this->gphyper = NULL;
   }
 }
 
@@ -626,10 +699,10 @@ void GPHIKClassifier::clear ()
 // interface specific methods for incremental extensions
 ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
 
-void GPHIKClassifier::addExample( const NICE::SparseVector * example, 
-			     const double & label, 
-			     const bool & performOptimizationAfterIncrement
-			   )
+void GPHIKClassifier::addExample( const NICE::SparseVector * _example, 
+                                  const double & _label, 
+                                  const bool & _performOptimizationAfterIncrement
+                                )
 {
   
   if ( ! this->b_isTrained )
@@ -638,25 +711,25 @@ void GPHIKClassifier::addExample( const NICE::SparseVector * example,
     std::cerr << "Classifier not initially trained yet -- run initial training instead of incremental extension!"  << std::endl;
      
     std::vector< const NICE::SparseVector *> examplesVec;
-    examplesVec.push_back ( example );
+    examplesVec.push_back ( _example );
     
-    NICE::Vector labelsVec ( 1 , label );
+    NICE::Vector labelsVec ( 1 , _label );
     
     this->train ( examplesVec, labelsVec );
   }
   else
   {
-    this->gphyper->addExample( example, label, performOptimizationAfterIncrement );  
+    this->gphyper->addExample( _example, _label, _performOptimizationAfterIncrement );  
   }
 }
 
-void GPHIKClassifier::addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
-				      const NICE::Vector & newLabels,
-				      const bool & performOptimizationAfterIncrement
-				    )
+void GPHIKClassifier::addMultipleExamples( const std::vector< const NICE::SparseVector * > & _newExamples,
+                                           const NICE::Vector & _newLabels,
+                                           const bool & _performOptimizationAfterIncrement
+                                         )
 {
   //are new examples available? If not, nothing has to be done
-  if ( newExamples.size() < 1)
+  if ( _newExamples.size() < 1)
     return;
 
   if ( ! this->b_isTrained )
@@ -664,10 +737,10 @@ void GPHIKClassifier::addMultipleExamples( const std::vector< const NICE::Sparse
     //call train method instead
     std::cerr << "Classifier not initially trained yet -- run initial training instead of incremental extension!"  << std::endl;
     
-    this->train ( newExamples, newLabels );    
+    this->train ( _newExamples, _newLabels );    
   }
   else
   {
-    this->gphyper->addMultipleExamples( newExamples, newLabels, performOptimizationAfterIncrement );     
+    this->gphyper->addMultipleExamples( _newExamples, _newLabels, _performOptimizationAfterIncrement );     
   }
 }

@@ -56,20 +56,24 @@ void readData ( const std::string filename, NICE::Matrix & data, NICE::Vector & 
   }    
 }
 
-void prepareLabelMappings (std::map<int,int> & mapClNoToIdxTrain, const GPHIKClassifier * classifier, std::map<int,int> & mapClNoToIdxTest, const NICE::Vector & yMultiTest)
+void prepareLabelMappings (std::map< uint, uint > & mapClNoToIdxTrain, 
+                           const GPHIKClassifier * classifier, 
+                           std::map< uint,uint > & mapClNoToIdxTest, 
+                           const NICE::Vector & yMultiTest
+                          )
 {
   // determine classes known during training and corresponding mapping
   // thereby allow for non-continous class labels
-  std::set<int> classesKnownTraining = classifier->getKnownClassNumbers();
+  std::set< uint > classesKnownTraining = classifier->getKnownClassNumbers();
   
-  int noClassesKnownTraining ( classesKnownTraining.size() );
-  std::set<int>::const_iterator clTrIt = classesKnownTraining.begin();
-  for ( int i=0; i < noClassesKnownTraining; i++, clTrIt++ )
-      mapClNoToIdxTrain.insert ( std::pair<int,int> ( *clTrIt, i )  );
+  uint noClassesKnownTraining ( classesKnownTraining.size() );
+  std::set< uint >::const_iterator clTrIt = classesKnownTraining.begin();
+  for ( uint i=0; i < noClassesKnownTraining; i++, clTrIt++ )
+      mapClNoToIdxTrain.insert ( std::pair< uint, uint > ( *clTrIt, i )  );
   
   // determine classes known during testing and corresponding mapping
   // thereby allow for non-continous class labels
-  std::set<int> classesKnownTest;
+  std::set< uint> classesKnownTest;
   classesKnownTest.clear();
   
 
@@ -83,18 +87,18 @@ void prepareLabelMappings (std::map<int,int> & mapClNoToIdxTrain, const GPHIKCla
     }
   }          
   
-  int noClassesKnownTest ( classesKnownTest.size() );  
-  std::set<int>::const_iterator clTestIt = classesKnownTest.begin();
-  for ( int i=0; i < noClassesKnownTest; i++, clTestIt++ )
-      mapClNoToIdxTest.insert ( std::pair<int,int> ( *clTestIt, i )  );   
+  uint noClassesKnownTest ( classesKnownTest.size() );  
+  std::set< uint >::const_iterator clTestIt = classesKnownTest.begin();
+  for ( uint i=0; i < noClassesKnownTest; i++, clTestIt++ )
+      mapClNoToIdxTest.insert ( std::pair< uint,uint > ( *clTestIt, i )  );   
 }
 
 void evaluateClassifier ( NICE::Matrix & confusionMatrix, 
                           const NICE::GPHIKClassifier * classifier, 
                           const NICE::Matrix & data,
                           const NICE::Vector & yMulti,
-                          const std::map<int,int> & mapClNoToIdxTrain,
-                          const std::map<int,int> & mapClNoToIdxTest
+                          const std::map< uint,uint > & mapClNoToIdxTrain,
+                          const std::map< uint,uint > & mapClNoToIdxTest
                         ) 
 {
   int i_loopEnd  ( (int)data.rows() );  
@@ -103,7 +107,7 @@ void evaluateClassifier ( NICE::Matrix & confusionMatrix,
   {
     NICE::Vector example ( data.getRow(i) );
     NICE::SparseVector scores;
-    int result;    
+    uint result;    
     
     // classify with incrementally trained classifier 
     classifier->classify( &example, result, scores );
@@ -124,14 +128,14 @@ void compareClassifierOutputs ( const NICE::GPHIKClassifier * classifier,
     NICE::Vector example ( data.getRow(i) );
     
     NICE::SparseVector scores;
-    int result;    
+    uint result;    
     
     // classify with incrementally trained classifier 
     classifier->classify( &example, result, scores );
 
     
     NICE::SparseVector scoresScratch;
-    int resultScratch;
+    uint resultScratch;
     classifierScratch->classify( &example, resultScratch, scoresScratch );
     
     
@@ -215,8 +219,8 @@ void TestGPHIKOnlineLearnable::testOnlineLearningStartEmpty()
   
   // determine classes known during training/testing and corresponding mapping
   // thereby allow for non-continous class labels  
-  std::map<int,int> mapClNoToIdxTrain;
-  std::map<int,int> mapClNoToIdxTest;
+  std::map< uint,uint > mapClNoToIdxTrain;
+  std::map< uint,uint > mapClNoToIdxTest;
   prepareLabelMappings (mapClNoToIdxTrain, classifier, mapClNoToIdxTest, yMultiTest);
   
   
@@ -352,8 +356,8 @@ void TestGPHIKOnlineLearnable::testOnlineLearningOCCtoBinary()
   
   // determine classes known during training/testing and corresponding mapping
   // thereby allow for non-continous class labels  
-  std::map<int,int> mapClNoToIdxTrain;
-  std::map<int,int> mapClNoToIdxTest;
+  std::map< uint,uint > mapClNoToIdxTrain;
+  std::map< uint,uint > mapClNoToIdxTest;
   prepareLabelMappings (mapClNoToIdxTrain, classifier, mapClNoToIdxTest, yMultiTest);
   
   
@@ -492,8 +496,8 @@ void TestGPHIKOnlineLearnable::testOnlineLearningBinarytoMultiClass()
   
   // determine classes known during training/testing and corresponding mapping
   // thereby allow for non-continous class labels  
-  std::map<int,int> mapClNoToIdxTrain;
-  std::map<int,int> mapClNoToIdxTest;
+  std::map< uint,uint > mapClNoToIdxTrain;
+  std::map< uint,uint > mapClNoToIdxTest;
   prepareLabelMappings (mapClNoToIdxTrain, classifier, mapClNoToIdxTest, yMultiTest);
   
   
@@ -651,8 +655,8 @@ void TestGPHIKOnlineLearnable::testOnlineLearningMultiClass()
   
   // determine classes known during training/testing and corresponding mapping
   // thereby allow for non-continous class labels  
-  std::map<int,int> mapClNoToIdxTrain;
-  std::map<int,int> mapClNoToIdxTest;
+  std::map< uint,uint > mapClNoToIdxTrain;
+  std::map< uint,uint > mapClNoToIdxTest;
   prepareLabelMappings (mapClNoToIdxTrain, classifier, mapClNoToIdxTest, yMultiTest);
   
   

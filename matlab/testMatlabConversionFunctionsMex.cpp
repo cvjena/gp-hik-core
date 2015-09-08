@@ -117,8 +117,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
         NICE::SparseVector t_vecTest = MatlabConversion::convertSparseVectorToNice( t_pData );
 	
-	NICE::Vector t_fullVector;
-	t_vecTest.convertToVectorT( t_fullVector );
+        NICE::Vector t_fullVector;
+        t_vecTest.convertToVectorT( t_fullVector );
         std::cerr << "convertDoubleSparseVector: full version:" << t_fullVector << std::endl;
 
         // output

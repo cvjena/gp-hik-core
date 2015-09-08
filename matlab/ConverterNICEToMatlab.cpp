@@ -14,7 +14,7 @@ mxArray* MatlabConversion::convertSparseVectorFromNice( const NICE::SparseVector
        matlabSparseVec = mxCreateSparse( niceSvec.getDim() -1 /*m*/, 1/*n*/, niceSvec.size() -1 /*nzmax*/, mxREAL);
     else
       matlabSparseVec = mxCreateSparse( niceSvec.getDim() /*m*/, 1/*n*/, niceSvec.size() /*nzmax*/, mxREAL);
-
+    
     
     // To make the returned sparse mxArray useful, you must initialize the pr, ir, jc, and (if it exists) pi arrays.    
     // mxCreateSparse allocates space for:

@@ -15,6 +15,8 @@ b_verboseTime                       = false;
 
 %interested in outputs?
 b_verbose                           = false;  
+b_debug                             = false;  
+
 
 % important for plotting!
 b_uncertaintyPredictionForClassification ...
@@ -26,7 +28,7 @@ b_ils_verbose                       = false;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% integer
 i_nrOfEigenvaluesToConsiderForVarApprox ...
-                                    = 2;
+                                    = 1;
 i_num_bins                          = 100; % default
 i_ils_max_iterations                = 1000; % default
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -47,9 +49,9 @@ s_ils_method                        = 'CG'; % default
 % options: 'none', 'greedy', 'downhillsimplex'
 s_optimization_method               = 'downhillsimplex';
 
-% options:  'identity', 'abs', 'absexp'
+% options:  'identity', 'exp', 'absexp'
 % with settings above, this equals 'identity'
-s_transform                         = 'absexp'; 
+s_transform                         = 'identity'; 
 
 % options: 'exact', 'approximate_fine', 'approximate_rough', and 'none'
 s_varianceApproximation             = 'approximate_fine'; 
@@ -59,6 +61,7 @@ myGPHIKClassifier = ...
         GPHIKClassifier ( ...
                           'verboseTime',                               b_verboseTime, ...
                           'verbose',                                   b_verbose, ...
+                          'debug',                                     b_debug, ...                          
                           'uncertaintyPredictionForClassification',    b_uncertaintyPredictionForClassification, ...
                           'optimize_noise',                            b_optimize_noise, ...
                           'use_quantization',                          b_use_quantization, ...
@@ -95,7 +98,11 @@ scores = zeros(size(myDataTest,1),1);
 uncertainties = zeros(size(myDataTest,1),1);
 for i=1:size(myDataTest,1)
     example = myDataTest(i,:);
-    [ classNoEst, score, uncertainties(i)] = myGPHIKClassifier.classify( example );
+
+%     [ classNoEst, score, uncertainties(i)] = myGPHIKClassifier.classify( sparse(example) );
+    [ classNoEst, score, uncertainties(i)] = myGPHIKClassifier.classify( example );    
+%      [ classNoEst, score] = myGPHIKClassifier.classify( example );
+%     [ classNoEst, score] = myGPHIKClassifier.classify( sparse(  example ) );    
     scores(i) = score(1);
 end
 
@@ -108,7 +115,7 @@ set ( classificationFig, 'name', 'Classification with GPHIK');
 hold on;
 
 %#initialize x array
-x=0:0.01:1;
+x=myDataTest(:,1)';
 
 %#create first curve
 uncLower=scores-uncertainties;

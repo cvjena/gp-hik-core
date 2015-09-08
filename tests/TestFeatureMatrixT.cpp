@@ -36,7 +36,7 @@ void TestFeatureMatrixT::testSetup()
 
   generateRandomFeatures ( d, n, dataMatrix );
 
-  int nrZeros(0);
+  uint nrZeros(0);
   for ( uint i = 0 ; i < d; i++ )
   {
     for ( uint k = 0; k < n; k++ )
@@ -64,7 +64,7 @@ void TestFeatureMatrixT::testSetup()
   }
   
   transposeVectorOfVectors(dataMatrix);
-  std::vector<std::vector<int> > permutations;
+  std::vector<std::vector<uint> > permutations;
   if (verbose)
     std::cerr << "now try to set_features" << std::endl;
   fm.set_features(dataMatrix, permutations);

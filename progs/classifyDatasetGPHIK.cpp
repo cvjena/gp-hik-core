@@ -19,20 +19,23 @@
 #include "gp-hik-core/GPHIKClassifier.h"
 
 
-void readSparseExamples ( const std::string & fn,  std::vector< const NICE::SparseVector * > & examples, NICE::Vector & labels )
+void readSparseExamples ( const std::string & _fn,  
+                          std::vector< const NICE::SparseVector * > & _examples, 
+                          NICE::Vector & _labels 
+                        )
 {
   // initially cleaning of variables
-  examples.clear();
-  labels.clear();
+    _examples.clear();
+    _labels.clear();
   
   std::vector<double> labels_std;
   labels_std.clear();
   
-  std::cerr << "Reading " << fn << std::endl;
-  std::ifstream ifs ( fn.c_str(), std::ios::in );
+  std::cerr << "Reading " << _fn << std::endl;
+  std::ifstream ifs ( _fn.c_str(), std::ios::in );
   if ( ! ifs.good() )
   {
-      std::cerr <<  "Unable to read " << fn << std::endl;
+      std::cerr <<  "Unable to read " << _fn << std::endl;
       return;
   }
   
@@ -67,23 +70,25 @@ void readSparseExamples ( const std::string & fn,  std::vector< const NICE::Spar
     }
           
     
-    examples.push_back ( v );
+        _examples.push_back ( v );
   }
   ifs.close();
   
-  labels = NICE::Vector( labels_std );
+    _labels = NICE::Vector( labels_std );
 }
 
-void mapClassNumbersToIndices( const NICE::Vector & labels, std::map<int,int> & mapClassNoToIdx )
+void mapClassNumbersToIndices( const NICE::Vector & _labels, 
+                               std::map< uint, uint > & _mapClassNoToIdx 
+                             )
 {
-  mapClassNoToIdx.clear();
+  _mapClassNoToIdx.clear();
   int classCnt ( 0 );
   
-  for ( NICE::Vector::const_iterator it_labels = labels.begin(); it_labels != labels.end(); it_labels++ )
+  for ( NICE::Vector::const_iterator it_labels = _labels.begin(); it_labels != _labels.end(); it_labels++ )
   {
-    if ( mapClassNoToIdx.find( *it_labels ) == mapClassNoToIdx.end() )
+    if ( _mapClassNoToIdx.find( *it_labels ) == _mapClassNoToIdx.end() )
     {
-      mapClassNoToIdx.insert( std::pair<int,int>( (int) round(*it_labels), classCnt ) );
+            _mapClassNoToIdx.insert( std::pair< uint, uint >( (uint) round(*it_labels), classCnt ) );
       classCnt++;
     }
   }
@@ -114,7 +119,7 @@ int main (int argc, char* argv[])
   readSparseExamples ( s_fn_trainingSet, examplesTrain, labelsTrain );
 
   //map the occuring classes to a minimal set of indices
-  std::map<int,int> map_classNoToClassIdx_train; // < classNo, Idx>
+  std::map< uint, uint > map_classNoToClassIdx_train; // < classNo, Idx>
   
   mapClassNumbersToIndices( labelsTrain, map_classNoToClassIdx_train );
   
@@ -136,7 +141,7 @@ int main (int argc, char* argv[])
   readSparseExamples ( s_fn_testSet, examplesTest, labelsTest );
   
   //map the occuring classes to a minimal set of indices
-  std::map<int,int> map_classNoToClassIdx_test; // < classNo, Idx>
+  std::map< uint, uint > map_classNoToClassIdx_test; // < classNo, Idx>
   
   mapClassNumbersToIndices( labelsTest, map_classNoToClassIdx_test );
 
@@ -151,14 +156,14 @@ int main (int argc, char* argv[])
   
   for (std::vector< const NICE::SparseVector *>::const_iterator itTestExamples = examplesTest.begin(); itTestExamples != examplesTest.end(); itTestExamples++, idx++)
   {
-    int classno_groundtruth = labelsTest( idx );
-    int classno_predicted;
+    uint classno_groundtruth = labelsTest( idx );
+    uint classno_predicted;
 
     classifier.classify ( *itTestExamples, classno_predicted, scores /* not needed anyway in that evaluation*/ );
     
     
-    int idx_classno_groundtruth ( map_classNoToClassIdx_test[ classno_groundtruth ] );
-    int idx_classno_predicted ( map_classNoToClassIdx_train[ classno_predicted ] );
+    uint idx_classno_groundtruth ( map_classNoToClassIdx_test[ classno_groundtruth ] );
+    uint idx_classno_predicted ( map_classNoToClassIdx_train[ classno_predicted ] );
         
     confusion( idx_classno_groundtruth, idx_classno_predicted ) += 1;
   }

@@ -132,17 +132,17 @@ int main (int argc, char* argv[])
   
   // determine classes known during training and corresponding mapping
   // thereby allow for non-continous class labels
-  std::set<int> classesKnownTraining = classifier->getKnownClassNumbers();
+  std::set< uint > classesKnownTraining = classifier->getKnownClassNumbers();
   
-  int noClassesKnownTraining ( classesKnownTraining.size() );
-  std::map<int,int> mapClNoToIdxTrain;
-  std::set<int>::const_iterator clTrIt = classesKnownTraining.begin();
+  uint noClassesKnownTraining ( classesKnownTraining.size() );
+  std::map< uint, uint > mapClNoToIdxTrain;
+  std::set< uint >::const_iterator clTrIt = classesKnownTraining.begin();
   for ( int i=0; i < noClassesKnownTraining; i++, clTrIt++ )
-      mapClNoToIdxTrain.insert ( std::pair<int,int> ( *clTrIt, i )  );
+      mapClNoToIdxTrain.insert ( std::pair< uint, uint > ( *clTrIt, i )  );
   
   // determine classes known during testing and corresponding mapping
   // thereby allow for non-continous class labels
-  std::set<int> classesKnownTest;
+  std::set< uint > classesKnownTest;
   classesKnownTest.clear();
   
 
@@ -156,11 +156,11 @@ int main (int argc, char* argv[])
     }
   }          
   
-  int noClassesKnownTest ( classesKnownTest.size() );  
-  std::map<int,int> mapClNoToIdxTest;
-  std::set<int>::const_iterator clTestIt = classesKnownTest.begin();
-  for ( int i=0; i < noClassesKnownTest; i++, clTestIt++ )
-      mapClNoToIdxTest.insert ( std::pair<int,int> ( *clTestIt, i )  ); 
+  uint noClassesKnownTest ( classesKnownTest.size() );  
+  std::map< uint, uint > mapClNoToIdxTest;
+  std::set< uint >::const_iterator clTestIt = classesKnownTest.begin();
+  for ( uint i=0; i < noClassesKnownTest; i++, clTestIt++ )
+      mapClNoToIdxTest.insert ( std::pair< uint, uint > ( *clTestIt, i )  ); 
           
   
   NICE::Matrix confusionMatrix( noClassesKnownTraining, noClassesKnownTest, 0.0);
@@ -177,7 +177,7 @@ int main (int argc, char* argv[])
   {
     NICE::Vector example ( dataTest.getRow(i) );
     NICE::SparseVector scores;
-    int result;
+    uint result;
     
     // and classify
     t.start();

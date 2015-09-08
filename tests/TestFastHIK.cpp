@@ -15,6 +15,17 @@
 
 #include "TestFastHIK.h"
 
+const bool b_debug = false;
+const bool verbose = false;
+const bool verboseStartEnd = true;
+const bool solveLinWithoutRand = false;
+const uint n = 30;//1500;//1500;//10;
+const uint d = 5;//200;//2;
+const uint numBins = 11;//1001;//1001;
+const uint solveLinMaxIterations = 1000;
+const double sparse_prob = 0.6;
+const bool smallTest = false;
+
 bool compareVVector(const NICE::VVector & A, const NICE::VVector & B, const double & tolerance = 10e-8)
 {
   bool result(true);
@@ -67,15 +78,7 @@ bool compareLUTs(const double* LUT1, const double* LUT2, const int & size, const
   return result;
 }
 
-const bool verbose = false;
-const bool verboseStartEnd = true;
-const bool solveLinWithoutRand = false;
-const uint n = 30;//1500;//1500;//10;
-const uint d = 5;//200;//2;
-const uint numBins = 11;//1001;//1001;
-const uint solveLinMaxIterations = 1000;
-const double sparse_prob = 0.6;
-const bool smallTest = false;
+
 
 using namespace NICE;
 using namespace std;
@@ -146,7 +149,8 @@ void TestFastHIK::testKernelMultiplication()
   NICE::Matrix K (hikSlow.computeKernelMatrix(dataMatrix_transposed, noise));
   //toc
   float time_slowComputation = (float) (clock() - slow_start);
-  std::cerr << "Time for computing the kernel matrix without using sparsity: " << time_slowComputation/CLOCKS_PER_SEC << " s" << std::endl;  
+  if (verbose)
+    std::cerr << "Time for computing the kernel matrix without using sparsity: " << time_slowComputation/CLOCKS_PER_SEC << " s" << std::endl;  
 
   // tic
   time_t  slow_sparse_start = clock();
@@ -154,7 +158,8 @@ void TestFastHIK::testKernelMultiplication()
   NICE::Matrix KSparseCalculated (hikSlow.computeKernelMatrix(fmk.featureMatrix(), noise));
   //toc
   float time_slowComputation_usingSparsity = (float) (clock() - slow_sparse_start);
-  std::cerr << "Time for computing the kernel matrix using sparsity: " << time_slowComputation_usingSparsity/CLOCKS_PER_SEC << " s" << std::endl;    
+  if (verbose)
+    std::cerr << "Time for computing the kernel matrix using sparsity: " << time_slowComputation_usingSparsity/CLOCKS_PER_SEC << " s" << std::endl;    
 
   if ( verbose ) 
     cerr << "K = " << K << endl;
@@ -674,7 +679,8 @@ void TestFastHIK::testLinSolve()
   NICE::Vector alpha;
   NICE::Vector alphaRandomized;
 
-  std::cerr << "solveLin with randomization" << std::endl;
+  if ( verbose )
+    std::cerr << "solveLin with randomization" << std::endl;
   // tic
   NICE::Timer t;
   t.start();
@@ -682,8 +688,9 @@ void TestFastHIK::testLinSolve()
   fmk.solveLin(y,alphaRandomized,q,pf,true,solveLinMaxIterations,30);
   //toc
   t.stop();
-  float time_randomizedSolving = t.getLast();
-  std::cerr << "Time for solving with random subsets: " << time_randomizedSolving << " s" << std::endl;  
+  float time_randomizedSolving = t.getLast();  
+  if ( verbose )
+    std::cerr << "Time for solving with random subsets: " << time_randomizedSolving << " s" << std::endl;  
   
   // test the case, where we first transform and then use the multiply stuff
   std::vector<std::vector<double> > dataMatrix_transposed (dataMatrix);
@@ -697,12 +704,17 @@ void TestFastHIK::testLinSolve()
   
   if (solveLinWithoutRand)
   {
-    std::cerr << "solveLin without randomization" << std::endl;
+    if ( verbose )
+      std::cerr << "solveLin without randomization" << std::endl;
     fmk.solveLin(y,alpha,q,pf,false,1000);
     Vector K_alpha;
     K_alpha.multiply(gK, alpha);
-    std::cerr << "now assert that K_alpha == y" << std::endl;
-    std::cerr << "(K_alpha-y).normL1(): " << (K_alpha-y).normL1() << std::endl;
+    
+    if ( verbose )
+    {
+      std::cerr << "now assert that K_alpha == y" << std::endl;
+      std::cerr << "(K_alpha-y).normL1(): " << (K_alpha-y).normL1() << std::endl;
+    }
   }
    
 //   std::cerr << "alpha: " << alpha << std::endl;
@@ -718,8 +730,11 @@ void TestFastHIK::testLinSolve()
 //   std::cerr << "test_alpha (CGM): " << test_alpha << std::endl;
 //   std::cerr << "K_times_alpha (CGM): " << K_alpha << std::endl;
   
-  std::cerr << "now assert that K_alphaRandomized == y" << std::endl;
-  std::cerr << "(K_alphaRandomized-y).normL1(): " << (K_alphaRandomized-y).normL1() << std::endl;
+  if ( verbose )
+  {
+    std::cerr << "now assert that K_alphaRandomized == y" << std::endl;
+    std::cerr << "(K_alphaRandomized-y).normL1(): " << (K_alphaRandomized-y).normL1() << std::endl; 
+  }
   
 
 //   CPPUNIT_ASSERT_DOUBLES_EQUAL((K_alphaRandomized-y).normL1(), 0.0, 1e-6);
@@ -746,7 +761,8 @@ void TestFastHIK::testKernelVector()
   }
 
   double noise = 1.0;
-  FastMinKernel fmk ( dataMatrix, noise );
+  FastMinKernel fmk ( dataMatrix, noise, b_debug );
+  
 
   std::vector<double> xStar; xStar.push_back(0.2);xStar.push_back(0.7);xStar.push_back(0.1);
   NICE::Vector xStarVec (xStar);
@@ -755,9 +771,17 @@ void TestFastHIK::testKernelVector()
   
   NICE::SparseVector xStarsparse( xStarVec );
   NICE::SparseVector x2sparse( x2Vec );
+
+
+  if ( b_debug )
+  {
+    fmk.store ( std::cerr );
+    xStarsparse.store ( std::cerr );
+  }
   
   NICE::Vector k1;
   fmk.hikComputeKernelVector( xStarsparse, k1 );
+
   
   NICE::Vector k2;
   fmk.hikComputeKernelVector( x2sparse, k2 );

@@ -42,14 +42,14 @@ template<class T> class FeatureMatrixT : public NICE::Persistent
 {
 
   protected:
-    int n;
-    int d;
+    uint ui_n;
+    uint ui_d;
     std::vector<NICE::SortedVectorSparse<T> > features;
     
     //! verbose flag for output after calling the restore-function
-    bool verbose;
+    bool b_verbose;
     //! debug flag for output during debugging
-    bool debug;
+    bool b_debug;
 
 
   public:
@@ -85,7 +85,9 @@ template<class T> class FeatureMatrixT : public NICE::Persistent
     * @author Alexander Freytag
     * @date 07-12-2011 (dd-mm-yyyy) 
     */
-    FeatureMatrixT(const std::vector<std::vector<T> > & _features, const int & _dim = -1);
+    FeatureMatrixT(const std::vector<std::vector<T> > & _features, 
+                   const uint & _dim = 0
+                  );
     
 #ifdef NICE_USELIB_MATIO
     /** 
@@ -93,11 +95,16 @@ template<class T> class FeatureMatrixT : public NICE::Persistent
     * @author Alexander Freytag
     * @date 10-01-2012 (dd-mm-yyyy)
     */
-    FeatureMatrixT(const sparse_t & _features, const int & _dim = -1);//, const int & nrFeatures);
+    FeatureMatrixT(const sparse_t & _features, 
+                   const uint & _dim = 0
+                  );//, const int & nrFeatures);
 #endif
 
     /** just another constructor for sparse features */
-    FeatureMatrixT(const std::vector< const NICE::SparseVector * > & X, const bool dimensionsOverExamples = false, const int & _dim = -1);
+    FeatureMatrixT(const std::vector< const NICE::SparseVector * > & _X, 
+                   const bool _dimensionsOverExamples = false, 
+                   const uint & _dim = 0
+                  );
     
 #ifdef NICE_USELIB_MATIO
     /**
@@ -107,7 +114,9 @@ template<class T> class FeatureMatrixT : public NICE::Persistent
     * @param _features sparse data matrix (sett MatFileIO)
     * @param examples set of example indices
     */
-    FeatureMatrixT(const sparse_t & _features, const std::map<int, int> & examples , const int & _dim = -1);
+    FeatureMatrixT(const sparse_t & _features, 
+                   const std::map<uint, uint> & _examples , 
+                   const uint & _dim = 0);
 #endif
 
     /** 
@@ -126,20 +135,20 @@ template<class T> class FeatureMatrixT : public NICE::Persistent
     * @author Alexander Freytag
     * @date 07-12-2011 (dd-mm-yyyy)
     */
-      int get_n() const;
+      uint get_n() const;
     /** 
     * @brief Get number of dimensions
     * @author Alexander Freytag
     * @date 07-12-2011 (dd-mm-yyyy)
     */
-      int get_d() const;
+      uint get_d() const;
       
     /** 
     * @brief Sets the given dimension and re-sizes internal data structure. WARNING: this will completely remove your current data!
     * @author Alexander Freytag
     * @date 06-12-2011 (dd-mm-yyyy)
     */
-      void set_d(const int & _d);
+      void set_d(const uint & _d);
       
     /** set verbose flag used for restore-functionality*/
     void setVerbose( const bool & _verbose);
@@ -158,7 +167,7 @@ template<class T> class FeatureMatrixT : public NICE::Persistent
     * @param F data to compare with
     * @return true if \c F and \c this are equal
     */
-    inline bool operator==(const FeatureMatrixT<T> & F) const;
+    inline bool operator==(const FeatureMatrixT<T> & _F) const;
     
     /**
     * @brief Compare \c F with \c this.
@@ -168,7 +177,7 @@ template<class T> class FeatureMatrixT : public NICE::Persistent
     * @param F data to compare with
     * @return true if \c F and \c this are not equal
     */
-    inline bool operator!= (const FeatureMatrixT<T> & F) const;
+    inline bool operator!= (const FeatureMatrixT<T> & _F) const;
 
     /**
     * @brief Copy data from \c F to \c this.
@@ -177,83 +186,113 @@ template<class T> class FeatureMatrixT : public NICE::Persistent
     * @param v New data
     * @return \c *this
     */
-    inline FeatureMatrixT<T>& operator=(const FeatureMatrixT<T> & F);
+    inline FeatureMatrixT<T>& operator=(const FeatureMatrixT<T> & _F);
       
     /** 
     * @brief Matrix-like operator for element access, performs validity check
     * @author Alexander Freytag
     * @date 07-12-2011 (dd-mm-yyyy)
     */
-    inline T operator()(const int row, const int col) const;
+    inline T operator()(const uint _row, 
+                        const uint _col
+                       ) const;
     
     /** 
     * @brief Element access without validity check
     * @author Alexander Freytag
     * @date 08-12-2011 (dd-mm-yyyy)
     */
-    inline T getUnsafe(const int row, const int col) const;
+    inline T getUnsafe(const uint _row,
+                       const uint _col
+                      ) const;
 
     /** 
     * @brief Element access of original values without validity check
     * @author Erik Rodner
     */
-    inline T getOriginal(const int row, const int col) const;
+    inline T getOriginal(const uint _row,
+                         const uint _col
+                        ) const;
 
     /** 
     * @brief Sets a specified element to the given value, performs validity check
     * @author Alexander Freytag
     * @date 07-12-2011 (dd-mm-yyyy)
     */
-    inline void set (const int row, const int col, const T & newElement, bool setTransformedValue = false);
+    inline void set (const uint _row, 
+                     const uint _col, 
+                     const T & _newElement, 
+                     bool _setTransformedValue = false
+                    );
     
     /** 
     * @brief Sets a specified element to the given value, without validity check
     * @author Alexander Freytag
     * @date 08-12-2011 (dd-mm-yyyy)
     */
-    inline void setUnsafe (const int row, const int col, const T & newElement, bool setTransformedValue = false);
+    inline void setUnsafe (const uint _row, 
+                           const uint _col, 
+                           const T & _newElement, 
+                           bool _setTransformedValue = false
+                          );
     
     /** 
     * @brief Access to all element entries of a specified dimension, including validity check
     * @author Alexander Freytag
     * @date 08-12-2011 (dd-mm-yyyy)
     */
-    void getDimension(const int & dim, NICE::SortedVectorSparse<T> & dimension) const;
+    void getDimension(const uint & _dim, 
+                      NICE::SortedVectorSparse<T> & _dimension
+                     ) const;
     
     /** 
     * @brief Access to all element entries of a specified dimension, without validity check
     * @author Alexander Freytag
     * @date 08-12-2011 (dd-mm-yyyy)
     */
-    void getDimensionUnsafe(const int & dim, NICE::SortedVectorSparse<T> & dimension) const;
+    void getDimensionUnsafe(const uint & _dim, 
+                            NICE::SortedVectorSparse<T> & _dimension
+                           ) const;
     
     /** 
     * @brief Finds the first element in a given dimension, which equals elem (orig feature value, not the transformed one)
     * @author Alexander Freytag
     * @date 08-12-2011 (dd-mm-yyyy)
     */
-    void findFirstInDimension(const int & dim, const T & elem, int & position) const;
+    void findFirstInDimension(const uint & _dim, 
+                              const T & _elem, 
+                              uint & _position
+                             ) const;
     
     /** 
     * @brief Finds the last element in a given dimension, which equals elem (orig feature value, not the transformed one)
     * @author Alexander Freytag
     * @date 08-12-2011 (dd-mm-yyyy)1
     */
-    void findLastInDimension(const int & dim, const T & elem, int & position) const;
+    void findLastInDimension(const uint & _dim, 
+                             const T & _elem, 
+                             uint & _position
+                            ) const;
     
     /** 
     * @brief Finds the first element in a given dimension, which is larger as elem (orig feature value, not the transformed one)
     * @author Alexander Freytag
     * @date 08-12-2011 (dd-mm-yyyy)
     */
-    void findFirstLargerInDimension(const int & dim, const T & elem, int & position) const;
+    void findFirstLargerInDimension(const uint & _dim, 
+                                    const T & elem, 
+                                    uint & position
+                                   ) const;
     
     /** 
     * @brief Finds the last element in a given dimension, which is smaller as elem (orig feature value, not the transformed one)
     * @author Alexander Freytag
     * @date 08-12-2011 (dd-mm-yyyy)
     */
-    void findLastSmallerInDimension(const int & dim, const T & elem, int & position) const;
+    void findLastSmallerInDimension(const uint & _dim, 
+                                    const T & _elem, 
+                                    uint & _position
+                                   ) const;
     
     //------------------------------------------------------
     // high level methods
@@ -266,7 +305,7 @@ template<class T> class FeatureMatrixT : public NICE::Persistent
     *
     * @param pf the parameterized function (optional), if not given, nothing will be done
     */    
-    void applyFunctionToFeatureMatrix ( const NICE::ParameterizedFunction *pf = NULL );
+    void applyFunctionToFeatureMatrix ( const NICE::ParameterizedFunction *_pf = NULL );
     
     /** 
     * @brief Computes the ratio of sparsity across the matrix
@@ -280,13 +319,17 @@ template<class T> class FeatureMatrixT : public NICE::Persistent
     * @author Alexander Freytag
     * @date 07-12-2011 (dd-mm-yyyy)
     */
-    void add_feature(const std::vector<T> & feature, const NICE::ParameterizedFunction *pf = NULL);
+    void add_feature(const std::vector<T> & _feature, 
+                     const NICE::ParameterizedFunction *_pf = NULL
+                    );
     /** 
     * @brief add a new feature and insert its elements in the already ordered structure, will be casted to type T
     * @author Alexander Freytag
     * @date 25-04-2012 (dd-mm-yyyy)
     */    
-    void add_feature(const NICE::SparseVector & feature, const NICE::ParameterizedFunction *pf = NULL);
+    void add_feature(const NICE::SparseVector & _feature, 
+                     const NICE::ParameterizedFunction *_pf = NULL
+                    );
 
     /** 
     * @brief add several new features and insert their elements in the already ordered structure
@@ -300,53 +343,76 @@ template<class T> class FeatureMatrixT : public NICE::Persistent
     * @author Alexander Freytag
     * @date 07-12-2011 (dd-mm-yyyy)
     */
-    void set_features(const std::vector<std::vector<T> > & _features, std::vector<std::vector<int> > & permutations, const int & _dim = -1);
-    void set_features(const std::vector<std::vector<T> > & _features, std::vector<std::map<int,int> > & permutations, const int & _dim = -1);
-    void set_features(const std::vector<std::vector<T> > & _features, const int & _dim = -1);
-    void set_features(const std::vector< const NICE::SparseVector * > & _features, const bool dimensionsOverExamples = false, const int & _dim = -1);
+    void set_features(const std::vector<std::vector<T> > & _features, 
+                      std::vector<std::vector<uint> > & _permutations, 
+                      const uint & _dim = 0
+                     );
+    void set_features(const std::vector<std::vector<T> > & _features, 
+                      std::vector<std::map<uint,uint> > & _permutations, 
+                      const uint & _dim = 0
+                     );
+    void set_features(const std::vector<std::vector<T> > & _features, 
+                      const uint & _dim = 0
+                     );
+    void set_features(const std::vector< const NICE::SparseVector * > & _features, 
+                      const bool _dimensionsOverExamples = false, 
+                      const uint & _dim = 0
+                     );
     
     /**
     * @brief get a permutation vector for each dimension
     *
     * @param resulting permutation matrix
     */
-    void getPermutations( std::vector<std::vector<int> > & permutations) const;
-    void getPermutations( std::vector<std::map<int,int> > & permutations) const;
+    void getPermutations( std::vector<std::vector<uint> > & _permutations) const;
+    void getPermutations( std::vector<std::map<uint,uint> > & _permutations) const;
       
     /** 
     * @brief Prints the whole Matrix (outer loop over dimension, inner loop over features)
     * @author Alexander Freytag
     * @date 07-12-2011 (dd-mm-yyyy)
     */
-    void print(std::ostream & os) const;
+    void print(std::ostream & _os) const;
     
     /** 
     * @brief Computes the whole non-sparse matrix. WARNING: this may result in a really memory-consuming data-structure!
     * @author Alexander Freytag
     * @date 12-01-2012 (dd-mm-yyyy)
     */
-    void computeNonSparseMatrix(NICE::MatrixT<T> & matrix, bool transpose = false) const;
+    void computeNonSparseMatrix(NICE::MatrixT<T> & _matrix, 
+                                bool _transpose = false
+                               ) const;
     
     /** 
     * @brief Computes the whole non-sparse matrix. WARNING: this may result in a really memory-consuming data-structure!
     * @author Alexander Freytag
     * @date 12-01-2012 (dd-mm-yyyy)
     */
-    void computeNonSparseMatrix(std::vector<std::vector<T> > & matrix, bool transpose = false) const;
+    void computeNonSparseMatrix(std::vector<std::vector<T> > & _matrix, 
+                                bool _transpose = false
+                               ) const;
     
     /** 
     * @brief Swaps to specified elements, performing a validity check
     * @author Alexander Freytag
     * @date 08-12-2011 (dd-mm-yyyy)
     */
-    void swap(const int & row1, const int & col1, const int & row2, const int & col2);
+    void swap(const uint & _row1, 
+              const uint & _col1,
+              const uint & _row2, 
+              const uint & _col2
+             );
     
     /** 
     * @brief Swaps to specified elements, without performing a validity check
     * @author Alexander Freytag
     * @date 08-12-2011 (dd-mm-yyyy)
     */
-    void swapUnsafe(const int & row1, const int & col1, const int & row2, const int & col2);
+    void swapUnsafe(const uint & _row1, 
+                    const uint & _col1, 
+                    const uint & _row2, 
+                    const uint & _col2
+                   );
 
     /**
     * @brief direct access to elements
@@ -355,7 +421,7 @@ template<class T> class FeatureMatrixT : public NICE::Persistent
     *
     * @return sorted feature values
     */
-    const SortedVectorSparse<T> & getFeatureValues ( int dim ) const { return features[dim]; };
+    const SortedVectorSparse<T> & getFeatureValues ( uint _dim ) const { return this->features[_dim]; };
  
     /**
     * @brief direct read/write access to elements
@@ -364,7 +430,7 @@ template<class T> class FeatureMatrixT : public NICE::Persistent
     *
     * @return sorted feature values
     */
-    SortedVectorSparse<T> & getFeatureValues ( int dim ) { return features[dim]; };
+    SortedVectorSparse<T> & getFeatureValues ( uint _dim ) { return this->features[_dim]; };
    
     
     /**
@@ -372,7 +438,7 @@ template<class T> class FeatureMatrixT : public NICE::Persistent
     *
     * @param diagonalElements resulting vector
     */
-    void hikDiagonalElements( Vector & diagonalElements ) const;
+    void hikDiagonalElements( Vector & _diagonalElements ) const;
 
     /**
     * @brief Compute the trace of the HIK kernel matrix induced by the features
@@ -386,18 +452,18 @@ template<class T> class FeatureMatrixT : public NICE::Persistent
     *
     * @return number of nonzero elements on the specified dimension
     */ 
-    int getNumberOfNonZeroElementsPerDimension(const int & dim) const;
+    uint getNumberOfNonZeroElementsPerDimension(const uint & _dim) const;
    
     /**
     * @brief Return the number of zero elements in a specified dimension, that are currently stored in the feature matrix
     *
     * @return number of nonzero elements on the specified dimension
     */ 
-    int getNumberOfZeroElementsPerDimension(const int & dim) const;
+    uint getNumberOfZeroElementsPerDimension(const uint & _dim) const;
     
     /** Persistent interface */
-    virtual void restore ( std::istream & is, int format = 0 );
-    virtual void store ( std::ostream & os, int format = 0 ) const;
+    virtual void restore ( std::istream & _is, int _format = 0 );
+    virtual void store ( std::ostream & _os, int _format = 0 ) const;
     virtual void clear ( );
 
 };

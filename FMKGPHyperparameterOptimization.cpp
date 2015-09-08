@@ -52,26 +52,26 @@ using namespace std;
 /////////////////////////////////////////////////////
 
 void FMKGPHyperparameterOptimization::updateAfterIncrement ( 
-      const std::set < int > newClasses,
+      const std::set < uint > newClasses,
       const bool & performOptimizationAfterIncrement )
 {
   if ( this->fmk == NULL )
     fthrow ( Exception, "FastMinKernel object was not initialized!" );
 
-  std::map<int, NICE::Vector> binaryLabels;
-  std::set<int> classesToUse;
+  std::map<uint, NICE::Vector> binaryLabels;
+  std::set<uint> classesToUse;
   //TODO this could be made faster when storing the previous binary label vectors...
   
   if ( this->b_performRegression )
   {
     // for regression, we are not interested in regression scores, rather than in any "label" 
-    int regressionLabel ( 1 );  
-    binaryLabels.insert ( std::pair< int, NICE::Vector> ( regressionLabel, this->labels ) );
+    uint regressionLabel ( 1 );  
+    binaryLabels.insert ( std::pair< uint, NICE::Vector> ( regressionLabel, this->labels ) );
   }
   else
     this->prepareBinaryLabels ( binaryLabels, this->labels , classesToUse );
   
-  if ( this->verbose )
+  if ( this->b_verbose )
     std::cerr << "labels.size() after increment: " << this->labels.size() << std::endl;
 
   NICE::Timer t1;
@@ -82,7 +82,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
   t1.start();
   this->setupGPLikelihoodApprox ( gplike, binaryLabels, parameterVectorSize );
   t1.stop();
-  if ( this->verboseTime )
+  if ( this->b_verboseTime )
     std::cerr << "Time used for setting up the gplike-objects: " << t1.getLast() << std::endl;
 
   t1.start();
@@ -101,17 +101,17 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
     {
       // if the first class has a larger value then the currently added second class, we have to 
       // switch the index, which unfortunately is not sooo easy in the map
-      if ( this->previousAlphas.begin()->first == this->binaryLabelNegative )
+      if ( this->previousAlphas.begin()->first == this->i_binaryLabelNegative )
       {
-        this->previousAlphas.insert( std::pair<int, NICE::Vector> ( this->binaryLabelPositive, this->previousAlphas.begin()->second) );
-        this->previousAlphas.erase( this->binaryLabelNegative );
+        this->previousAlphas.insert( std::pair<int, NICE::Vector> ( this->i_binaryLabelPositive, this->previousAlphas.begin()->second) );
+        this->previousAlphas.erase( this->i_binaryLabelNegative );
       }
     }
     
     
-    std::map<int, NICE::Vector>::const_iterator binaryLabelsIt = binaryLabels.begin();
+    std::map<uint, NICE::Vector>::const_iterator binaryLabelsIt = binaryLabels.begin();
     
-    for ( std::map<int, NICE::Vector>::iterator prevAlphaIt = this->previousAlphas.begin();
+    for ( std::map<uint, NICE::Vector>::iterator prevAlphaIt = this->previousAlphas.begin();
          prevAlphaIt != this->previousAlphas.end();
          prevAlphaIt++
         )
@@ -132,10 +132,10 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
     }
 
     //compute unaffected alpha-vectors for the new classes
-    for (std::set<int>::const_iterator newClIt =  newClasses.begin(); newClIt != newClasses.end(); newClIt++)
+    for (std::set<uint>::const_iterator newClIt =  newClasses.begin(); newClIt != newClasses.end(); newClIt++)
     {      
       NICE::Vector alphaVec = (binaryLabels[*newClIt] * factor ); //see GPLikelihoodApprox for an explanation
-      previousAlphas.insert( std::pair<int, NICE::Vector>(*newClIt, alphaVec) );
+      previousAlphas.insert( std::pair<uint, NICE::Vector>(*newClIt, alphaVec) );
     }      
 
     gplike->setInitialAlphaGuess ( &previousAlphas );
@@ -147,10 +147,10 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
   }
     
   t1.stop();
-  if ( this->verboseTime )
+  if ( this->b_verboseTime )
     std::cerr << "Time used for setting up the alpha-objects: " << t1.getLast() << std::endl;
 
-  if ( this->verbose ) 
+  if ( this->b_verbose ) 
     std::cerr << "update Eigendecomposition " << std::endl;
   
   t1.start();
@@ -158,7 +158,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
   // nrOfEigenvaluesToConsiderForVarApprox should NOT be larger than 1 if a method different than approximate_fine is used!
   this->updateEigenDecomposition(  std::max ( this->nrOfEigenvaluesToConsider, this->nrOfEigenvaluesToConsiderForVarApprox) );
   t1.stop();
-  if ( this->verboseTime )
+  if ( this->b_verboseTime )
     std::cerr << "Time used for setting up the eigenvectors-objects: " << t1.getLast() << std::endl;
 
   
@@ -166,7 +166,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
   //   RE-RUN THE OPTIMIZATION, IF DESIRED    //
   //////////////////////  //////////////////////    
     
-  if ( this->verbose )
+  if ( this->b_verbose )
     std::cerr << "resulting eigenvalues for first class: " << eigenMax[0] << std::endl;
   
   // we can reuse the already given performOptimization-method:
@@ -180,7 +180,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
   // OPT_NONE
   // nothing to do, obviously
     
-  if ( this->verbose )
+  if ( this->b_verbose )
     std::cerr << "perform optimization after increment " << std::endl;
    
   OPTIMIZATIONTECHNIQUE optimizationMethodTmpCopy;
@@ -196,16 +196,16 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
   this->performOptimization ( *gplike, parameterVectorSize);
 
   t1.stop();
-  if ( this->verboseTime )
+  if ( this->b_verboseTime )
     std::cerr << "Time used for performing the optimization: " << t1.getLast() << std::endl;
 
-  if ( this->verbose )
+  if ( this->b_verbose )
     std::cerr << "Preparing after retraining for classification ..." << std::endl;
 
   t1.start();
   this->transformFeaturesWithOptimalParameters ( *gplike, parameterVectorSize );
   t1.stop();
-  if ( this->verboseTime)
+  if ( this->b_verboseTime)
     std::cerr << "Time used for transforming features with optimal parameters: " << t1.getLast() << std::endl;
 
   if ( !performOptimizationAfterIncrement )
@@ -221,7 +221,7 @@ void FMKGPHyperparameterOptimization::updateAfterIncrement (
   t1.start();
   this->computeMatricesAndLUTs ( *gplike );
   t1.stop();
-  if ( this->verboseTime )
+  if ( this->b_verboseTime )
     std::cerr << "Time used for setting up the A'nB -objects: " << t1.getLast() << std::endl;
 
   //don't waste memory
@@ -246,20 +246,20 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization( )
   this->ikmsum  = NULL;
   
   // initialize boolean flags
-  this->verbose = false;
-  this->verboseTime = false;
-  this->debug = false;
+  this->b_verbose = false;
+  this->b_verboseTime = false;
+  this->b_debug = false;
   
   //stupid unneeded default values
-  this->binaryLabelPositive = -1;
-  this->binaryLabelNegative = -2;
+  this->i_binaryLabelPositive = -1;
+  this->i_binaryLabelNegative = -2;
   this->knownClasses.clear();  
   
   this->b_usePreviousAlphas = false;
   this->b_performRegression = false;
 }
 
-FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization( const bool & b_performRegression ) 
+FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization( const bool & _performRegression ) 
 {
   ///////////
   // same code as in empty constructor - duplication can be avoided with C++11 allowing for constructor delegation
@@ -275,13 +275,13 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization( const bool & b
   this->ikmsum  = NULL;
   
   // initialize boolean flags
-  this->verbose = false;
-  this->verboseTime = false;
-  this->debug = false;
+  this->b_verbose = false;
+  this->b_verboseTime = false;
+  this->b_debug = false;
   
   //stupid unneeded default values
-  this->binaryLabelPositive = -1;
-  this->binaryLabelNegative = -2;
+  this->i_binaryLabelPositive = -1;
+  this->i_binaryLabelNegative = -2;
   this->knownClasses.clear();   
   
   this->b_usePreviousAlphas = false;
@@ -290,10 +290,12 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization( const bool & b
   ///////////
   // here comes the new code part different from the empty constructor
   ///////////  
-  this->b_performRegression = b_performRegression;
+  this->b_performRegression = _performRegression;
 }
 
-FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config *_conf, const string & _confSection )
+FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config *_conf, 
+                                                                   const string & _confSection 
+                                                                 )
 {
   ///////////
   // same code as in empty constructor - duplication can be avoided with C++11 allowing for constructor delegation
@@ -309,13 +311,13 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config 
   this->ikmsum  = NULL;
   
   // initialize boolean flags
-  this->verbose = false;
-  this->verboseTime = false;
-  this->debug = false;
+  this->b_verbose = false;
+  this->b_verboseTime = false;
+  this->b_debug = false;
   
   //stupid unneeded default values
-  this->binaryLabelPositive = -1;
-  this->binaryLabelNegative = -2;
+  this->i_binaryLabelPositive = -1;
+  this->i_binaryLabelNegative = -2;
   this->knownClasses.clear();  
   
   this->b_usePreviousAlphas = false;
@@ -327,7 +329,10 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config 
   this->initFromConfig ( _conf, _confSection );
 }
 
-FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config *_conf, FastMinKernel *_fmk, const string & _confSection )
+FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config *_conf, 
+                                                                   FastMinKernel *_fmk, 
+                                                                   const string & _confSection 
+                                                                 )
 {
   ///////////
   // same code as in empty constructor - duplication can be avoided with C++11 allowing for constructor delegation
@@ -343,13 +348,13 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config 
   this->ikmsum  = NULL;
   
   // initialize boolean flags
-  this->verbose = false;
-  this->verboseTime = false;
-  this->debug = false;
+  this->b_verbose = false;
+  this->b_verboseTime = false;
+  this->b_debug = false;
   
   //stupid unneeded default values
-  this->binaryLabelPositive = -1;
-  this->binaryLabelNegative = -2;
+  this->i_binaryLabelPositive = -1;
+  this->i_binaryLabelNegative = -2;
   this->knownClasses.clear();    
   
   this->b_usePreviousAlphas = false;
@@ -404,16 +409,18 @@ FMKGPHyperparameterOptimization::~FMKGPHyperparameterOptimization()
 
 }
 
-void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, const std::string & _confSection )
+void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, 
+                                                       const std::string & _confSection 
+                                                     )
 { 
   ///////////////////////////////////
   // output/debug related settings //   
   ///////////////////////////////////  
-  this->verbose = _conf->gB ( _confSection, "verbose", false );
-  this->verboseTime = _conf->gB ( _confSection, "verboseTime", false );
-  this->debug = _conf->gB ( _confSection, "debug", false );
+  this->b_verbose = _conf->gB ( _confSection, "verbose", false );
+  this->b_verboseTime = _conf->gB ( _confSection, "verboseTime", false );
+  this->b_debug = _conf->gB ( _confSection, "debug", false );
 
-  if ( this->verbose )
+  if ( this->b_verbose )
   {  
     std::cerr << "------------" << std::endl;
     std::cerr << "|  set-up  |" << std::endl;
@@ -428,7 +435,7 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   
   bool useQuantization = _conf->gB ( _confSection, "use_quantization", false );
   
-  if ( this->verbose ) 
+  if ( this->b_verbose ) 
   {
     std::cerr << "_confSection: " << _confSection << std::endl;
     std::cerr << "use_quantization: " << useQuantization << std::endl;
@@ -437,7 +444,7 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   if ( _conf->gB ( _confSection, "use_quantization", false ) )
   {
     int numBins = _conf->gI ( _confSection, "num_bins", 100 );
-    if ( this->verbose )
+    if ( this->b_verbose )
       std::cerr << "FMKGPHyperparameterOptimization: quantization initialized with " << numBins << " bins." << std::endl;
     this->q = new Quantization ( numBins );
   }
@@ -446,8 +453,8 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
     this->q = NULL;
   }  
   
-  this->parameterUpperBound = _conf->gD ( _confSection, "parameter_upper_bound", 2.5 );
-  this->parameterLowerBound = _conf->gD ( _confSection, "parameter_lower_bound", 1.0 );
+  this->d_parameterUpperBound = _conf->gD ( _confSection, "parameter_upper_bound", 2.5 );
+  this->d_parameterLowerBound = _conf->gD ( _confSection, "parameter_lower_bound", 1.0 );
   
   std::string transform = _conf->gS( _confSection, "transform", "absexp" );
   
@@ -457,22 +464,22 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   }  
   else if ( transform == "absexp" )
   {
-    this->pf = new NICE::PFAbsExp( 1.0, parameterLowerBound, parameterUpperBound );
+    this->pf = new NICE::PFAbsExp( 1.0, this->d_parameterLowerBound, this->d_parameterUpperBound );
   }
   else if ( transform == "exp" )
   {
-    this->pf = new NICE::PFExp( 1.0, parameterLowerBound, parameterUpperBound );
+    this->pf = new NICE::PFExp( 1.0, this->d_parameterLowerBound, this->d_parameterUpperBound );
   }
   else if ( transform == "MKL" )
   {
     //TODO generic, please :) load from a separate file or something like this!
     std::set<int> steps; steps.insert(4000); steps.insert(6000); //specific for VISAPP
-    this->pf = new NICE::PFMKL( steps, parameterLowerBound, parameterUpperBound );
+    this->pf = new NICE::PFMKL( steps, this->d_parameterLowerBound, this->d_parameterUpperBound );
   }
   else if ( transform == "weightedDim" )
   {
     int pf_dim = _conf->gI ( _confSection, "pf_dim", 8 );
-    this->pf = new NICE::PFWeightedDim( pf_dim, parameterLowerBound, parameterUpperBound );
+    this->pf = new NICE::PFWeightedDim( pf_dim, this->d_parameterLowerBound, this->d_parameterUpperBound );
   }
   else
   {
@@ -484,7 +491,7 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   //////////////////////////////////////////////
   bool ils_verbose = _conf->gB ( _confSection, "ils_verbose", false );
   ils_max_iterations = _conf->gI ( _confSection, "ils_max_iterations", 1000 );
-  if ( this->verbose )
+  if ( this->b_verbose )
     std::cerr << "FMKGPHyperparameterOptimization: maximum number of iterations is " << ils_max_iterations << std::endl;
 
   double ils_min_delta = _conf->gD ( _confSection, "ils_min_delta", 1e-7 );
@@ -493,28 +500,28 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   string ils_method = _conf->gS ( _confSection, "ils_method", "CG" );
   if ( ils_method.compare ( "CG" ) == 0 )
   {
-    if ( this->verbose )
+    if ( this->b_verbose )
       std::cerr << "We use CG with " << ils_max_iterations << " iterations, " << ils_min_delta << " as min delta, and " << ils_min_residual << " as min res " << std::endl;
     this->linsolver = new ILSConjugateGradients ( ils_verbose , ils_max_iterations, ils_min_delta, ils_min_residual );
-    if ( this->verbose )
+    if ( this->b_verbose )
       std::cerr << "FMKGPHyperparameterOptimization: using ILS ConjugateGradients" << std::endl;
   }
   else if ( ils_method.compare ( "CGL" ) == 0 )
   {
     this->linsolver = new ILSConjugateGradientsLanczos ( ils_verbose , ils_max_iterations );
-    if ( this->verbose )
+    if ( this->b_verbose )
       std::cerr << "FMKGPHyperparameterOptimization: using ILS ConjugateGradients (Lanczos)" << std::endl;
   }
   else if ( ils_method.compare ( "SYMMLQ" ) == 0 )
   {
     this->linsolver = new ILSSymmLqLanczos ( ils_verbose , ils_max_iterations );
-    if ( this->verbose )
+    if ( this->b_verbose )
       std::cerr << "FMKGPHyperparameterOptimization: using ILS SYMMLQ" << std::endl;
   }
   else if ( ils_method.compare ( "MINRES" ) == 0 )
   {
     this->linsolver = new ILSMinResLanczos ( ils_verbose , ils_max_iterations );
-    if ( this->verbose )
+    if ( this->b_verbose )
       std::cerr << "FMKGPHyperparameterOptimization: using ILS MINRES" << std::endl;
   }
   else
@@ -538,13 +545,13 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   else
     fthrow ( Exception, "Optimization method " << optimizationMethod_s << " is not known." );
 
-  if ( this->verbose )
+  if ( this->b_verbose )
     std::cerr << "Using optimization method: " << optimizationMethod_s << std::endl;
 
   this->parameterStepSize = _conf->gD ( _confSection, "parameter_step_size", 0.1 );  
   
   this->optimizeNoise = _conf->gB ( _confSection, "optimize_noise", false );
-  if ( this->verbose )
+  if ( this->b_verbose )
     std::cerr << "Optimize noise: " << ( optimizeNoise ? "on" : "off" ) << std::endl;    
   
   // if nothing is to be optimized and we have no other hyperparameters, then we could explicitly switch-off the optimization
@@ -573,12 +580,12 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   // of their numerical performance has not been done yet  
   this->eig = new EVArnoldi ( _conf->gB ( _confSection, "eig_verbose", false ) /* verbose flag */, 10 );
 
-  this->nrOfEigenvaluesToConsider = _conf->gI ( _confSection, "nrOfEigenvaluesToConsider", 1 );
+  this->nrOfEigenvaluesToConsider = std::max ( 1, _conf->gI ( _confSection, "nrOfEigenvaluesToConsider", 1 ) );
   
   ////////////////////////////////////////////
   // variance computation related variables //
   ////////////////////////////////////////////  
-  this->nrOfEigenvaluesToConsiderForVarApprox = _conf->gI ( _confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 );
+  this->nrOfEigenvaluesToConsiderForVarApprox = std::max ( 1, _conf->gI ( _confSection, "nrOfEigenvaluesToConsiderForVarApprox", 1 ) );
 
 
   /////////////////////////////////////////////////////
@@ -587,7 +594,7 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
   
   this->b_usePreviousAlphas = _conf->gB ( _confSection, "b_usePreviousAlphas", true );
   
-  if ( this->verbose )
+  if ( this->b_verbose )
   {
     std::cerr << "------------" << std::endl;
     std::cerr << "|   start   |" << std::endl;
@@ -602,25 +609,25 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf, cons
 
 void FMKGPHyperparameterOptimization::setParameterUpperBound ( const double & _parameterUpperBound )
 {
-  parameterUpperBound = _parameterUpperBound;
+  this->d_parameterUpperBound = _parameterUpperBound;
 }
 void FMKGPHyperparameterOptimization::setParameterLowerBound ( const double & _parameterLowerBound )
 {
-  parameterLowerBound = _parameterLowerBound;
+  this->d_parameterLowerBound = _parameterLowerBound;
 }
 
-std::set<int> FMKGPHyperparameterOptimization::getKnownClassNumbers ( ) const
+std::set<uint> FMKGPHyperparameterOptimization::getKnownClassNumbers ( ) const
 {
   return this->knownClasses;
 }
 
-void FMKGPHyperparameterOptimization::setPerformRegression ( const bool & b_performRegression )
+void FMKGPHyperparameterOptimization::setPerformRegression ( const bool & _performRegression )
 {
   //TODO check previously whether we already trained
   if ( false )
     throw NICE::Exception ( "FMPGKHyperparameterOptimization already initialized - switching between classification and regression not allowed!" );
   else
-    this->b_performRegression = b_performRegression;
+    this->b_performRegression = _performRegression;
 }
 
 
@@ -638,10 +645,10 @@ void FMKGPHyperparameterOptimization::setFastMinKernel ( FastMinKernel * _fmk )
   }  
 }
 
-void FMKGPHyperparameterOptimization::setNrOfEigenvaluesToConsiderForVarApprox ( const int & i_nrOfEigenvaluesToConsiderForVarApprox )
+void FMKGPHyperparameterOptimization::setNrOfEigenvaluesToConsiderForVarApprox ( const int & _nrOfEigenvaluesToConsiderForVarApprox )
 {
   //TODO check previously whether we already trained
-  this->nrOfEigenvaluesToConsiderForVarApprox = i_nrOfEigenvaluesToConsiderForVarApprox;  
+  this->nrOfEigenvaluesToConsiderForVarApprox = _nrOfEigenvaluesToConsiderForVarApprox;  
 }
 
 
@@ -649,20 +656,23 @@ void FMKGPHyperparameterOptimization::setNrOfEigenvaluesToConsiderForVarApprox (
 //                      CLASSIFIER STUFF
 ///////////////////// ///////////////////// /////////////////////
 
-inline void FMKGPHyperparameterOptimization::setupGPLikelihoodApprox ( GPLikelihoodApprox * & gplike, const std::map<int, NICE::Vector> & binaryLabels, uint & parameterVectorSize )
+inline void FMKGPHyperparameterOptimization::setupGPLikelihoodApprox ( GPLikelihoodApprox * & _gplike, 
+                                                                       const std::map<uint, NICE::Vector> & _binaryLabels, 
+                                                                       uint & _parameterVectorSize )
 {
-  gplike = new GPLikelihoodApprox ( binaryLabels, ikmsum, linsolver, eig, verifyApproximation, nrOfEigenvaluesToConsider );
-  gplike->setDebug( debug );
-  gplike->setVerbose( this->verbose );
-  parameterVectorSize = ikmsum->getNumParameters();
+  _gplike = new GPLikelihoodApprox ( _binaryLabels, ikmsum, linsolver, eig, verifyApproximation, nrOfEigenvaluesToConsider );
+  _gplike->setDebug( this->b_debug );
+  _gplike->setVerbose( this->b_verbose );
+  _parameterVectorSize = this->ikmsum->getNumParameters();
 }
 
-void FMKGPHyperparameterOptimization::updateEigenDecomposition( const int & i_noEigenValues )
+void FMKGPHyperparameterOptimization::updateEigenDecomposition( const int & _noEigenValues )
 {
   //compute the largest eigenvalue of K + noise   
+  
   try 
   {
-    eig->getEigenvalues ( *ikmsum,  eigenMax, eigenMaxVectors, i_noEigenValues  );
+    this->eig->getEigenvalues ( *ikmsum,  eigenMax, eigenMaxVectors, _noEigenValues  );
   }
   catch ( char const* exceptionMsg)
   {
@@ -674,14 +684,16 @@ void FMKGPHyperparameterOptimization::updateEigenDecomposition( const int & i_no
   
 }
 
-void FMKGPHyperparameterOptimization::performOptimization ( GPLikelihoodApprox & gplike, const uint & parameterVectorSize )
+void FMKGPHyperparameterOptimization::performOptimization ( GPLikelihoodApprox & _gplike, 
+                                                            const uint & _parameterVectorSize 
+                                                          )
 {
-  if (verbose)
+  if ( this->b_verbose )
     std::cerr << "perform optimization" << std::endl;
     
   if ( optimizationMethod == OPT_GREEDY )
   {
-    if ( this->verbose )    
+    if ( this->b_verbose )    
       std::cerr << "OPT_GREEDY!!! " << std::endl;
     
     // simple greedy strategy
@@ -691,41 +703,41 @@ void FMKGPHyperparameterOptimization::performOptimization ( GPLikelihoodApprox &
     NICE::Vector lB = ikmsum->getParameterLowerBounds();
     NICE::Vector uB = ikmsum->getParameterUpperBounds();
     
-    if ( this->verbose )
+    if ( this->b_verbose )
       std::cerr << "lower bound " << lB << " upper bound " << uB << " parameterStepSize: " << parameterStepSize << std::endl;
 
     
     for ( double mypara = lB[0]; mypara <= uB[0]; mypara += this->parameterStepSize )
     {
       OPTIMIZATION::matrix_type hyperp ( 1, 1, mypara );
-      gplike.evaluate ( hyperp );
+      _gplike.evaluate ( hyperp );
     }
   }
   else if ( optimizationMethod == OPT_DOWNHILLSIMPLEX )
   {
     //standard as before, normal optimization
-    if ( this->verbose )    
+    if ( this->b_verbose )    
         std::cerr << "DOWNHILLSIMPLEX!!! " << std::endl;
 
     // downhill simplex strategy
     OPTIMIZATION::DownhillSimplexOptimizer optimizer;
 
-    OPTIMIZATION::matrix_type initialParams ( parameterVectorSize, 1 );
+    OPTIMIZATION::matrix_type initialParams ( _parameterVectorSize, 1 );
 
     NICE::Vector currentParameters;
     ikmsum->getParameters ( currentParameters );
 
-    for ( uint i = 0 ; i < parameterVectorSize; i++ )
+    for ( uint i = 0 ; i < _parameterVectorSize; i++ )
       initialParams(i,0) = currentParameters[ i ];
 
-    if ( this->verbose )      
+    if ( this->b_verbose )      
       std::cerr << "Initial parameters: " << initialParams << std::endl;
 
     //the scales object does not really matter in the actual implementation of Downhill Simplex
-//     OPTIMIZATION::matrix_type scales ( parameterVectorSize, 1);
+//     OPTIMIZATION::matrix_type scales ( _parameterVectorSize, 1);
 //     scales.set(1.0);
 
-    OPTIMIZATION::SimpleOptProblem optProblem ( &gplike, initialParams, initialParams /* scales */ );
+    OPTIMIZATION::SimpleOptProblem optProblem ( &_gplike, initialParams, initialParams /* scales */ );
 
     optimizer.setMaxNumIter ( true, downhillSimplexMaxIterations );
     optimizer.setTimeLimit ( true, downhillSimplexTimeLimit );
@@ -735,49 +747,51 @@ void FMKGPHyperparameterOptimization::performOptimization ( GPLikelihoodApprox &
   }
   else if ( optimizationMethod == OPT_NONE )
   {
-    if ( this->verbose )
+    if ( this->b_verbose )
       std::cerr << "NO OPTIMIZATION!!! " << std::endl;
 
     // without optimization
     if ( optimizeNoise )
       fthrow ( Exception, "Deactivate optimize_noise!" );
     
-    if ( this->verbose )
+    if ( this->b_verbose )
       std::cerr << "Optimization is deactivated!" << std::endl;
     
     double value (1.0);
-    if ( this->parameterLowerBound == this->parameterUpperBound)
-      value = this->parameterLowerBound;
+    if ( this->d_parameterLowerBound == this->d_parameterUpperBound)
+      value = this->d_parameterLowerBound;
 
     pf->setParameterLowerBounds ( NICE::Vector ( 1, value ) );
     pf->setParameterUpperBounds ( NICE::Vector ( 1, value ) );
 
     // we use the standard value
     OPTIMIZATION::matrix_type hyperp ( 1, 1, value );
-    gplike.setParameterLowerBound ( value );
-    gplike.setParameterUpperBound ( value );
+    _gplike.setParameterLowerBound ( value );
+    _gplike.setParameterUpperBound ( value );
     //we do not need to compute the likelihood here - we are only interested in directly obtaining alpha vectors
-    gplike.computeAlphaDirect( hyperp, eigenMax );
+    _gplike.computeAlphaDirect( hyperp, eigenMax );
   }
 
-  if ( this->verbose )
+  if ( this->b_verbose )
   {
-    std::cerr << "Optimal hyperparameter was: " << gplike.getBestParameters() << std::endl;
+    std::cerr << "Optimal hyperparameter was: " << _gplike.getBestParameters() << std::endl;
   }
 }
 
-void FMKGPHyperparameterOptimization::transformFeaturesWithOptimalParameters ( const GPLikelihoodApprox & gplike, const uint & parameterVectorSize )
+void FMKGPHyperparameterOptimization::transformFeaturesWithOptimalParameters ( const GPLikelihoodApprox & _gplike, 
+                                                                               const uint & parameterVectorSize 
+                                                                             )
 {
   // transform all features with the currently "optimal" parameter
-  ikmsum->setParameters ( gplike.getBestParameters() );    
+  ikmsum->setParameters ( _gplike.getBestParameters() );    
 }
 
-void FMKGPHyperparameterOptimization::computeMatricesAndLUTs ( const GPLikelihoodApprox & gplike )
+void FMKGPHyperparameterOptimization::computeMatricesAndLUTs ( const GPLikelihoodApprox & _gplike )
 {
-  precomputedA.clear();
-  precomputedB.clear();
+  this->precomputedA.clear();
+  this->precomputedB.clear();
 
-  for ( std::map<int, NICE::Vector>::const_iterator i = gplike.getBestAlphas().begin(); i != gplike.getBestAlphas().end(); i++ )
+  for ( std::map<uint, NICE::Vector>::const_iterator i = _gplike.getBestAlphas().begin(); i != _gplike.getBestAlphas().end(); i++ )
   {
     PrecomputedType A;
     PrecomputedType B;
@@ -786,8 +800,8 @@ void FMKGPHyperparameterOptimization::computeMatricesAndLUTs ( const GPLikelihoo
     A.setIoUntilEndOfFile ( false );
     B.setIoUntilEndOfFile ( false );
 
-    precomputedA[ i->first ] = A;
-    precomputedB[ i->first ] = B;
+    this->precomputedA[ i->first ] = A;
+    this->precomputedB[ i->first ] = B;
 
     if ( q != NULL )
     {
@@ -811,99 +825,114 @@ void FMKGPHyperparameterOptimization::computeMatricesAndLUTs ( const GPLikelihoo
   
   // in case that we should want to store the alpha vectors for incremental extensions
   if ( this->b_usePreviousAlphas )
-    this->previousAlphas = gplike.getBestAlphas();
+    this->previousAlphas = _gplike.getBestAlphas();
 
 }
 
 #ifdef NICE_USELIB_MATIO
-void FMKGPHyperparameterOptimization::optimizeBinary ( const sparse_t & data, const NICE::Vector & yl, const std::set<int> & positives, const std::set<int> & negatives, double noise )
+void FMKGPHyperparameterOptimization::optimizeBinary ( const sparse_t & _data, 
+                                                       const NICE::Vector & _yl, 
+                                                       const std::set<uint> & _positives, 
+                                                       const std::set<uint> & _negatives, 
+                                                       double _noise 
+                                                     )
 {
-  std::map<int, int> examples;
-  NICE::Vector y ( yl.size() );
-  int ind = 0;
-  for ( uint i = 0 ; i < yl.size(); i++ )
+  std::map<uint, uint> examples;
+  NICE::Vector y ( _yl.size() );
+  uint ind = 0;
+  for ( uint i = 0 ; i < _yl.size(); i++ )
   {
-    if ( positives.find ( i ) != positives.end() ) {
+    if ( _positives.find ( i ) != _positives.end() ) {
       y[ examples.size() ] = 1.0;
-      examples.insert ( pair<int, int> ( i, ind ) );
+      examples.insert ( pair<uint, uint> ( i, ind ) );
       ind++;
-    } else if ( negatives.find ( i ) != negatives.end() ) {
+    } else if ( _negatives.find ( i ) != _negatives.end() ) {
       y[ examples.size() ] = -1.0;
-      examples.insert ( pair<int, int> ( i, ind ) );
+      examples.insert ( pair<uint, uint> ( i, ind ) );
       ind++;
     }
   }
   y.resize ( examples.size() );
   std::cerr << "Examples: " << examples.size() << std::endl;
 
-  optimize ( data, y, examples, noise );
+  optimize ( _data, y, examples, _noise );
 }
 
 
-void FMKGPHyperparameterOptimization::optimize ( const sparse_t & data, const NICE::Vector & y, const std::map<int, int> & examples, double noise )
+void FMKGPHyperparameterOptimization::optimize ( const sparse_t & _data, 
+                                                 const NICE::Vector & _y, 
+                                                 const std::map<uint, uint> & _examples, 
+                                                 double _noise 
+                                               )
 {
   NICE::Timer t;
   t.start();
   std::cerr << "Initializing data structure ..." << std::endl;
   if ( fmk != NULL ) delete fmk;
-  fmk = new FastMinKernel ( data, noise, examples );
+  fmk = new FastMinKernel ( _data, _noise, _examples );
   t.stop();
-  if (verboseTime)
+  if ( this->b_verboseTime )
     std::cerr << "Time used for initializing the FastMinKernel structure: " << t.getLast() << std::endl;
   
-  optimize ( y );
+  optimize ( _y );
 }
 #endif
 
-int FMKGPHyperparameterOptimization::prepareBinaryLabels ( std::map<int, NICE::Vector> & binaryLabels, const NICE::Vector & y , std::set<int> & myClasses )
+uint FMKGPHyperparameterOptimization::prepareBinaryLabels ( std::map<uint, NICE::Vector> & _binaryLabels, 
+                                                            const NICE::Vector & _y , 
+                                                            std::set<uint> & _myClasses 
+                                                          )
 {
-  myClasses.clear();
+  _myClasses.clear();
   
   // determine which classes we have in our label vector
   // -> MATLAB: myClasses = unique(y);
-  for ( NICE::Vector::const_iterator it = y.begin(); it != y.end(); it++ )
+  for ( NICE::Vector::const_iterator it = _y.begin(); it != _y.end(); it++ )
   {
-    if ( myClasses.find ( *it ) == myClasses.end() )
+    if ( _myClasses.find ( *it ) == _myClasses.end() )
     {
-      myClasses.insert ( *it );
+      _myClasses.insert ( *it );
     }
   }
 
   //count how many different classes appear in our data
-  int nrOfClasses = myClasses.size();
+  uint nrOfClasses ( _myClasses.size() );
 
-  binaryLabels.clear();
+  _binaryLabels.clear();
   //compute the corresponding binary label vectors
   if ( nrOfClasses > 2 )
   {
     //resize every labelVector and set all entries to -1.0
-    for ( std::set<int>::const_iterator k = myClasses.begin(); k != myClasses.end(); k++ )
+    for ( std::set<uint>::const_iterator k = _myClasses.begin(); k != _myClasses.end(); k++ )
     {
-      binaryLabels[ *k ].resize ( y.size() );
-      binaryLabels[ *k ].set ( -1.0 );
+      _binaryLabels[ *k ].resize ( _y.size() );
+      _binaryLabels[ *k ].set ( -1.0 );
     }
 
     // now look on every example and set the entry of its corresponding label vector to 1.0
     // proper existance should not be a problem
-    for ( int i = 0 ; i < ( int ) y.size(); i++ )
-      binaryLabels[ y[i] ][i] = 1.0;
+    for ( uint i = 0 ; i < _y.size(); i++ )
+      _binaryLabels[ _y[i] ][i] = 1.0;
   }
   else if ( nrOfClasses == 2 )
   {
     //binary setting -- prepare a binary label vector
-    NICE::Vector yb ( y );
+    NICE::Vector yb ( _y );
 
-    this->binaryLabelNegative = *(myClasses.begin());
-    std::set<int>::const_iterator classIt = myClasses.begin(); classIt++;
-    this->binaryLabelPositive = *classIt;
+    this->i_binaryLabelNegative = *(_myClasses.begin());
+    std::set<uint>::const_iterator classIt = _myClasses.begin(); classIt++;
+    this->i_binaryLabelPositive = *classIt;
     
-    if ( this->verbose )
-      std::cerr << "positiveClass : " << binaryLabelPositive << " negativeClass: " << binaryLabelNegative << std::endl;
+    if ( this->b_verbose )
+    {
+      std::cerr << "positiveClass : " << this->i_binaryLabelPositive << " negativeClass: " << this->i_binaryLabelNegative << std::endl;
+      std::cerr << " all labels: " << _y << std::endl << std::endl;
+    }
 
     for ( uint i = 0 ; i < yb.size() ; i++ )
-      yb[i] = ( y[i] == binaryLabelNegative ) ? -1.0 : 1.0;
+      yb[i] = ( _y[i] == this->i_binaryLabelNegative ) ? -1.0 : 1.0;
     
-    binaryLabels[ binaryLabelPositive ] = yb;
+    _binaryLabels[ this->i_binaryLabelPositive ] = yb;
         
     //we do NOT do real binary computation, but an implicite one with only a single object  
     nrOfClasses--;  
@@ -912,9 +941,9 @@ int FMKGPHyperparameterOptimization::prepareBinaryLabels ( std::map<int, NICE::V
   {
     //we set the labels to 1, independent of the previously given class number
     //however, the original class numbers are stored and returned in classification
-    NICE::Vector yOne ( y.size(), 1 );
+    NICE::Vector yOne ( _y.size(), 1 );
     
-    binaryLabels[ *(myClasses.begin()) ] = yOne;
+    _binaryLabels[ *(_myClasses.begin()) ] = yOne;
     
     //we have to indicate, that we are in an OCC setting
     nrOfClasses--;
@@ -925,26 +954,26 @@ int FMKGPHyperparameterOptimization::prepareBinaryLabels ( std::map<int, NICE::V
 
 
 
-void FMKGPHyperparameterOptimization::optimize ( const NICE::Vector & y )
+void FMKGPHyperparameterOptimization::optimize ( const NICE::Vector & _y )
 {
-  if ( fmk == NULL )
+  if ( this->fmk == NULL )
     fthrow ( Exception, "FastMinKernel object was not initialized!" );
 
-  this->labels  = y;
+  this->labels  = _y;
   
-  std::map<int, NICE::Vector> binaryLabels;
+  std::map< uint, NICE::Vector > binaryLabels;
   
   if ( this->b_performRegression )
   {
     // for regression, we are not interested in regression scores, rather than in any "label" 
-    int regressionLabel ( 1 );  
-    binaryLabels.insert ( std::pair< int, NICE::Vector> ( regressionLabel, y ) );
+    uint regressionLabel ( 1 );  
+    binaryLabels.insert ( std::pair< uint, NICE::Vector> ( regressionLabel, _y ) );
     this->knownClasses.clear();
     this->knownClasses.insert ( regressionLabel );
   }
   else
   {
-    this->prepareBinaryLabels ( binaryLabels, y , knownClasses );    
+    this->prepareBinaryLabels ( binaryLabels, _y , knownClasses );    
   }
   
   //now call the main function :)
@@ -952,20 +981,20 @@ void FMKGPHyperparameterOptimization::optimize ( const NICE::Vector & y )
 }
 
   
-void FMKGPHyperparameterOptimization::optimize ( std::map<int, NICE::Vector> & binaryLabels )
+void FMKGPHyperparameterOptimization::optimize ( std::map<uint, NICE::Vector> & _binaryLabels )
 {
   Timer t;
   t.start();
   
   //how many different classes do we have right now?
-  int nrOfClasses = binaryLabels.size();
+  int nrOfClasses = _binaryLabels.size();
   
-  if (verbose)
+  if ( this->b_verbose )
   {
-    std::cerr << "Initial noise level: " << fmk->getNoise() << std::endl;
+    std::cerr << "Initial noise level: " << this->fmk->getNoise() << std::endl;
 
     std::cerr << "Number of classes (=1 means we have a binary setting):" << nrOfClasses << std::endl;
-    std::cerr << "Effective number of classes (neglecting classes without positive examples): " << knownClasses.size() << std::endl;
+    std::cerr << "Effective number of classes (neglecting classes without positive examples): " << this->knownClasses.size() << std::endl;
   }
 
   // combine standard model and noise model
@@ -974,36 +1003,36 @@ void FMKGPHyperparameterOptimization::optimize ( std::map<int, NICE::Vector> & b
 
   t1.start();
   //setup the kernel combination
-  ikmsum = new IKMLinearCombination ();
+  this->ikmsum = new IKMLinearCombination ();
 
-  if ( this->verbose )
+  if ( this->b_verbose )
   {
-    std::cerr << "binaryLabels.size(): " << binaryLabels.size() << std::endl;
+    std::cerr << "_binaryLabels.size(): " << _binaryLabels.size() << std::endl;
   }
 
   //First model: noise
-  ikmsum->addModel ( new IKMNoise ( fmk->get_n(), fmk->getNoise(), optimizeNoise ) );
+  this->ikmsum->addModel ( new IKMNoise ( this->fmk->get_n(), this->fmk->getNoise(), this->optimizeNoise ) );
   
   // set pretty low built-in noise, because we explicitely add the noise with the IKMNoise
-  fmk->setNoise ( 0.0 );
+  this->fmk->setNoise ( 0.0 );
 
-  ikmsum->addModel ( new GMHIKernel ( fmk, pf, NULL /* no quantization */ ) );
+  this->ikmsum->addModel ( new GMHIKernel ( this->fmk, this->pf, NULL /* no quantization */ ) );
 
   t1.stop();
-  if (verboseTime)
+  if ( this->b_verboseTime )
     std::cerr << "Time used for setting up the ikm-objects: " << t1.getLast() << std::endl;
 
   GPLikelihoodApprox * gplike;
   uint parameterVectorSize;
 
   t1.start();
-  this->setupGPLikelihoodApprox ( gplike, binaryLabels, parameterVectorSize );
+  this->setupGPLikelihoodApprox ( gplike, _binaryLabels, parameterVectorSize );
   t1.stop();
     
-  if (verboseTime)
+  if ( this->b_verboseTime )
     std::cerr << "Time used for setting up the gplike-objects: " << t1.getLast() << std::endl;
 
-  if (verbose)
+  if ( this->b_verbose )
   {
     std::cerr << "parameterVectorSize: " << parameterVectorSize << std::endl;
   }
@@ -1011,33 +1040,35 @@ void FMKGPHyperparameterOptimization::optimize ( std::map<int, NICE::Vector> & b
   t1.start();
   // we compute all needed eigenvectors for standard classification and variance prediction at ones.
   // nrOfEigenvaluesToConsiderForVarApprox should NOT be larger than 1 if a method different than approximate_fine is used!
+  
   this->updateEigenDecomposition(  std::max ( this->nrOfEigenvaluesToConsider, this->nrOfEigenvaluesToConsiderForVarApprox) );
+    
   t1.stop();
-  if (verboseTime)
+  if ( this->b_verboseTime )
     std::cerr << "Time used for setting up the eigenvectors-objects: " << t1.getLast() << std::endl;
 
-  if ( this->verbose )
-    std::cerr << "resulting eigenvalues for first class: " << eigenMax[0] << std::endl;
+  if ( this->b_verbose )
+    std::cerr << "resulting eigenvalues for first class: " << this->eigenMax[0] << std::endl;
 
   t1.start();
   this->performOptimization ( *gplike, parameterVectorSize );
   t1.stop();
-  if (verboseTime)
+  if ( this->b_verboseTime )
     std::cerr << "Time used for performing the optimization: " << t1.getLast() << std::endl;
 
-  if ( this->verbose )
+  if ( this->b_verbose )
     std::cerr << "Preparing classification ..." << std::endl;
 
   t1.start();
   this->transformFeaturesWithOptimalParameters ( *gplike, parameterVectorSize );
   t1.stop();
-  if (verboseTime)
+  if ( this->b_verboseTime )
     std::cerr << "Time used for transforming features with optimal parameters: " << t1.getLast() << std::endl;
 
   t1.start();
   this->computeMatricesAndLUTs ( *gplike );
   t1.stop();
-  if (verboseTime)
+  if ( this->b_verboseTime )
     std::cerr << "Time used for setting up the A'nB -objects: " << t1.getLast() << std::endl;
 
   t.stop();
@@ -1056,14 +1087,14 @@ void FMKGPHyperparameterOptimization::optimize ( std::map<int, NICE::Vector> & b
 void FMKGPHyperparameterOptimization::prepareVarianceApproximationRough()
 {
   PrecomputedType AVar;
-  fmk->hikPrepareKVNApproximation ( AVar );
+  this->fmk->hikPrepareKVNApproximation ( AVar );
 
-  precomputedAForVarEst = AVar;
-  precomputedAForVarEst.setIoUntilEndOfFile ( false );
+  this->precomputedAForVarEst = AVar;
+  this->precomputedAForVarEst.setIoUntilEndOfFile ( false );
 
   if ( q != NULL )
   {   
-    double *T = fmk->hikPrepareLookupTableForKVNApproximation ( *q, pf );
+    double *T = this->fmk->hikPrepareLookupTableForKVNApproximation ( *q, pf );
     this->precomputedTForVarEst = T;
   }
 }
@@ -1078,52 +1109,57 @@ void FMKGPHyperparameterOptimization::prepareVarianceApproximationFine()
   }
 }
 
-int FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & xstar, NICE::SparseVector & scores ) const
+uint FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & _xstar, 
+                                                 NICE::SparseVector & _scores 
+                                               )  const
 {
   // loop through all classes
-  if ( precomputedA.size() == 0 )
+  if ( this->precomputedA.size() == 0 )
   {
     fthrow ( Exception, "The precomputation vector is zero...have you trained this classifier?" );
   }
 
   uint maxClassNo = 0;
-  for ( std::map<int, PrecomputedType>::const_iterator i = precomputedA.begin() ; i != precomputedA.end(); i++ )
+  for ( std::map<uint, PrecomputedType>::const_iterator i = this->precomputedA.begin() ; i != this->precomputedA.end(); i++ )
   {
     uint classno = i->first;
     maxClassNo = std::max ( maxClassNo, classno );
     double beta;
 
-    if ( q != NULL ) {
-      std::map<int, double *>::const_iterator j = precomputedT.find ( classno );
+    if ( this->q != NULL ) {
+      std::map<uint, double *>::const_iterator j = this->precomputedT.find ( classno );
       double *T = j->second;
-      fmk->hik_kernel_sum_fast ( T, *q, xstar, beta );
+      this->fmk->hik_kernel_sum_fast ( T, *q, _xstar, beta );
     } else {
       const PrecomputedType & A = i->second;
-      std::map<int, PrecomputedType>::const_iterator j = precomputedB.find ( classno );
+      std::map<uint, PrecomputedType>::const_iterator j = this->precomputedB.find ( classno );
       const PrecomputedType & B = j->second;
 
-      // fmk->hik_kernel_sum ( A, B, xstar, beta ); if A, B are of type Matrix
+      // fmk->hik_kernel_sum ( A, B, _xstar, beta ); if A, B are of type Matrix
       // Giving the transformation pf as an additional
       // argument is necessary due to the following reason:
       // FeatureMatrixT is sorted according to the original values, therefore,
       // searching for upper and lower bounds ( findFirst... functions ) require original feature
       // values as inputs. However, for calculation we need the transformed features values.
 
-      fmk->hik_kernel_sum ( A, B, xstar, beta, pf );
+      this->fmk->hik_kernel_sum ( A, B, _xstar, beta, pf );
     }
 
-    scores[ classno ] = beta;
+    _scores[ classno ] = beta;
   }
-  scores.setDim ( maxClassNo + 1 );
+  _scores.setDim ( maxClassNo + 1 );
+  std::cerr << "_scores : " << std::endl;
+  _scores.store ( std::cerr ) ;
   
-  if ( precomputedA.size() > 1 )
+  if ( this->precomputedA.size() > 1 )
   { // multi-class classification
-    return scores.maxElement();
+    return _scores.maxElement();
   }
   else if ( this->knownClasses.size() == 2 ) // binary setting
   {      
-    scores[binaryLabelNegative] = -scores[binaryLabelPositive];     
-    return scores[ binaryLabelPositive ] <= 0.0 ? binaryLabelNegative : binaryLabelPositive;
+    std::cerr << "i_binaryLabelNegative: " << i_binaryLabelNegative << " i_binaryLabelPositive: " << i_binaryLabelPositive<< std::endl;
+    _scores[ this->i_binaryLabelNegative ] = -_scores[ this->i_binaryLabelPositive ];     
+    return _scores[ this->i_binaryLabelPositive ] <= 0.0 ? this->i_binaryLabelNegative : this->i_binaryLabelPositive;
   }
   else //OCC or regression setting
   {
@@ -1131,52 +1167,61 @@ int FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & xstar
   }
 }
 
-int FMKGPHyperparameterOptimization::classify ( const NICE::Vector & xstar, NICE::SparseVector & scores ) const
+uint FMKGPHyperparameterOptimization::classify ( const NICE::Vector & _xstar, 
+                                                 NICE::SparseVector & _scores 
+                                               ) const
 {
+  
   // loop through all classes
-  if ( precomputedA.size() == 0 )
+  if ( this->precomputedA.size() == 0 )
   {
     fthrow ( Exception, "The precomputation vector is zero...have you trained this classifier?" );
   }
 
   uint maxClassNo = 0;
-  for ( std::map<int, PrecomputedType>::const_iterator i = precomputedA.begin() ; i != precomputedA.end(); i++ )
+  for ( std::map<uint, PrecomputedType>::const_iterator i = this->precomputedA.begin() ; i != this->precomputedA.end(); i++ )
   {
     uint classno = i->first;
     maxClassNo = std::max ( maxClassNo, classno );
+    
     double beta;
 
-    if ( q != NULL ) {
-      std::map<int, double *>::const_iterator j = precomputedT.find ( classno );
+    if ( this->q != NULL )
+    {
+      std::map<uint, double *>::const_iterator j = this->precomputedT.find ( classno );
       double *T = j->second;
-      fmk->hik_kernel_sum_fast ( T, *q, xstar, beta );
-    } else {
+      this->fmk->hik_kernel_sum_fast ( T, *q, _xstar, beta );
+    }
+    else
+    {
       const PrecomputedType & A = i->second;
-      std::map<int, PrecomputedType>::const_iterator j = precomputedB.find ( classno );
+      std::map<uint, PrecomputedType>::const_iterator j = this->precomputedB.find ( classno );
       const PrecomputedType & B = j->second;
 
-      // fmk->hik_kernel_sum ( A, B, xstar, beta ); if A, B are of type Matrix
+      // fmk->hik_kernel_sum ( A, B, _xstar, beta ); if A, B are of type Matrix
       // Giving the transformation pf as an additional
       // argument is necessary due to the following reason:
       // FeatureMatrixT is sorted according to the original values, therefore,
       // searching for upper and lower bounds ( findFirst... functions ) require original feature
       // values as inputs. However, for calculation we need the transformed features values.
 
-      fmk->hik_kernel_sum ( A, B, xstar, beta, pf );
+      this->fmk->hik_kernel_sum ( A, B, _xstar, beta, this->pf );
     }
 
-    scores[ classno ] = beta;
+    _scores[ classno ] = beta;
   }
-  scores.setDim ( maxClassNo + 1 );
+  _scores.setDim ( maxClassNo + 1 );
   
-  if ( precomputedA.size() > 1 )
+  
+  if ( this->precomputedA.size() > 1 )
   { // multi-class classification
-    return scores.maxElement();
+    return _scores.maxElement();
   }
   else if ( this->knownClasses.size() == 2 ) // binary setting
   {      
-    scores[binaryLabelNegative] = -scores[binaryLabelPositive];     
-    return scores[ binaryLabelPositive ] <= 0.0 ? binaryLabelNegative : binaryLabelPositive;
+    _scores[ this->i_binaryLabelNegative ] = -_scores[ this->i_binaryLabelPositive ];     
+        
+    return _scores[ this->i_binaryLabelPositive ] <= 0.0 ? this->i_binaryLabelNegative : this->i_binaryLabelPositive;
   }
   else //OCC or regression setting
   {
@@ -1188,17 +1233,19 @@ int FMKGPHyperparameterOptimization::classify ( const NICE::Vector & xstar, NICE
     // variance computation: sparse inputs
     //////////////////////////////////////////
 
-void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateRough ( const NICE::SparseVector & x, double & predVariance ) const
+void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateRough ( const NICE::SparseVector & _x, 
+                                                                                  double & _predVariance 
+                                                                                ) const
 {
   // security check!
-  if ( pf == NULL )
+  if ( this->pf == NULL )
    fthrow ( Exception, "pf is NULL...have you prepared the uncertainty prediction? Aborting..." );   
   
   // ---------------- compute the first term --------------------
   double kSelf ( 0.0 );
-  for ( NICE::SparseVector::const_iterator it = x.begin(); it != x.end(); it++ )
+  for ( NICE::SparseVector::const_iterator it = _x.begin(); it != _x.end(); it++ )
   {
-    kSelf += pf->f ( 0, it->second );
+    kSelf += this->pf->f ( 0, it->second );
     // if weighted dimensions:
     //kSelf += pf->f(it->first,it->second);
   }
@@ -1212,7 +1259,7 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateRough 
     {
       fthrow ( Exception, "The precomputed LUT for uncertainty prediction is NULL...have you prepared the uncertainty prediction? Aborting..." );
     }
-    fmk->hikComputeKVNApproximationFast ( precomputedTForVarEst, *q, x, normKStar );
+    fmk->hikComputeKVNApproximationFast ( precomputedTForVarEst, *q, _x, normKStar );
   }
   else
   {
@@ -1220,16 +1267,27 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateRough 
     {
       fthrow ( Exception, "The precomputedAForVarEst is empty...have you trained this classifer? Aborting..." );
     }
-    fmk->hikComputeKVNApproximation ( precomputedAForVarEst, x, normKStar, pf );
+    fmk->hikComputeKVNApproximation ( precomputedAForVarEst, _x, normKStar, pf );
   }
 
-  predVariance = kSelf - ( 1.0 / eigenMax[0] )* normKStar;
+  _predVariance = kSelf - ( 1.0 / eigenMax[0] )* normKStar;
 }
 
-void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateFine ( const NICE::SparseVector & x, double & predVariance ) const
+void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateFine ( const NICE::SparseVector & _x, 
+                                                                                 double & _predVariance 
+                                                                               ) const
 {
+  
+  std::cerr << " security check! " << std::endl;
+  std::cerr << "b_debug: " << this->b_debug << std::endl;
+  
+  if ( this->b_debug )
+  {
+    std::cerr << "FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateFine" << std::endl;
+  }
+  
   // security check!
-  if ( eigenMaxVectors.rows() == 0 )
+  if ( this->eigenMaxVectors.rows() == 0 )
   {
       fthrow ( Exception, "eigenMaxVectors is empty...have you trained this classifer? Aborting..." );
   }    
@@ -1239,34 +1297,54 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateFine (
 //   t.start();
 
   double kSelf ( 0.0 );
-  for ( NICE::SparseVector::const_iterator it = x.begin(); it != x.end(); it++ )
+  for ( NICE::SparseVector::const_iterator it = _x.begin(); it != _x.end(); it++ )
   {
-    kSelf += pf->f ( 0, it->second );
+    kSelf += this->pf->f ( 0, it->second );
     // if weighted dimensions:
     //kSelf += pf->f(it->first,it->second);
   }
+  
+  if ( this->b_debug )
+  {
+    std::cerr << "FMKGPHyp::VarApproxFine  -- kSelf: " << kSelf << std::endl;
+  }
+  
   // ---------------- compute the approximation of the second term --------------------
 //    t.stop();  
 //   std::cerr << "ApproxFine -- time for first term: "  << t.getLast()  << std::endl;
 
 //   t.start();
   NICE::Vector kStar;
-  fmk->hikComputeKernelVector ( x, kStar );
+  this->fmk->hikComputeKernelVector ( _x, kStar );
+  
+  if ( this->b_debug )
+  {
+    std::cerr << "FMKGPHyp::VarApproxFine  -- kStar: " << kStar << std::endl;
+    std::cerr << "nrOfEigenvaluesToConsiderForVarApprox: " << this->nrOfEigenvaluesToConsiderForVarApprox << std::endl;
+  }  
+  
 /*  t.stop();
   std::cerr << "ApproxFine -- time for kernel vector: "  << t.getLast()  << std::endl;*/
     
 //     NICE::Vector multiplicationResults; // will contain nrOfEigenvaluesToConsiderForVarApprox many entries
 //     multiplicationResults.multiply ( *eigenMaxVectorIt, kStar, true/* transpose */ );
-    NICE::Vector multiplicationResults( nrOfEigenvaluesToConsiderForVarApprox-1, 0.0 );
+    NICE::Vector multiplicationResults( this->nrOfEigenvaluesToConsiderForVarApprox-1, 0.0 );
     //ok, there seems to be a nasty thing in computing multiplicationResults.multiply ( *eigenMaxVectorIt, kStar, true/* transpose */ );
     //wherefor it takes aeons...
     //so we compute it by ourselves
     
+  if ( this->b_debug )
+  {
+    std::cerr << "FMKGPHyp::VarApproxFine  -- nrOfEigenvaluesToConsiderForVarApprox: " << this->nrOfEigenvaluesToConsiderForVarApprox << std::endl;
+    std::cerr << "FMKGPHyp::VarApproxFine  -- initial multiplicationResults: " << multiplicationResults << std::endl;    
+  }    
+    
+    
     
 //     for ( uint tmpI = 0; tmpI < kStar.size(); tmpI++)
-    NICE::Matrix::const_iterator eigenVecIt = eigenMaxVectors.begin();
+    NICE::Matrix::const_iterator eigenVecIt = this->eigenMaxVectors.begin();
 //       double kStarI ( kStar[tmpI] );
-    for ( int tmpJ = 0; tmpJ < nrOfEigenvaluesToConsiderForVarApprox-1; tmpJ++)
+    for ( int tmpJ = 0; tmpJ < this->nrOfEigenvaluesToConsiderForVarApprox-1; tmpJ++)
     {
       for ( NICE::Vector::const_iterator kStarIt = kStar.begin(); kStarIt != kStar.end(); kStarIt++,eigenVecIt++)
       {        
@@ -1274,16 +1352,21 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateFine (
       }
     }
     
+  if ( this->b_debug )
+  {
+    std::cerr << "FMKGPHyp::VarApproxFine  -- computed multiplicationResults: " << multiplicationResults << std::endl;    
+  }      
+    
     double projectionLength ( 0.0 );
     double currentSecondTerm ( 0.0 );
     double sumOfProjectionLengths ( 0.0 );
     int cnt ( 0 );
     NICE::Vector::const_iterator it = multiplicationResults.begin();
 
-    while ( cnt < ( nrOfEigenvaluesToConsiderForVarApprox - 1 ) )
+    while ( cnt < ( this->nrOfEigenvaluesToConsiderForVarApprox - 1 ) )
     {
       projectionLength = ( *it );
-      currentSecondTerm += ( 1.0 / eigenMax[cnt] ) * pow ( projectionLength, 2 );
+      currentSecondTerm += ( 1.0 / this->eigenMax[cnt] ) * pow ( projectionLength, 2 );
       sumOfProjectionLengths += pow ( projectionLength, 2 );
       
       it++;
@@ -1293,19 +1376,19 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateFine (
     
     double normKStar ( pow ( kStar.normL2 (), 2 ) );
 
-    currentSecondTerm += ( 1.0 / eigenMax[nrOfEigenvaluesToConsiderForVarApprox-1] ) * ( normKStar - sumOfProjectionLengths );
+    currentSecondTerm += ( 1.0 / this->eigenMax[this->nrOfEigenvaluesToConsiderForVarApprox-1] ) * ( normKStar - sumOfProjectionLengths );
     
     if ( ( normKStar - sumOfProjectionLengths ) < 0 )
     {
       std::cerr << "Attention: normKStar - sumOfProjectionLengths is smaller than zero -- strange!" << std::endl;
     }
-    predVariance = kSelf - currentSecondTerm; 
+    _predVariance = kSelf - currentSecondTerm; 
 }
 
 void FMKGPHyperparameterOptimization::computePredictiveVarianceExact ( const NICE::SparseVector & x, double & predVariance ) const
 {
   // security check!  
-  if ( ikmsum->getNumberOfModels() == 0 )
+  if ( this->ikmsum->getNumberOfModels() == 0 )
   {
     fthrow ( Exception, "ikmsum is empty... have you trained this classifer? Aborting..." );
   }  
@@ -1316,7 +1399,7 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceExact ( const NIC
   double kSelf ( 0.0 );
   for ( NICE::SparseVector::const_iterator it = x.begin(); it != x.end(); it++ )
   {
-    kSelf += pf->f ( 0, it->second );
+    kSelf += this->pf->f ( 0, it->second );
     // if weighted dimensions:
     //kSelf += pf->f(it->first,it->second);
   }
@@ -1405,10 +1488,12 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateRough 
   predVariance = kSelf - ( 1.0 / eigenMax[0] )* normKStar;
 }
 
-void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateFine ( const NICE::Vector & x, double & predVariance ) const
+void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateFine ( const NICE::Vector & _x, 
+                                                                                 double & _predVariance 
+                                                                               ) const
 {
   // security check!
-  if ( eigenMaxVectors.rows() == 0 )
+  if ( this->eigenMaxVectors.rows() == 0 )
   {
       fthrow ( Exception, "eigenMaxVectors is empty...have you trained this classifer? Aborting..." );
   }  
@@ -1416,16 +1501,16 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateFine (
   // ---------------- compute the first term --------------------
 
   double kSelf ( 0.0 );
-  int dim ( 0 );
-  for ( NICE::Vector::const_iterator it = x.begin(); it != x.end(); it++, dim++ )
+  uint dim ( 0 );
+  for ( NICE::Vector::const_iterator it = _x.begin(); it != _x.end(); it++, dim++ )
   {
-    kSelf += pf->f ( 0, *it );
+    kSelf += this->pf->f ( 0, *it );
     // if weighted dimensions:
     //kSelf += pf->f(dim,*it);
   }
   // ---------------- compute the approximation of the second term --------------------
   NICE::Vector kStar;
-  fmk->hikComputeKernelVector ( x, kStar );
+  this->fmk->hikComputeKernelVector ( _x, kStar );
 
 
     //ok, there seems to be a nasty thing in computing multiplicationResults.multiply ( *eigenMaxVectorIt, kStar, true/* transpose */ );
@@ -1434,9 +1519,9 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateFine (
 //     NICE::Vector multiplicationResults; // will contain nrOfEigenvaluesToConsiderForVarApprox many entries
 //     multiplicationResults.multiply ( *eigenMaxVectorIt, kStar, true/* transpose */ );
 
-    NICE::Vector multiplicationResults( nrOfEigenvaluesToConsiderForVarApprox-1, 0.0 );
-    NICE::Matrix::const_iterator eigenVecIt = eigenMaxVectors.begin();
-    for ( int tmpJ = 0; tmpJ < nrOfEigenvaluesToConsiderForVarApprox-1; tmpJ++)
+    NICE::Vector multiplicationResults(this-> nrOfEigenvaluesToConsiderForVarApprox-1, 0.0 );
+    NICE::Matrix::const_iterator eigenVecIt = this->eigenMaxVectors.begin();
+    for ( int tmpJ = 0; tmpJ < this->nrOfEigenvaluesToConsiderForVarApprox-1; tmpJ++)
     {
       for ( NICE::Vector::const_iterator kStarIt = kStar.begin(); kStarIt != kStar.end(); kStarIt++,eigenVecIt++)
       {        
@@ -1450,10 +1535,10 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateFine (
     int cnt ( 0 );
     NICE::Vector::const_iterator it = multiplicationResults.begin();
 
-    while ( cnt < ( nrOfEigenvaluesToConsiderForVarApprox - 1 ) )
+    while ( cnt < ( this->nrOfEigenvaluesToConsiderForVarApprox - 1 ) )
     {
       projectionLength = ( *it );
-      currentSecondTerm += ( 1.0 / eigenMax[cnt] ) * pow ( projectionLength, 2 );
+      currentSecondTerm += ( 1.0 / this->eigenMax[cnt] ) * pow ( projectionLength, 2 );
       sumOfProjectionLengths += pow ( projectionLength, 2 );
       
       it++;
@@ -1463,43 +1548,46 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateFine (
     
     double normKStar ( pow ( kStar.normL2 (), 2 ) );
 
-    currentSecondTerm += ( 1.0 / eigenMax[nrOfEigenvaluesToConsiderForVarApprox-1] ) * ( normKStar - sumOfProjectionLengths );
+    currentSecondTerm += ( 1.0 / this->eigenMax[nrOfEigenvaluesToConsiderForVarApprox-1] ) * ( normKStar - sumOfProjectionLengths );
     
 
     if ( ( normKStar - sumOfProjectionLengths ) < 0 )
     {
       std::cerr << "Attention: normKStar - sumOfProjectionLengths is smaller than zero -- strange!" << std::endl;
     }
-    predVariance = kSelf - currentSecondTerm; 
+    _predVariance = kSelf - currentSecondTerm; 
 }
 
-void FMKGPHyperparameterOptimization::computePredictiveVarianceExact ( const NICE::Vector & x, double & predVariance ) const
+void FMKGPHyperparameterOptimization::computePredictiveVarianceExact ( const NICE::Vector & _x, 
+                                                                       double & _predVariance 
+                                                                     ) const
 {
-  if ( ikmsum->getNumberOfModels() == 0 )
+  if ( this->ikmsum->getNumberOfModels() == 0 )
   {
     fthrow ( Exception, "ikmsum is empty... have you trained this classifer? Aborting..." );
   }  
 
   // ---------------- compute the first term --------------------
   double kSelf ( 0.0 );
-  int dim ( 0 );
-  for ( NICE::Vector::const_iterator it = x.begin(); it != x.end(); it++, dim++ )
+  uint dim ( 0 );
+  for ( NICE::Vector::const_iterator it = _x.begin(); it != _x.end(); it++, dim++ )
   {
-    kSelf += pf->f ( 0, *it );
+    kSelf += this->pf->f ( 0, *it );
     // if weighted dimensions:
     //kSelf += pf->f(dim,*it);
   }
+  
 
   // ---------------- compute the second term --------------------
   NICE::Vector kStar;
-  fmk->hikComputeKernelVector ( x, kStar );
-
+  this->fmk->hikComputeKernelVector ( _x, kStar );
+ 
   //now run the ILS method
   NICE::Vector diagonalElements;
-  ikmsum->getDiagonalElements ( diagonalElements );
+  this->ikmsum->getDiagonalElements ( diagonalElements );
 
   // init simple jacobi pre-conditioning
-  ILSConjugateGradients *linsolver_cg = dynamic_cast<ILSConjugateGradients *> ( linsolver );
+  ILSConjugateGradients *linsolver_cg = dynamic_cast<ILSConjugateGradients *> ( this->linsolver );
 
 
   //perform pre-conditioning
@@ -1520,20 +1608,23 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceExact ( const NIC
       * v = k_*
       *  This reduces the number of iterations by 5 or 8
       */  
-  beta = (kStar * (1.0 / eigenMax[0]) );
-  linsolver->solveLin ( *ikmsum, kStar, beta );
+  beta = (kStar * (1.0 / this->eigenMax[0]) );
+  this->linsolver->solveLin ( *ikmsum, kStar, beta );
 
   beta *= kStar;
   
   double currentSecondTerm( beta.Sum() );
-  predVariance = kSelf - currentSecondTerm;
+  
+  _predVariance = kSelf - currentSecondTerm;
 }    
 
 ///////////////////// INTERFACE PERSISTENT /////////////////////
 // interface specific methods for store and restore
 ///////////////////// INTERFACE PERSISTENT ///////////////////// 
 
-void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
+void FMKGPHyperparameterOptimization::restore ( std::istream & _is, 
+                                                int _format 
+                                              )
 {
   bool b_restoreVerbose ( false );
 
@@ -1541,13 +1632,13 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
   b_restoreVerbose = true;
 #endif
 
-  if ( is.good() )
+  if ( _is.good() )
   {
     if ( b_restoreVerbose ) 
       std::cerr << " in FMKGP restore" << std::endl;
     
     std::string tmp;
-    is >> tmp; //class name 
+    _is >> tmp; //class name 
     
     if ( ! this->isStartTag( tmp, "FMKGPHyperparameterOptimization" ) )
     {
@@ -1570,14 +1661,14 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
       std::cerr << "ikmsum object created" << std::endl;
     
     
-    is.precision ( numeric_limits<double>::digits10 + 1 );
+    _is.precision ( numeric_limits<double>::digits10 + 1 );
        
     
     bool b_endOfBlock ( false ) ;
     
     while ( !b_endOfBlock )
     {
-      is >> tmp; // start of block 
+      _is >> tmp; // start of block 
       
       if ( this->isEndTag( tmp, "FMKGPHyperparameterOptimization" ) )
       {
@@ -1595,20 +1686,20 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
       ///////////////////////////////////
       if ( tmp.compare("verbose") == 0 )
       {
-        is >> verbose;
-        is >> tmp; // end of block 
+        _is >> this->b_verbose;
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else if ( tmp.compare("verboseTime") == 0 )
       {
-        is >> verboseTime;
-        is >> tmp; // end of block 
+        _is >> this->b_verboseTime;
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else if ( tmp.compare("debug") == 0 )
       {
-        is >> debug;
-        is >> tmp; // end of block 
+        _is >> this->b_debug;
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       } 
       //////////////////////////////////////
@@ -1616,56 +1707,56 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
       //////////////////////////////////////
       else if ( tmp.compare("b_performRegression") == 0 )
       {
-        is >> b_performRegression;
-        is >> tmp; // end of block 
+        _is >> this->b_performRegression;
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }     
       else if ( tmp.compare("fmk") == 0 )
       {
-        if ( fmk != NULL )
-          delete fmk;        
-        fmk = new FastMinKernel();
-        fmk->restore( is, format );
+        if ( this->fmk != NULL )
+          delete this->fmk;        
+        this->fmk = new FastMinKernel();
+        this->fmk->restore( _is, _format );
 
-        is >> tmp; // end of block 
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else if ( tmp.compare("q") == 0 )
       {
         std::string isNull;
-        is >> isNull; // NOTNULL or NULL
+        _is >> isNull; // NOTNULL or NULL
         if (isNull.compare("NOTNULL") == 0)
         {   
-          if ( q != NULL )
-            delete q;
-          q = new Quantization();
-          q->restore ( is, format );
+          if ( this->q != NULL )
+            delete this->q;
+          this->q = new Quantization();
+          this->q->restore ( _is, _format );
         }
         else
         {
-          if ( q != NULL )
-            delete q;
-          q = NULL;
+          if ( this->q != NULL )
+            delete this->q;
+          this->q = NULL;
         }
-        is >> tmp; // end of block 
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );        
       }
       else if  ( tmp.compare("parameterUpperBound") == 0 )
       {
-        is >> parameterUpperBound;        
-        is >> tmp; // end of block 
+        _is >> this->d_parameterUpperBound;        
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else if  ( tmp.compare("parameterLowerBound") == 0 )
       {
-        is >> parameterLowerBound;        
-        is >> tmp; // end of block 
+        _is >> this->d_parameterLowerBound;        
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }      
       else if ( tmp.compare("pf") == 0 )
       {
       
-        is >> tmp; // start of block 
+        _is >> tmp; // start of block 
         if ( this->isEndTag( tmp, "pf" ) )
         {
           std::cerr << " ParameterizedFunction object can not be restored. Aborting..." << std::endl;
@@ -1684,62 +1775,62 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
           fthrow(Exception, "Transformation type is unknown " << transform);
         }
         
-        pf->restore(is, format);
+        this->pf->restore( _is, _format);
         
-        is >> tmp; // end of block 
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }      
       else if ( tmp.compare("precomputedA") == 0 )
       {
-        is >> tmp; // size
-        int preCompSize ( 0 );
-        is >> preCompSize;
-        precomputedA.clear();
+        _is >> tmp; // size
+        uint preCompSize ( 0 );
+        _is >> preCompSize;
+        this->precomputedA.clear();
 
         if ( b_restoreVerbose ) 
           std::cerr << "restore precomputedA with size: " << preCompSize << std::endl;
         for ( int i = 0; i < preCompSize; i++ )
         {
-          int nr;
-          is >> nr;
+          uint nr;
+          _is >> nr;
           PrecomputedType pct;
           pct.setIoUntilEndOfFile ( false );
-          pct.restore ( is, format );
-          precomputedA.insert ( std::pair<int, PrecomputedType> ( nr, pct ) );
+          pct.restore ( _is, _format );
+          precomputedA.insert ( std::pair<uint, PrecomputedType> ( nr, pct ) );
         }
         
-        is >> tmp; // end of block 
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }        
       else if ( tmp.compare("precomputedB") == 0 )
       {
-        is >> tmp; // size
-        int preCompSize ( 0 );
-        is >> preCompSize;
-        precomputedB.clear();
+        _is >> tmp; // size
+        uint preCompSize ( 0 );
+        _is >> preCompSize;
+        this->precomputedB.clear();
 
         if ( b_restoreVerbose ) 
           std::cerr << "restore precomputedB with size: " << preCompSize << std::endl;
         for ( int i = 0; i < preCompSize; i++ )
         {
-          int nr;
-          is >> nr;
+          uint nr;
+          _is >> nr;
           PrecomputedType pct;
           pct.setIoUntilEndOfFile ( false );
-          pct.restore ( is, format );
-          precomputedB.insert ( std::pair<int, PrecomputedType> ( nr, pct ) );
+          pct.restore ( _is, _format );
+          precomputedB.insert ( std::pair<uint, PrecomputedType> ( nr, pct ) );
         }    
         
-        is >> tmp; // end of block 
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }       
       else if ( tmp.compare("precomputedT") == 0 )
       {
-        is >> tmp; // size
-        int precomputedTSize ( 0 );
-        is >> precomputedTSize;
+        _is >> tmp; // size
+        uint precomputedTSize ( 0 );
+        _is >> precomputedTSize;
 
-        precomputedT.clear();
+        this->precomputedT.clear();
         
         if ( b_restoreVerbose ) 
           std::cerr << "restore precomputedT with size: " << precomputedTSize << std::endl;
@@ -1748,21 +1839,21 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
         {
           if ( b_restoreVerbose ) 
             std::cerr << " restore precomputedT" << std::endl;
-          is >> tmp;
+          _is >> tmp;
           int sizeOfLUT;
-          is >> sizeOfLUT;    
+          _is >> sizeOfLUT;    
           
           for (int i = 0; i < precomputedTSize; i++)
           {
-            is >> tmp;
-            int index;
-            is >> index;        
+            _is >> tmp;
+            uint index;
+            _is >> index;        
             double * array = new double [ sizeOfLUT];
             for ( int i = 0; i < sizeOfLUT; i++ )
             {
-              is >> array[i];
+              _is >> array[i];
             }
-            precomputedT.insert ( std::pair<int, double*> ( index, array ) );
+            this->precomputedT.insert ( std::pair<uint, double*> ( index, array ) );
           }
         } 
         else
@@ -1771,42 +1862,42 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
             std::cerr << " skip restoring precomputedT" << std::endl;
         }
         
-        is >> tmp; // end of block 
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else if  ( tmp.compare("labels") == 0 )
       {
-        is >> labels;        
-        is >> tmp; // end of block 
+        _is >> this->labels;        
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }      
       else if ( tmp.compare("binaryLabelPositive") == 0 )
       {
-        is >> binaryLabelPositive;
-        is >> tmp; // end of block 
+        _is >> this->i_binaryLabelPositive;
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else if  ( tmp.compare("binaryLabelNegative") == 0 )
       {
-        is >> binaryLabelNegative;        
-        is >> tmp; // end of block 
+        _is >> this->i_binaryLabelNegative;        
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else if ( tmp.compare("knownClasses") == 0 )
       {
-        is >> tmp; // size
-        int knownClassesSize ( 0 );
-        is >> knownClassesSize;
+        _is >> tmp; // size
+        uint knownClassesSize ( 0 );
+        _is >> knownClassesSize;
 
-        knownClasses.clear();
+        this->knownClasses.clear();
         
         if ( knownClassesSize > 0 )
         {          
-          for (int i = 0; i < knownClassesSize; i++)
+          for (uint i = 0; i < knownClassesSize; i++)
           {
-            int classNo;
-            is >> classNo;        
-            knownClasses.insert ( classNo );
+            uint classNo;
+            _is >> classNo;        
+            this->knownClasses.insert ( classNo );
           }
         } 
         else
@@ -1814,7 +1905,7 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
           //nothing to do
         }        
         
-        is >> tmp; // end of block 
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );        
       }
       else if ( tmp.compare("ikmsum") == 0 )
@@ -1823,7 +1914,7 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
         
         while ( !b_endOfBlock )
         {
-          is >> tmp; // start of block 
+          _is >> tmp; // start of block 
           
           if ( this->isEndTag( tmp, "ikmsum" ) )
           {
@@ -1835,7 +1926,7 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
           if ( tmp.compare("IKMNoise") == 0 )
           {
             IKMNoise * ikmnoise = new IKMNoise ();
-            ikmnoise->restore ( is, format );
+            ikmnoise->restore ( _is, _format );
             
             if ( b_restoreVerbose ) 
               std::cerr << " add ikmnoise to ikmsum object " << std::endl;
@@ -1857,13 +1948,13 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
         //TODO linsolver  
         // current solution: hard coded with default values, since LinearSolver does not offer Persistent functionalities
         this->linsolver = new ILSConjugateGradients ( false , 1000, 1e-7, 1e-7 );        
-        is >> tmp; // end of block 
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }      
       else if  ( tmp.compare("ils_max_iterations") == 0 )
       {
-        is >> ils_max_iterations;        
-        is >> tmp; // end of block 
+        _is >> ils_max_iterations;        
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       /////////////////////////////////////
@@ -1873,39 +1964,39 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
       else if  ( tmp.compare("optimizationMethod") == 0 )
       {
         unsigned int ui_optimizationMethod;        
-        is >> ui_optimizationMethod;        
+        _is >> ui_optimizationMethod;        
         optimizationMethod = static_cast<OPTIMIZATIONTECHNIQUE> ( ui_optimizationMethod ) ;
-        is >> tmp; // end of block 
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }      
       else if  ( tmp.compare("optimizeNoise") == 0 )
       {
-        is >> optimizeNoise;        
-        is >> tmp; // end of block 
+        _is >> optimizeNoise;        
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }        
       else if  ( tmp.compare("parameterStepSize") == 0 )
       {
-        is >> parameterStepSize;        
-        is >> tmp; // end of block 
+        _is >> parameterStepSize;        
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else if  ( tmp.compare("downhillSimplexMaxIterations") == 0 )
       {
-        is >> downhillSimplexMaxIterations;        
-        is >> tmp; // end of block 
+        _is >> downhillSimplexMaxIterations;        
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else if  ( tmp.compare("downhillSimplexTimeLimit") == 0 )
       {
-        is >> downhillSimplexTimeLimit;        
-        is >> tmp; // end of block 
+        _is >> downhillSimplexTimeLimit;        
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else if  ( tmp.compare("downhillSimplexParamTol") == 0 )
       {
-        is >> downhillSimplexParamTol;        
-        is >> tmp; // end of block 
+        _is >> downhillSimplexParamTol;        
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       //////////////////////////////////////////////
@@ -1913,8 +2004,8 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
       //////////////////////////////////////////////
       else if ( tmp.compare("verifyApproximation") == 0 )
       {
-        is >> verifyApproximation;
-        is >> tmp; // end of block 
+        _is >> verifyApproximation;
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else if ( tmp.compare("eig") == 0 )
@@ -1923,25 +2014,25 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
         // currently hard coded, since EV does not offer Persistent functionalities and 
         // in addition, we currently have no other choice for EV then EVArnoldi
         this->eig = new EVArnoldi ( false /*eig_verbose */, 10 );        
-        is >> tmp; // end of block 
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }     
       else if ( tmp.compare("nrOfEigenvaluesToConsider") == 0 )
       {
-        is >> nrOfEigenvaluesToConsider;
-        is >> tmp; // end of block 
+        _is >> nrOfEigenvaluesToConsider;
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else if ( tmp.compare("eigenMax") == 0 )
       {
-        is >> eigenMax;
-        is >> tmp; // end of block 
+        _is >> eigenMax;
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else if ( tmp.compare("eigenMaxVectors") == 0 )
       {
-        is >> eigenMaxVectors;
-        is >> tmp; // end of block 
+        _is >> eigenMaxVectors;
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       ////////////////////////////////////////////
@@ -1949,14 +2040,14 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
       ////////////////////////////////////////////
       else if ( tmp.compare("nrOfEigenvaluesToConsiderForVarApprox") == 0 )
       {
-        is >> nrOfEigenvaluesToConsiderForVarApprox;
-        is >> tmp; // end of block 
+        _is >> nrOfEigenvaluesToConsiderForVarApprox;
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else if ( tmp.compare("precomputedAForVarEst") == 0 )
       {
         int sizeOfAForVarEst;
-        is >> sizeOfAForVarEst;
+        _is >> sizeOfAForVarEst;
         
         if ( b_restoreVerbose ) 
           std::cerr << "restore precomputedAForVarEst with size: " << sizeOfAForVarEst << std::endl;
@@ -1966,16 +2057,16 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
           precomputedAForVarEst.clear();
           
           precomputedAForVarEst.setIoUntilEndOfFile ( false );
-          precomputedAForVarEst.restore ( is, format );
+          precomputedAForVarEst.restore ( _is, _format );
         }
         
-        is >> tmp; // end of block 
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }        
       else if ( tmp.compare("precomputedTForVarEst") == 0 )
       {
         std::string isNull;
-        is >> isNull; // NOTNULL or NULL
+        _is >> isNull; // NOTNULL or NULL
         if ( b_restoreVerbose ) 
           std::cerr << "content of isNull: " << isNull << std::endl;    
         if (isNull.compare("NOTNULL") == 0)
@@ -1984,11 +2075,11 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
             std::cerr << "restore precomputedTForVarEst" << std::endl;
           
           int sizeOfLUT;
-          is >> sizeOfLUT;      
+          _is >> sizeOfLUT;      
           precomputedTForVarEst = new double [ sizeOfLUT ];
           for ( int i = 0; i < sizeOfLUT; i++ )
           {
-            is >> precomputedTForVarEst[i];
+            _is >> precomputedTForVarEst[i];
           }      
         }
         else
@@ -1999,7 +2090,7 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
             delete precomputedTForVarEst;
         }
         
-        is >> tmp; // end of block 
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }  
       /////////////////////////////////////////////////////
@@ -2007,29 +2098,29 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
       /////////////////////////////////////////////////////
       else if  ( tmp.compare("b_usePreviousAlphas") == 0 )
       {
-        is >> b_usePreviousAlphas;        
-        is >> tmp; // end of block 
+        _is >> b_usePreviousAlphas;        
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }
       else if  ( tmp.compare("previousAlphas") == 0 )
       {        
-        is >> tmp; // size
-        int sizeOfPreviousAlphas ( 0 );
-        is >> sizeOfPreviousAlphas;
-        previousAlphas.clear();
+        _is >> tmp; // size
+        uint sizeOfPreviousAlphas ( 0 );
+        _is >> sizeOfPreviousAlphas;
+        this->previousAlphas.clear();
 
         if ( b_restoreVerbose ) 
           std::cerr << "restore previousAlphas with size: " << sizeOfPreviousAlphas << std::endl;
         for ( int i = 0; i < sizeOfPreviousAlphas; i++ )
         {
-          int classNo;
-          is >> classNo;
+          uint classNo;
+          _is >> classNo;
           NICE::Vector classAlpha;
-          is >> classAlpha;
-          previousAlphas.insert ( std::pair< int, NICE::Vector > ( classNo, classAlpha ) );
+          _is >> classAlpha;
+          this->previousAlphas.insert ( std::pair< uint, NICE::Vector > ( classNo, classAlpha ) );
         }
         
-        is >> tmp; // end of block 
+        _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }      
       else
@@ -2058,21 +2149,21 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
       
 
 
-    knownClasses.clear();
+    this->knownClasses.clear();
     
     if ( b_restoreVerbose ) 
       std::cerr << " fill known classes object " << std::endl;
     
-    if ( precomputedA.size() == 1)
+    if ( this->precomputedA.size() == 1)
     {
-      knownClasses.insert( binaryLabelPositive );
-      knownClasses.insert( binaryLabelNegative );
+      this->knownClasses.insert( this->i_binaryLabelPositive );
+      this->knownClasses.insert( this->i_binaryLabelNegative );
       if ( b_restoreVerbose ) 
         std::cerr << " binary setting - added corresp. two class numbers" << std::endl;
     }
     else
     {
-      for ( std::map<int, PrecomputedType>::const_iterator itA = precomputedA.begin(); itA != precomputedA.end(); itA++)
+      for ( std::map<uint, PrecomputedType>::const_iterator itA = this->precomputedA.begin(); itA != this->precomputedA.end(); itA++)
           knownClasses.insert ( itA->first );
       if ( b_restoreVerbose ) 
         std::cerr << " multi class setting - added corresp. multiple class numbers" << std::endl;
@@ -2085,278 +2176,280 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & is, int format )
   }
 }
 
-void FMKGPHyperparameterOptimization::store ( std::ostream & os, int format ) const
+void FMKGPHyperparameterOptimization::store ( std::ostream & _os, 
+                                              int _format 
+                                            ) const
 {
-  if ( os.good() )
+  if ( _os.good() )
   {
     // show starting point
-    os << this->createStartTag( "FMKGPHyperparameterOptimization" ) << std::endl;
+    _os << this->createStartTag( "FMKGPHyperparameterOptimization" ) << std::endl;
 
-//     os.precision ( numeric_limits<double>::digits10 + 1 );
+//     _os.precision ( numeric_limits<double>::digits10 + 1 );
       
     
     ///////////////////////////////////
     // output/debug related settings //   
     ///////////////////////////////////
     
-    os << this->createStartTag( "verbose" ) << std::endl;
-    os << verbose << std::endl;
-    os << this->createEndTag( "verbose" ) << std::endl;
+    _os << this->createStartTag( "verbose" ) << std::endl;
+    _os << this->b_verbose << std::endl;
+    _os << this->createEndTag( "verbose" ) << std::endl;
     
-    os << this->createStartTag( "verboseTime" ) << std::endl;
-    os << verboseTime << std::endl;
-    os << this->createEndTag( "verboseTime" ) << std::endl;
+    _os << this->createStartTag( "verboseTime" ) << std::endl;
+    _os << this->b_verboseTime << std::endl;
+    _os << this->createEndTag( "verboseTime" ) << std::endl;
     
-    os << this->createStartTag( "debug" ) << std::endl;
-    os << debug << std::endl;
-    os << this->createEndTag( "debug" ) << std::endl;
+    _os << this->createStartTag( "debug" ) << std::endl;
+    _os << this->b_debug << std::endl;
+    _os << this->createEndTag( "debug" ) << std::endl;
     
     //////////////////////////////////////
     // classification related variables //
     //////////////////////////////////////    
     
-    os << this->createStartTag( "b_performRegression" ) << std::endl;
-    os << b_performRegression << std::endl;
-    os << this->createEndTag( "b_performRegression" ) << std::endl;
+    _os << this->createStartTag( "b_performRegression" ) << std::endl;
+    _os << b_performRegression << std::endl;
+    _os << this->createEndTag( "b_performRegression" ) << std::endl;
     
-    os << this->createStartTag( "fmk" ) << std::endl;
-    fmk->store ( os, format );
-    os << this->createEndTag( "fmk" ) << std::endl;
+    _os << this->createStartTag( "fmk" ) << std::endl;
+    this->fmk->store ( _os, _format );
+    _os << this->createEndTag( "fmk" ) << std::endl;
     
-    os << this->createStartTag( "q" ) << std::endl;
+    _os << this->createStartTag( "q" ) << std::endl;
     if ( q != NULL )
     {
-      os << "NOTNULL" << std::endl;
-      q->store ( os, format );
+      _os << "NOTNULL" << std::endl;
+      q->store ( _os, _format );
     }
     else
     {
-      os << "NULL" << std::endl;
+      _os << "NULL" << std::endl;
     }
-    os << this->createEndTag( "q" ) << std::endl;
+    _os << this->createEndTag( "q" ) << std::endl;
     
-    os << this->createStartTag( "parameterUpperBound" ) << std::endl;
-    os << parameterUpperBound << std::endl;
-    os << this->createEndTag( "parameterUpperBound" ) << std::endl;
+    _os << this->createStartTag( "parameterUpperBound" ) << std::endl;
+    _os << this->d_parameterUpperBound << std::endl;
+    _os << this->createEndTag( "parameterUpperBound" ) << std::endl;
     
     
-    os << this->createStartTag( "parameterLowerBound" ) << std::endl;
-    os << parameterLowerBound << std::endl;
-    os << this->createEndTag( "parameterLowerBound" ) << std::endl;    
+    _os << this->createStartTag( "parameterLowerBound" ) << std::endl;
+    _os << this->d_parameterLowerBound << std::endl;
+    _os << this->createEndTag( "parameterLowerBound" ) << std::endl;    
     
-    os << this->createStartTag( "pf" ) << std::endl;
-    pf->store(os, format);
-    os << this->createEndTag( "pf" ) << std::endl;     
+    _os << this->createStartTag( "pf" ) << std::endl;
+    this->pf->store(_os, _format);
+    _os << this->createEndTag( "pf" ) << std::endl;     
     
-    os << this->createStartTag( "precomputedA" ) << std::endl;
-    os << "size: " << precomputedA.size() << std::endl;
-    std::map< int, PrecomputedType >::const_iterator preCompIt = precomputedA.begin();
-    for ( uint i = 0; i < precomputedA.size(); i++ )
+    _os << this->createStartTag( "precomputedA" ) << std::endl;
+    _os << "size: " << this->precomputedA.size() << std::endl;
+    std::map< uint, PrecomputedType >::const_iterator preCompIt = this->precomputedA.begin();
+    for ( uint i = 0; i < this->precomputedA.size(); i++ )
     {
-      os << preCompIt->first << std::endl;
-      ( preCompIt->second ).store ( os, format );
+      _os << preCompIt->first << std::endl;
+      ( preCompIt->second ).store ( _os, _format );
       preCompIt++;
     }    
-    os << this->createEndTag( "precomputedA" ) << std::endl;  
+    _os << this->createEndTag( "precomputedA" ) << std::endl;  
     
     
-    os << this->createStartTag( "precomputedB" ) << std::endl;
-    os << "size: " << precomputedB.size() << std::endl;
-    preCompIt = precomputedB.begin();
-    for ( uint i = 0; i < precomputedB.size(); i++ )
+    _os << this->createStartTag( "precomputedB" ) << std::endl;
+    _os << "size: " << this->precomputedB.size() << std::endl;
+    preCompIt = this->precomputedB.begin();
+    for ( uint i = 0; i < this->precomputedB.size(); i++ )
     {
-      os << preCompIt->first << std::endl;
-      ( preCompIt->second ).store ( os, format );
+      _os << preCompIt->first << std::endl;
+      ( preCompIt->second ).store ( _os, _format );
       preCompIt++;
     }    
-    os << this->createEndTag( "precomputedB" ) << std::endl; 
+    _os << this->createEndTag( "precomputedB" ) << std::endl; 
       
     
     
-    os << this->createStartTag( "precomputedT" ) << std::endl;
-    os << "size: " << precomputedT.size() << std::endl;
-    if ( precomputedT.size() > 0 )
+    _os << this->createStartTag( "precomputedT" ) << std::endl;
+    _os << "size: " << this->precomputedT.size() << std::endl;
+    if ( this->precomputedT.size() > 0 )
     {
       int sizeOfLUT ( 0 );
       if ( q != NULL )
         sizeOfLUT = q->size() * this->fmk->get_d();
-      os << "SizeOfLUTs: " << sizeOfLUT << std::endl;      
-      for ( std::map< int, double * >::const_iterator it = precomputedT.begin(); it != precomputedT.end(); it++ )
+      _os << "SizeOfLUTs: " << sizeOfLUT << std::endl;      
+      for ( std::map< uint, double * >::const_iterator it = this->precomputedT.begin(); it != this->precomputedT.end(); it++ )
       {
-        os << "index: " << it->first << std::endl;
+        _os << "index: " << it->first << std::endl;
         for ( int i = 0; i < sizeOfLUT; i++ )
         {
-          os << ( it->second ) [i] << " ";
+          _os << ( it->second ) [i] << " ";
         }
-        os << std::endl;
+        _os << std::endl;
       }
     } 
-    os << this->createEndTag( "precomputedT" ) << std::endl;
+    _os << this->createEndTag( "precomputedT" ) << std::endl;
     
     
-    os << this->createStartTag( "labels" ) << std::endl;
-    os << labels << std::endl;
-    os << this->createEndTag( "labels" ) << std::endl;  
+    _os << this->createStartTag( "labels" ) << std::endl;
+    _os << this->labels << std::endl;
+    _os << this->createEndTag( "labels" ) << std::endl;  
     
     //store the class numbers for binary settings (if mc-settings, these values will be negative by default)
-    os << this->createStartTag( "binaryLabelPositive" ) << std::endl;
-    os << binaryLabelPositive << std::endl;
-    os << this->createEndTag( "binaryLabelPositive" ) << std::endl; 
+    _os << this->createStartTag( "binaryLabelPositive" ) << std::endl;
+    _os << this->i_binaryLabelPositive << std::endl;
+    _os << this->createEndTag( "binaryLabelPositive" ) << std::endl; 
     
-    os << this->createStartTag( "binaryLabelNegative" ) << std::endl;
-    os << binaryLabelNegative << std::endl;
-    os << this->createEndTag( "binaryLabelNegative" ) << std::endl;
+    _os << this->createStartTag( "binaryLabelNegative" ) << std::endl;
+    _os << this->i_binaryLabelNegative << std::endl;
+    _os << this->createEndTag( "binaryLabelNegative" ) << std::endl;
     
-    os << this->createStartTag( "knownClasses" ) << std::endl;
-    os << "size: " << knownClasses.size() << std::endl;
+    _os << this->createStartTag( "knownClasses" ) << std::endl;
+    _os << "size: " << this->knownClasses.size() << std::endl;
 
-    for ( std::set< int >::const_iterator itKnownClasses = knownClasses.begin();
-          itKnownClasses != knownClasses.end();
+    for ( std::set< uint >::const_iterator itKnownClasses = this->knownClasses.begin();
+          itKnownClasses != this->knownClasses.end();
           itKnownClasses++
         )
     {
-      os << *itKnownClasses << " " << std::endl;
+      _os << *itKnownClasses << " " << std::endl;
     }   
-    os << this->createEndTag( "knownClasses" ) << std::endl;    
+    _os << this->createEndTag( "knownClasses" ) << std::endl;    
     
-    os << this->createStartTag( "ikmsum" ) << std::endl;
+    _os << this->createStartTag( "ikmsum" ) << std::endl;
     for ( int j = 0; j < ikmsum->getNumberOfModels() - 1; j++ )
     {
-      ( ikmsum->getModel ( j ) )->store ( os, format );
+      ( ikmsum->getModel ( j ) )->store ( _os, _format );
     }
-    os << this->createEndTag( "ikmsum" ) << std::endl;    
+    _os << this->createEndTag( "ikmsum" ) << std::endl;    
     
     //////////////////////////////////////////////
     //           Iterative Linear Solver        //
     //////////////////////////////////////////////     
     
-    os << this->createStartTag( "linsolver" ) << std::endl;
+    _os << this->createStartTag( "linsolver" ) << std::endl;
     //TODO linsolver 
-    os << this->createEndTag( "linsolver" ) << std::endl;      
+    _os << this->createEndTag( "linsolver" ) << std::endl;      
        
 
-    os << this->createStartTag( "ils_max_iterations" ) << std::endl;
-    os << ils_max_iterations << std::endl;
-    os << this->createEndTag( "ils_max_iterations" ) << std::endl;  
+    _os << this->createStartTag( "ils_max_iterations" ) << std::endl;
+    _os << this->ils_max_iterations << std::endl;
+    _os << this->createEndTag( "ils_max_iterations" ) << std::endl;  
     
     /////////////////////////////////////
     // optimization related parameters //
     /////////////////////////////////////    
     
-    os << this->createStartTag( "optimizationMethod" ) << std::endl;
-    os << optimizationMethod << std::endl;
-    os << this->createEndTag( "optimizationMethod" ) << std::endl; 
+    _os << this->createStartTag( "optimizationMethod" ) << std::endl;
+    _os << this->optimizationMethod << std::endl;
+    _os << this->createEndTag( "optimizationMethod" ) << std::endl; 
     
-    os << this->createStartTag( "optimizeNoise" ) << std::endl;
-    os << optimizeNoise << std::endl;
-    os << this->createEndTag( "optimizeNoise" ) << std::endl;
+    _os << this->createStartTag( "optimizeNoise" ) << std::endl;
+    _os << this->optimizeNoise << std::endl;
+    _os << this->createEndTag( "optimizeNoise" ) << std::endl;
     
-    os << this->createStartTag( "parameterStepSize" ) << std::endl;
-    os << parameterStepSize << std::endl;
-    os << this->createEndTag( "parameterStepSize" ) << std::endl;
+    _os << this->createStartTag( "parameterStepSize" ) << std::endl;
+    _os << this->parameterStepSize << std::endl;
+    _os << this->createEndTag( "parameterStepSize" ) << std::endl;
     
-    os << this->createStartTag( "downhillSimplexMaxIterations" ) << std::endl;
-    os << downhillSimplexMaxIterations << std::endl;
-    os << this->createEndTag( "downhillSimplexMaxIterations" ) << std::endl;
-    
-    
-    os << this->createStartTag( "downhillSimplexTimeLimit" ) << std::endl;
-    os << downhillSimplexTimeLimit << std::endl;
-    os << this->createEndTag( "downhillSimplexTimeLimit" ) << std::endl;
+    _os << this->createStartTag( "downhillSimplexMaxIterations" ) << std::endl;
+    _os << this->downhillSimplexMaxIterations << std::endl;
+    _os << this->createEndTag( "downhillSimplexMaxIterations" ) << std::endl;
     
     
-    os << this->createStartTag( "downhillSimplexParamTol" ) << std::endl;
-    os << downhillSimplexParamTol << std::endl;
-    os << this->createEndTag( "downhillSimplexParamTol" ) << std::endl;
+    _os << this->createStartTag( "downhillSimplexTimeLimit" ) << std::endl;
+    _os << this->downhillSimplexTimeLimit << std::endl;
+    _os << this->createEndTag( "downhillSimplexTimeLimit" ) << std::endl;
+    
+    
+    _os << this->createStartTag( "downhillSimplexParamTol" ) << std::endl;
+    _os << this->downhillSimplexParamTol << std::endl;
+    _os << this->createEndTag( "downhillSimplexParamTol" ) << std::endl;
     
     //////////////////////////////////////////////
     // likelihood computation related variables //
     //////////////////////////////////////////////     
     
-    os << this->createStartTag( "verifyApproximation" ) << std::endl;
-    os << verifyApproximation << std::endl;
-    os << this->createEndTag( "verifyApproximation" ) << std::endl;    
+    _os << this->createStartTag( "verifyApproximation" ) << std::endl;
+    _os << this->verifyApproximation << std::endl;
+    _os << this->createEndTag( "verifyApproximation" ) << std::endl;    
     
-    os << this->createStartTag( "eig" ) << std::endl;
+    _os << this->createStartTag( "eig" ) << std::endl;
     //TODO eig 
-    os << this->createEndTag( "eig" ) << std::endl;    
+    _os << this->createEndTag( "eig" ) << std::endl;    
        
     
-    os << this->createStartTag( "nrOfEigenvaluesToConsider" ) << std::endl;
-    os << nrOfEigenvaluesToConsider << std::endl;
-    os << this->createEndTag( "nrOfEigenvaluesToConsider" ) << std::endl;
+    _os << this->createStartTag( "nrOfEigenvaluesToConsider" ) << std::endl;
+    _os << this->nrOfEigenvaluesToConsider << std::endl;
+    _os << this->createEndTag( "nrOfEigenvaluesToConsider" ) << std::endl;
     
-    os << this->createStartTag( "eigenMax" ) << std::endl;
-    os << eigenMax << std::endl;
-    os << this->createEndTag( "eigenMax" ) << std::endl;
+    _os << this->createStartTag( "eigenMax" ) << std::endl;
+    _os << this->eigenMax << std::endl;
+    _os << this->createEndTag( "eigenMax" ) << std::endl;
 
-    os << this->createStartTag( "eigenMaxVectors" ) << std::endl;
-    os << eigenMaxVectors << std::endl;
-    os << this->createEndTag( "eigenMaxVectors" ) << std::endl;
+    _os << this->createStartTag( "eigenMaxVectors" ) << std::endl;
+    _os << this->eigenMaxVectors << std::endl;
+    _os << this->createEndTag( "eigenMaxVectors" ) << std::endl;
     
     
     ////////////////////////////////////////////
     // variance computation related variables //
     ////////////////////////////////////////////    
     
-    os << this->createStartTag( "nrOfEigenvaluesToConsiderForVarApprox" ) << std::endl;
-    os << nrOfEigenvaluesToConsiderForVarApprox << std::endl;
-    os << this->createEndTag( "nrOfEigenvaluesToConsiderForVarApprox" ) << std::endl;
+    _os << this->createStartTag( "nrOfEigenvaluesToConsiderForVarApprox" ) << std::endl;
+    _os << this->nrOfEigenvaluesToConsiderForVarApprox << std::endl;
+    _os << this->createEndTag( "nrOfEigenvaluesToConsiderForVarApprox" ) << std::endl;
     
-    os << this->createStartTag( "precomputedAForVarEst" ) << std::endl;
-    os << precomputedAForVarEst.size() << std::endl;
+    _os << this->createStartTag( "precomputedAForVarEst" ) << std::endl;
+    _os << precomputedAForVarEst.size() << std::endl;
     
-    if (precomputedAForVarEst.size() > 0)
+    if ( this->precomputedAForVarEst.size() > 0)
     {
-      precomputedAForVarEst.store ( os, format );
-      os << std::endl; 
+      this->precomputedAForVarEst.store ( _os, _format );
+      _os << std::endl; 
     }
-    os << this->createEndTag( "precomputedAForVarEst" ) << std::endl;
+    _os << this->createEndTag( "precomputedAForVarEst" ) << std::endl;
     
     
-    os << this->createStartTag( "precomputedTForVarEst" ) << std::endl;
-    if ( precomputedTForVarEst != NULL )
+    _os << this->createStartTag( "precomputedTForVarEst" ) << std::endl;
+    if ( this->precomputedTForVarEst != NULL )
     {
-      os << "NOTNULL" << std::endl;
+      _os << "NOTNULL" << std::endl;
       int sizeOfLUT ( 0 );
       if ( q != NULL )
         sizeOfLUT = q->size() * this->fmk->get_d();
       
-      os << sizeOfLUT << std::endl;
+      _os << sizeOfLUT << std::endl;
       for ( int i = 0; i < sizeOfLUT; i++ )
       {
-        os << precomputedTForVarEst[i] << " ";
+        _os << this->precomputedTForVarEst[i] << " ";
       }
-      os << std::endl;
+      _os << std::endl;
     }
     else
     {
-      os << "NULL" << std::endl;
+      _os << "NULL" << std::endl;
     }
-    os << this->createEndTag( "precomputedTForVarEst" ) << std::endl;    
+    _os << this->createEndTag( "precomputedTForVarEst" ) << std::endl;    
     
     /////////////////////////////////////////////////////
     // online / incremental learning related variables //
     /////////////////////////////////////////////////////    
-    os << this->createStartTag( "b_usePreviousAlphas" ) << std::endl;
-    os << b_usePreviousAlphas << std::endl;
-    os << this->createEndTag( "b_usePreviousAlphas" ) << std::endl;    
+    _os << this->createStartTag( "b_usePreviousAlphas" ) << std::endl;
+    _os << this->b_usePreviousAlphas << std::endl;
+    _os << this->createEndTag( "b_usePreviousAlphas" ) << std::endl;    
     
-    os << this->createStartTag( "previousAlphas" ) << std::endl;
-    os << "size: " << previousAlphas.size() << std::endl;
-    std::map< int, NICE::Vector >::const_iterator prevAlphaIt = previousAlphas.begin();
-    for ( uint i = 0; i < previousAlphas.size(); i++ )
+    _os << this->createStartTag( "previousAlphas" ) << std::endl;
+    _os << "size: " << this->previousAlphas.size() << std::endl;
+    std::map< uint, NICE::Vector >::const_iterator prevAlphaIt = this->previousAlphas.begin();
+    for ( uint i = 0; i < this->previousAlphas.size(); i++ )
     {
-      os << prevAlphaIt->first << std::endl;
-      os << prevAlphaIt->second << std::endl;
+      _os << prevAlphaIt->first << std::endl;
+      _os << prevAlphaIt->second << std::endl;
       prevAlphaIt++;
     }
-    os << this->createEndTag( "previousAlphas" ) << std::endl;
+    _os << this->createEndTag( "previousAlphas" ) << std::endl;
 
     
     
     // done
-    os << this->createEndTag( "FMKGPHyperparameterOptimization" ) << std::endl;    
+    _os << this->createEndTag( "FMKGPHyperparameterOptimization" ) << std::endl;    
   }
   else
   {
@@ -2375,13 +2468,13 @@ void FMKGPHyperparameterOptimization::addExample( const NICE::SparseVector * exa
                                                   const bool & performOptimizationAfterIncrement
                                                 )
 {
-  if ( this->verbose )
+  if ( this->b_verbose )
     std::cerr << " --- FMKGPHyperparameterOptimization::addExample --- " << std::endl;  
   
   NICE::Timer t;
   t.start();  
 
-  std::set< int > newClasses;
+  std::set< uint > newClasses;
   
   this->labels.append ( label );
   //have we seen this class already?
@@ -2396,7 +2489,7 @@ void FMKGPHyperparameterOptimization::addExample( const NICE::SparseVector * exa
   // could be dealt with implicitely.
   // Therefore, we insert its label here...
   if ( (newClasses.size() > 0 ) && ( (this->knownClasses.size() - newClasses.size() ) == 2 ) )
-    newClasses.insert( binaryLabelNegative );    
+    newClasses.insert( this->i_binaryLabelNegative );    
 
   // add the new example to our data structure
   // It is necessary to do this already here and not lateron for internal reasons (see GMHIKernel for more details)
@@ -2404,7 +2497,7 @@ void FMKGPHyperparameterOptimization::addExample( const NICE::SparseVector * exa
   tFmk.start();
   this->fmk->addExample ( example, pf );
   tFmk.stop();
-  if ( this->verboseTime)
+  if ( this->b_verboseTime)
     std::cerr << "Time used for adding the data to the fmk object: " << tFmk.getLast() << std::endl;
 
   
@@ -2428,10 +2521,10 @@ void FMKGPHyperparameterOptimization::addExample( const NICE::SparseVector * exa
   long maxMemory;
   rs.getMaximumMemory ( maxMemory );
   
-  if ( this->verbose )
+  if ( this->b_verbose )
     std::cerr << "Maximum memory used: " << maxMemory << " KB" << std::endl;   
   
-  if ( this->verbose )
+  if ( this->b_verbose )
     std::cerr << " --- FMKGPHyperparameterOptimization::addExample done --- " << std::endl;   
 }
 
@@ -2440,13 +2533,13 @@ void FMKGPHyperparameterOptimization::addMultipleExamples( const std::vector< co
                                                            const bool & performOptimizationAfterIncrement
                                                          )
 {
-  if ( this->verbose )
+  if ( this->b_verbose )
     std::cerr << " --- FMKGPHyperparameterOptimization::addMultipleExamples --- " << std::endl;  
   
   NICE::Timer t;
   t.start();  
 
-  std::set< int > newClasses;
+  std::set< uint > newClasses;
   
   this->labels.append ( newLabels );
   //have we seen this class already?
@@ -2479,7 +2572,7 @@ void FMKGPHyperparameterOptimization::addMultipleExamples( const std::vector< co
     // could be dealt with implicitely.
     // Therefore, we insert its label here...
     if ( (newClasses.size() > 0 ) && ( (this->knownClasses.size() - newClasses.size() ) == 2 ) )
-      newClasses.insert( binaryLabelNegative );      
+      newClasses.insert( this->i_binaryLabelNegative );      
       
   }
   // in a regression setting, we do not have to remember any "class labels"
@@ -2491,7 +2584,7 @@ void FMKGPHyperparameterOptimization::addMultipleExamples( const std::vector< co
   tFmk.start();
   this->fmk->addMultipleExamples ( newExamples, pf );
   tFmk.stop();
-  if ( this->verboseTime)
+  if ( this->b_verboseTime)
     std::cerr << "Time used for adding the data to the fmk object: " << tFmk.getLast() << std::endl;
   
   // add examples to all implicite kernel matrices we currently use
@@ -2513,9 +2606,9 @@ void FMKGPHyperparameterOptimization::addMultipleExamples( const std::vector< co
   long maxMemory;
   rs.getMaximumMemory ( maxMemory );
   
-  if ( this->verbose )
+  if ( this->b_verbose )
     std::cerr << "Maximum memory used: " << maxMemory << " KB" << std::endl;  
   
-  if ( this->verbose )
+  if ( this->b_verbose )
     std::cerr << " --- FMKGPHyperparameterOptimization::addMultipleExamples done --- " << std::endl;    
 }

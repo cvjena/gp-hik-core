@@ -46,9 +46,9 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
     ///////////////////////////////////
     
     /** verbose flag for useful output*/
-    bool verbose;
+    bool b_verbose;
     /** debug flag for several outputs useful for debugging*/
-    bool debug;
+    bool b_debug;
     
     //////////////////////////////////////
     //      general specifications      //
@@ -69,7 +69,7 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
     
     
     /** Gaussian label noise for model regularization */
-    double noise;
+    double d_noise;
 
     enum VarianceApproximation{
       APPROXIMATE_ROUGH,
@@ -105,7 +105,9 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @brief standard constructor
      * @author Alexander Freytag
      */
-    GPHIKClassifier( const NICE::Config *conf , const std::string & s_confSection = "GPHIKClassifier" );
+    GPHIKClassifier( const NICE::Config *_conf , 
+                     const std::string & s_confSection = "GPHIKClassifier" 
+                   );
       
     /**
      * @brief simple destructor
@@ -119,7 +121,9 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
     * @param conf Config file to specify variable settings
     * @param s_confSection
     */    
-    void initFromConfig(const NICE::Config *conf, const std::string & s_confSection);    
+    void initFromConfig(const NICE::Config *_conf, 
+                        const std::string & s_confSection
+                       );    
     
     ///////////////////// ///////////////////// /////////////////////
     //                         GET / SET
@@ -129,7 +133,7 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @brief Return currently known class numbers
      * @author Alexander Freytag
      */    
-    std::set<int> getKnownClassNumbers ( ) const;    
+    std::set<uint> getKnownClassNumbers ( ) const;    
    
     ///////////////////// ///////////////////// /////////////////////
     //                      CLASSIFIER STUFF
@@ -143,18 +147,25 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @param result (int) class number of most likely class
      * @param scores (SparseVector) classification scores for known classes
      */        
-    void classify ( const NICE::SparseVector * example,  int & result, NICE::SparseVector & scores ) const;
+    void classify ( const NICE::SparseVector * _example, 
+                    uint & _result, 
+                    NICE::SparseVector & _scores 
+                  ) const;
     
     /** 
      * @brief classify a given example with the previously learnt model
      * @date 19-06-2012 (dd-mm-yyyy)
      * @author Alexander Freytag
      * @param example (SparseVector) to be classified given in a sparse representation
-     * @param result (int) class number of most likely class
+     * @param result (uint) class number of most likely class
      * @param scores (SparseVector) classification scores for known classes
      * @param uncertainty (double*) predictive variance of the classification result, if computed
      */    
-    void classify ( const NICE::SparseVector * example,  int & result, NICE::SparseVector & scores, double & uncertainty ) const;
+    void classify ( const NICE::SparseVector * _example,  
+                    uint & _result, 
+                    NICE::SparseVector & _scores, 
+                    double & _uncertainty 
+                  ) const;
     
     /** 
      * @brief classify a given example with the previously learnt model
@@ -165,7 +176,10 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @param result (int) class number of most likely class
      * @param scores (SparseVector) classification scores for known classes
      */        
-    void classify ( const NICE::Vector * example,  int & result, NICE::SparseVector & scores ) const;
+    void classify ( const NICE::Vector * _example,  
+                    uint & _result, 
+                    NICE::SparseVector & _scores 
+                  ) const;
     
     /** 
      * @brief classify a given example with the previously learnt model
@@ -173,11 +187,15 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @date 18-06-2013 (dd-mm-yyyy)
      * @author Alexander Freytag
      * @param example (non-sparse Vector) to be classified given in a non-sparse representation
-     * @param result (int) class number of most likely class
+     * @param result (uint) class number of most likely class
      * @param scores (SparseVector) classification scores for known classes
      * @param uncertainty (double) predictive variance of the classification result, if computed
      */    
-    void classify ( const NICE::Vector * example,  int & result, NICE::SparseVector & scores, double & uncertainty ) const;    
+    void classify ( const NICE::Vector * _example,  
+                    uint & _result, 
+                    NICE::SparseVector & _scores, 
+                    double & _uncertainty 
+                  ) const;    
 
     /**
      * @brief train this classifier using a given set of examples and a given set of binary label vectors 
@@ -186,7 +204,9 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @param examples (std::vector< NICE::SparseVector *>) training data given in a sparse representation
      * @param labels (Vector) class labels (multi-class)
      */
-    void train ( const std::vector< const NICE::SparseVector *> & examples, const NICE::Vector & labels );
+    void train ( const std::vector< const NICE::SparseVector *> & _examples, 
+                 const NICE::Vector & _labels 
+               );
     
     /** 
      * @brief train this classifier using a given set of examples and a given set of binary label vectors 
@@ -195,7 +215,9 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @param examples examples to use given in a sparse data structure
      * @param binLabels corresponding binary labels with class no. There is no need here that every examples has only on positive entry in this set (1,-1)
      */
-    void train ( const std::vector< const NICE::SparseVector *> & examples, std::map<int, NICE::Vector> & binLabels );
+    void train ( const std::vector< const NICE::SparseVector *> & _examples, 
+                 std::map<uint, NICE::Vector> & _binLabels 
+               );
     
     /**
      * @brief Clone classifier object
@@ -210,7 +232,9 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @param examples example for which the classification uncertainty shall be predicted, given in a sparse representation
      * @param uncertainty contains the resulting classification uncertainty
      */       
-    void predictUncertainty( const NICE::SparseVector * example, double & uncertainty ) const;
+    void predictUncertainty( const NICE::SparseVector * _example, 
+                             double & _uncertainty 
+                           ) const;
     
     /** 
      * @brief prediction of classification uncertainty
@@ -219,7 +243,9 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @param examples example for which the classification uncertainty shall be predicted, given in a non-sparse representation
      * @param uncertainty contains the resulting classification uncertainty
      */       
-    void predictUncertainty( const NICE::Vector * example, double & uncertainty ) const;    
+    void predictUncertainty( const NICE::Vector * _example, 
+                             double & _uncertainty 
+                           ) const;    
     
 
 
@@ -231,13 +257,17 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @brief Load classifier from external file (stream)
      * @author Alexander Freytag
      */     
-    void restore ( std::istream & is, int format = 0 );
+    void restore ( std::istream & _is, 
+                   int _format = 0 
+                 );
     
     /** 
      * @brief Save classifier to external file (stream)
      * @author Alexander Freytag
      */     
-    void store ( std::ostream & os, int format = 0 ) const;
+    void store ( std::ostream & _os, 
+                 int _format = 0 
+               ) const;
     
     /** 
      * @brief Clear classifier object
@@ -254,22 +284,19 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
      * @brief add a new example
      * @author Alexander Freytag
      */    
-    virtual void addExample( const NICE::SparseVector * example, 
-                              const double & label, 
-                              const bool & performOptimizationAfterIncrement = true
+    virtual void addExample( const NICE::SparseVector * _example, 
+                             const double & _label, 
+                             const bool & _performOptimizationAfterIncrement = true
                             );
                           
     /** 
      * @brief add several new examples
      * @author Alexander Freytag
      */    
-    virtual void addMultipleExamples( const std::vector< const NICE::SparseVector * > & newExamples,
-                                      const NICE::Vector & newLabels,
-                                      const bool & performOptimizationAfterIncrement = true
+    virtual void addMultipleExamples( const std::vector< const NICE::SparseVector * > & _newExamples,
+                                      const NICE::Vector & _newLabels,
+                                      const bool & _performOptimizationAfterIncrement = true
                                     );       
-
-
-
 };
 
 }

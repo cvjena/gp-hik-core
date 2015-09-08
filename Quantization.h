@@ -30,7 +30,7 @@ class Quantization  : public NICE::Persistent
 
   protected:
 
-    uint numBins;
+    uint ui_numBins;
 
   public:
 
@@ -47,7 +47,7 @@ class Quantization  : public NICE::Persistent
    * @author Erik Rodner
    * @date 
    */
-  Quantization( uint numBins );
+  Quantization( uint _numBins );
     
   /** simple destructor */
   virtual ~Quantization();
@@ -64,7 +64,7 @@ class Quantization  : public NICE::Persistent
   *
   * @return value of the prototype
   */
-  virtual double getPrototype (uint bin) const;
+  virtual double getPrototype (uint _bin) const;
 
   /**
   * @brief Determine for a given signal value the bin in the vocabulary. This is not the corresponding prototype, which 
@@ -74,13 +74,17 @@ class Quantization  : public NICE::Persistent
   *
   * @return index of the bin entry corresponding to the given signal value
   */
-  virtual uint quantize (double value) const;
+  virtual uint quantize (double _value) const;
   
   ///////////////////// INTERFACE PERSISTENT /////////////////////
   // interface specific methods for store and restore
   ///////////////////// INTERFACE PERSISTENT /////////////////////
-  virtual void restore ( std::istream & is, int format = 0 );
-  virtual void store ( std::ostream & os, int format = 0 ) const; 
+  virtual void restore ( std::istream & _is, 
+                         int _format = 0 
+                       );
+  virtual void store ( std::ostream & _os, 
+                       int _format = 0 
+                     ) const; 
   virtual void clear () {};  
      
 };

@@ -57,7 +57,7 @@ std::vector< const NICE::SparseVector * > MatlabConversion::convertSparseMatrixT
           )
       {
           //note: no complex data supported her
-          sparseMatrix[ ir[current_row_index] ]->insert( std::pair<int, double>( col, pr[total++] ) );
+          sparseMatrix[ ir[current_row_index] ]->insert( std::pair<uint, double>( col, pr[total++] ) );
       } // for-loop
       
     }
@@ -100,7 +100,7 @@ NICE::SparseVector MatlabConversion::convertSparseVectorToNice(
   
 
   NICE::SparseVector svec( std::max(dimx, dimy) );
-   
+  
   
   if ( dimx > 1)
   {
@@ -116,9 +116,9 @@ NICE::SparseVector MatlabConversion::convertSparseVectorToNice(
           //note: no complex data supported her
             double value ( pr[total++] );
             if ( b_adaptIndexMtoC ) 
-                svec.insert( std::pair<int, double>( row+1,  value ) );
+                svec.insert( std::pair<uint, double>( row+1,  value ) );
             else
-                svec.insert( std::pair<int, double>( row,  value ) );
+                svec.insert( std::pair<uint, double>( row,  value ) );
         }
     } // for loop over cols      
   }
@@ -131,9 +131,9 @@ NICE::SparseVector MatlabConversion::convertSparseVectorToNice(
         //note: no complex data supported her
         double value ( pr[total++] );
         if ( b_adaptIndexMtoC ) 
-            svec.insert( std::pair<int, double>( ir[colNonZero]+1, value  ) );
+            svec.insert( std::pair<uint, double>( ir[colNonZero]+1, value  ) );
         else
-            svec.insert( std::pair<int, double>( ir[colNonZero], value  ) );
+            svec.insert( std::pair<uint, double>( ir[colNonZero], value  ) );
     }          
   }
 

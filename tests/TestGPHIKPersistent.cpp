@@ -24,7 +24,7 @@ using namespace std; //C basics
 using namespace NICE;  // nice-core
 
 const bool verboseStartEnd = true;
-const bool verbose = true;
+const bool verbose = false;
 
 
 CPPUNIT_TEST_SUITE_REGISTRATION( TestGPHIKPersistent );
@@ -83,9 +83,14 @@ void TestGPHIKPersistent::testPersistentMethods()
   yBinTrain -= 1;
   yBinTrain *= -1;
   
-  std::cerr << yBinTrain << std::endl;
+  if ( verbose )
+  {
+    std::cerr << yBinTrain << std::endl;
   
-  std::cerr << "train classifier with artifially disturbed labels" << std::endl;
+    std::cerr << "train classifier with artifially disturbed labels" << std::endl;
+    
+  }
+  
   classifier->train ( examplesTrain , yBinTrain);//yMultiTrain );
   
   
@@ -147,17 +152,17 @@ void TestGPHIKPersistent::testPersistentMethods()
   
   // determine classes known during training and corresponding mapping
   // thereby allow for non-continous class labels
-  std::set<int> classesKnownTraining = classifier->getKnownClassNumbers();
+  std::set< uint > classesKnownTraining = classifier->getKnownClassNumbers();
   
-  int noClassesKnownTraining ( classesKnownTraining.size() );
-  std::map<int,int> mapClNoToIdxTrain;
-  std::set<int>::const_iterator clTrIt = classesKnownTraining.begin();
-  for ( int i=0; i < noClassesKnownTraining; i++, clTrIt++ )
-      mapClNoToIdxTrain.insert ( std::pair<int,int> ( *clTrIt, i )  );
+  uint noClassesKnownTraining ( classesKnownTraining.size() );
+  std::map< uint, uint > mapClNoToIdxTrain;
+  std::set< uint >::const_iterator clTrIt = classesKnownTraining.begin();
+  for ( uint i=0; i < noClassesKnownTraining; i++, clTrIt++ )
+      mapClNoToIdxTrain.insert ( std::pair< uint, uint > ( *clTrIt, i )  );
   
   // determine classes known during testing and corresponding mapping
   // thereby allow for non-continous class labels
-  std::set<int> classesKnownTest;
+  std::set< uint > classesKnownTest;
   classesKnownTest.clear();
   
 
@@ -171,23 +176,23 @@ void TestGPHIKPersistent::testPersistentMethods()
     }
   }          
   
-  int noClassesKnownTest ( classesKnownTest.size() );  
-  std::map<int,int> mapClNoToIdxTest;
-  std::set<int>::const_iterator clTestIt = classesKnownTest.begin();
-  for ( int i=0; i < noClassesKnownTest; i++, clTestIt++ )
-      mapClNoToIdxTest.insert ( std::pair<int,int> ( *clTestIt, i )  ); 
+  uint noClassesKnownTest ( classesKnownTest.size() );  
+  std::map< uint, uint > mapClNoToIdxTest;
+  std::set< uint >::const_iterator clTestIt = classesKnownTest.begin();
+  for ( uint i=0; i < noClassesKnownTest; i++, clTestIt++ )
+      mapClNoToIdxTest.insert ( std::pair< uint, uint > ( *clTestIt, i )  ); 
           
   
   if ( verbose )
   {
     std::cout << "Train data mapping: " << std::endl;
-    for ( std::map<int,int>::const_iterator clTrainIt = mapClNoToIdxTrain.begin(); clTrainIt != mapClNoToIdxTrain.end(); clTrainIt++ )
+    for ( std::map< uint, uint >::const_iterator clTrainIt = mapClNoToIdxTrain.begin(); clTrainIt != mapClNoToIdxTrain.end(); clTrainIt++ )
     {
       std::cout << " " << clTrainIt->first << " " << clTrainIt->second << std::endl;
     }
 
     std::cout << "Test data mapping: " << std::endl;
-    for ( std::map<int,int>::const_iterator clTestIt = mapClNoToIdxTest.begin(); clTestIt != mapClNoToIdxTest.end(); clTestIt++ )
+    for ( std::map< uint, uint >::const_iterator clTestIt = mapClNoToIdxTest.begin(); clTestIt != mapClNoToIdxTest.end(); clTestIt++ )
     {
       std::cout << " " << clTestIt->first << " " << clTestIt->second << std::endl;
     }    
@@ -203,7 +208,7 @@ void TestGPHIKPersistent::testPersistentMethods()
   {
     NICE::Vector example ( dataTest.getRow(i) );
     NICE::SparseVector scores;
-    int result;
+    uint result;
     
     // classify with trained classifier 
     classifier->classify( &example, result, scores );

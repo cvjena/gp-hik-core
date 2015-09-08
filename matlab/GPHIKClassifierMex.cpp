@@ -56,6 +56,7 @@ NICE::Config parseParametersGPHIKClassifier(const mxArray *prhs[], int nrhs)
     /////////////////////////////////////////
     if( (variable == "verboseTime") || 
         (variable == "verbose") ||
+        (variable == "debug") ||            
         (variable == "optimize_noise") || 
         (variable == "uncertaintyPredictionForClassification") ||
         (variable == "use_quantization") || 
@@ -349,7 +350,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         
         //------------- read the data --------------
 
-        int result;
+        uint result;
         NICE::SparseVector scores;
         double uncertainty;        
 
@@ -376,8 +377,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
           // output
           plhs[0] = mxCreateDoubleScalar( result ); 
-          
-          
+                    
           if(nlhs >= 2)
           {
             plhs[1] = MatlabConversion::convertSparseVectorFromNice( scores, true  /*b_adaptIndex*/);
@@ -462,17 +462,17 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         
         // determine classes known during training and corresponding mapping
         // thereby allow for non-continous class labels
-        std::set<int> classesKnownTraining = classifier->getKnownClassNumbers();
+        std::set< uint > classesKnownTraining = classifier->getKnownClassNumbers();
         
-        int noClassesKnownTraining ( classesKnownTraining.size() );
-        std::map<int,int> mapClNoToIdxTrain;
-        std::set<int>::const_iterator clTrIt = classesKnownTraining.begin();
-        for ( int i=0; i < noClassesKnownTraining; i++, clTrIt++ )
-            mapClNoToIdxTrain.insert ( std::pair<int,int> ( *clTrIt, i )  );
+        uint noClassesKnownTraining ( classesKnownTraining.size() );
+        std::map< uint, uint > mapClNoToIdxTrain;
+        std::set< uint >::const_iterator clTrIt = classesKnownTraining.begin();
+        for ( uint i=0; i < noClassesKnownTraining; i++, clTrIt++ )
+            mapClNoToIdxTrain.insert ( std::pair< uint, uint > ( *clTrIt, i )  );
         
         // determine classes known during testing and corresponding mapping
         // thereby allow for non-continous class labels
-        std::set<int> classesKnownTest;
+        std::set< uint > classesKnownTest;
         classesKnownTest.clear();
         
 
@@ -487,10 +487,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         }          
         
         int noClassesKnownTest ( classesKnownTest.size() );  
-        std::map<int,int> mapClNoToIdxTest;
-        std::set<int>::const_iterator clTestIt = classesKnownTest.begin();
-        for ( int i=0; i < noClassesKnownTest; i++, clTestIt++ )
-            mapClNoToIdxTest.insert ( std::pair<int,int> ( *clTestIt, i )  );          
+        std::map< uint, uint> mapClNoToIdxTest;
+        std::set< uint >::const_iterator clTestIt = classesKnownTest.begin();
+        for ( uint i=0; i < noClassesKnownTest; i++, clTestIt++ )
+            mapClNoToIdxTest.insert ( std::pair< uint, uint > ( *clTestIt, i )  );          
         
 
 
@@ -520,7 +520,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             //----------------- convert data to sparse data structures ---------
           
 
-            int result;
+            uint result;
             NICE::SparseVector exampleScoresSparse;
 
             if ( dataIsSparse )
