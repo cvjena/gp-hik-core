@@ -260,6 +260,11 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
                                      const bool & _getTransformedValue = false
                                    ) const
     {
+      if ( this->getNonZeros() == 0)
+      {
+        return  0.0;
+      }
+      
         uint idxDest ( round ( (this->getNonZeros() - 1) * _quantile)  );
         
         if ( _quantile > 0.5 )
