@@ -16,9 +16,10 @@ Quantization::Quantization( )
   this->ui_numBins = 1;
 }
 
-Quantization::Quantization( uint _numBins )
+Quantization::Quantization( uint _numBins,
+                            NICE::Vector * v_upperBounds
+                          )
 {
-  this->ui_numBins = _numBins;
 }
 
 Quantization::~Quantization()
@@ -29,22 +30,12 @@ uint Quantization::size() const
 {
   return this->ui_numBins;
 }
-  
-double Quantization::getPrototype (uint _bin) const
-{
-  return _bin / (double)(this->ui_numBins-1);
-}
-  
-uint Quantization::quantize (double _value) const
-{
-  if ( _value <= 0.0 ) 
-    return 0;
-  else if ( _value >= 1.0 ) 
-    return this->ui_numBins-1;
-  else 
-    return (uint)( _value * (this->ui_numBins-1) + 0.5 );
-}
 
+uint Quantization::getNumberOfBins() const
+{
+  return this->ui_numBins;
+}
+ 
 // ---------------------- STORE AND RESTORE FUNCTIONS ----------------------
 
 void Quantization::restore ( std::istream & _is, 

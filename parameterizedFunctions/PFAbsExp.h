@@ -70,39 +70,39 @@ class PFAbsExp : public ParameterizedFunction
       
       while ( !b_endOfBlock )
       {
-	is >> tmp; // start of block 
-	
-	if ( this->isEndTag( tmp, "PFAbsExp" ) )
-	{
-	  b_endOfBlock = true;
-	  continue;
-	}
-		    
-	
-	tmp = this->removeStartTag ( tmp );
-	
-	if ( tmp.compare("upperBound") == 0 )
-	{
-	  is >> upperBound;
-	  is >> tmp; // end of block 
-	  tmp = this->removeEndTag ( tmp );
-	}
-	else if ( tmp.compare("lowerBound") == 0 )
-	{
-	  is >> lowerBound;
-	  is >> tmp; // end of block 
-	  tmp = this->removeEndTag ( tmp );	    
-	}
-	else if ( tmp.compare("ParameterizedFunction") == 0 )
-	{
-	  // restore parent object
-	  ParameterizedFunction::restore(is);
-	}	
-	else
-	{
-	  std::cerr << "WARNING -- unexpected PFAbsExp object -- " << tmp << " -- for restoration... aborting" << std::endl;
-	  throw;	
-	}      
+        is >> tmp; // start of block 
+        
+        if ( this->isEndTag( tmp, "PFAbsExp" ) )
+        {
+          b_endOfBlock = true;
+          continue;
+        }
+              
+        
+        tmp = this->removeStartTag ( tmp );
+        
+        if ( tmp.compare("upperBound") == 0 )
+        {
+          is >> upperBound;
+          is >> tmp; // end of block 
+          tmp = this->removeEndTag ( tmp );
+        }
+        else if ( tmp.compare("lowerBound") == 0 )
+        {
+          is >> lowerBound;
+          is >> tmp; // end of block 
+          tmp = this->removeEndTag ( tmp );	    
+        }
+        else if ( tmp.compare("ParameterizedFunction") == 0 )
+        {
+          // restore parent object
+          ParameterizedFunction::restore(is);
+        }	
+        else
+        {
+          std::cerr << "WARNING -- unexpected PFAbsExp object -- " << tmp << " -- for restoration... aborting" << std::endl;
+          throw;	
+        }      
       }
       
 

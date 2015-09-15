@@ -39,6 +39,10 @@
 #include "gp-hik-core/parameterizedFunctions/PFExp.h"
 #include "gp-hik-core/parameterizedFunctions/PFMKL.h"
 #include "gp-hik-core/parameterizedFunctions/PFWeightedDim.h"
+// 
+#include "gp-hik-core/quantization/Quantization1DAequiDist0To1.h"
+#include "gp-hik-core/quantization/Quantization1DAequiDist0ToMax.h"
+#include "gp-hik-core/quantization/QuantizationNDAequiDist0ToMax.h"
 
 
 
@@ -251,8 +255,8 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization( )
   this->b_debug = false;
   
   //stupid unneeded default values
-  this->i_binaryLabelPositive = -1;
-  this->i_binaryLabelNegative = -2;
+  this->i_binaryLabelPositive = 0;
+  this->i_binaryLabelNegative = 1;
   this->knownClasses.clear();  
   
   this->b_usePreviousAlphas = false;
@@ -280,8 +284,8 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization( const bool & _
   this->b_debug = false;
   
   //stupid unneeded default values
-  this->i_binaryLabelPositive = -1;
-  this->i_binaryLabelNegative = -2;
+  this->i_binaryLabelPositive = 0;
+  this->i_binaryLabelNegative = 1;
   this->knownClasses.clear();   
   
   this->b_usePreviousAlphas = false;
@@ -316,8 +320,8 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config 
   this->b_debug = false;
   
   //stupid unneeded default values
-  this->i_binaryLabelPositive = -1;
-  this->i_binaryLabelNegative = -2;
+  this->i_binaryLabelPositive = 0;
+  this->i_binaryLabelNegative = 1;
   this->knownClasses.clear();  
   
   this->b_usePreviousAlphas = false;
@@ -353,8 +357,8 @@ FMKGPHyperparameterOptimization::FMKGPHyperparameterOptimization ( const Config 
   this->b_debug = false;
   
   //stupid unneeded default values
-  this->i_binaryLabelPositive = -1;
-  this->i_binaryLabelNegative = -2;
+  this->i_binaryLabelPositive = 0;
+  this->i_binaryLabelNegative = 1;
   this->knownClasses.clear();    
   
   this->b_usePreviousAlphas = false;
@@ -446,7 +450,28 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf,
     int numBins = _conf->gI ( _confSection, "num_bins", 100 );
     if ( this->b_verbose )
       std::cerr << "FMKGPHyperparameterOptimization: quantization initialized with " << numBins << " bins." << std::endl;
-    this->q = new Quantization ( numBins );
+    
+    
+    std::string s_quantType = _conf->gS( _confSection, "s_quantType", "1d-aequi-0-1" );
+
+    if ( s_quantType == "1d-aequi-0-1" )
+    {
+      this->q = new NICE::Quantization1DAequiDist0To1 ( numBins );
+    }
+    else if ( s_quantType == "1d-aequi-0-max" )
+    {     
+      this->q = new NICE::Quantization1DAequiDist0ToMax ( numBins );
+    }
+    else if ( s_quantType == "nd-aequi-0-max" )
+    {
+      this->q = new NICE::QuantizationNDAequiDist0ToMax ( numBins );
+    }
+    else
+    {
+      fthrow(Exception, "Quantization type is unknown " << s_quantType);
+    }      
+      
+    
   }
   else
   {
@@ -642,7 +667,13 @@ void FMKGPHyperparameterOptimization::setFastMinKernel ( FastMinKernel * _fmk )
       this->fmk = NULL;
     }    
     this->fmk = _fmk;
-  }  
+  }
+  
+  //
+  if ( this->q != NULL )
+  {  
+    this->q->computeParametersFromData ( &(this->fmk->featureMatrix()) );
+  }
 }
 
 void FMKGPHyperparameterOptimization::setNrOfEigenvaluesToConsiderForVarApprox ( const int & _nrOfEigenvaluesToConsiderForVarApprox )
@@ -803,9 +834,9 @@ void FMKGPHyperparameterOptimization::computeMatricesAndLUTs ( const GPLikelihoo
     this->precomputedA[ i->first ] = A;
     this->precomputedB[ i->first ] = B;
 
-    if ( q != NULL )
+    if ( this->q != NULL )
     {
-      double *T = fmk->hik_prepare_alpha_multiplications_fast ( A, B, *q, pf );
+      double *T = fmk->hik_prepare_alpha_multiplications_fast ( A, B, this->q, this->pf );
       //just to be sure that we do not waste space here
       if ( precomputedT[ i->first ] != NULL )
         delete precomputedT[ i->first ];
@@ -1092,9 +1123,9 @@ void FMKGPHyperparameterOptimization::prepareVarianceApproximationRough()
   this->precomputedAForVarEst = AVar;
   this->precomputedAForVarEst.setIoUntilEndOfFile ( false );
 
-  if ( q != NULL )
+  if ( this->q != NULL )
   {   
-    double *T = this->fmk->hikPrepareLookupTableForKVNApproximation ( *q, pf );
+    double *T = this->fmk->hikPrepareLookupTableForKVNApproximation ( this->q, this->pf );
     this->precomputedTForVarEst = T;
   }
 }
@@ -1129,7 +1160,7 @@ uint FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & _xst
     if ( this->q != NULL ) {
       std::map<uint, double *>::const_iterator j = this->precomputedT.find ( classno );
       double *T = j->second;
-      this->fmk->hik_kernel_sum_fast ( T, *q, _xstar, beta );
+      this->fmk->hik_kernel_sum_fast ( T, this->q, _xstar, beta );
     } else {
       const PrecomputedType & A = i->second;
       std::map<uint, PrecomputedType>::const_iterator j = this->precomputedB.find ( classno );
@@ -1148,8 +1179,6 @@ uint FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & _xst
     _scores[ classno ] = beta;
   }
   _scores.setDim ( maxClassNo + 1 );
-  std::cerr << "_scores : " << std::endl;
-  _scores.store ( std::cerr ) ;
   
   if ( this->precomputedA.size() > 1 )
   { // multi-class classification
@@ -1157,7 +1186,6 @@ uint FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & _xst
   }
   else if ( this->knownClasses.size() == 2 ) // binary setting
   {      
-    std::cerr << "i_binaryLabelNegative: " << i_binaryLabelNegative << " i_binaryLabelPositive: " << i_binaryLabelPositive<< std::endl;
     _scores[ this->i_binaryLabelNegative ] = -_scores[ this->i_binaryLabelPositive ];     
     return _scores[ this->i_binaryLabelPositive ] <= 0.0 ? this->i_binaryLabelNegative : this->i_binaryLabelPositive;
   }
@@ -1190,7 +1218,7 @@ uint FMKGPHyperparameterOptimization::classify ( const NICE::Vector & _xstar,
     {
       std::map<uint, double *>::const_iterator j = this->precomputedT.find ( classno );
       double *T = j->second;
-      this->fmk->hik_kernel_sum_fast ( T, *q, _xstar, beta );
+      this->fmk->hik_kernel_sum_fast ( T, this->q, _xstar, beta );
     }
     else
     {
@@ -1253,13 +1281,13 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateRough 
   // ---------------- compute the approximation of the second term --------------------
   double normKStar;
 
-  if ( q != NULL )
+  if ( this->q != NULL )
   {
     if ( precomputedTForVarEst == NULL )
     {
       fthrow ( Exception, "The precomputed LUT for uncertainty prediction is NULL...have you prepared the uncertainty prediction? Aborting..." );
     }
-    fmk->hikComputeKVNApproximationFast ( precomputedTForVarEst, *q, _x, normKStar );
+    fmk->hikComputeKVNApproximationFast ( precomputedTForVarEst, this->q, _x, normKStar );
   }
   else
   {
@@ -1276,11 +1304,7 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateRough 
 void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateFine ( const NICE::SparseVector & _x, 
                                                                                  double & _predVariance 
                                                                                ) const
-{
-  
-  std::cerr << " security check! " << std::endl;
-  std::cerr << "b_debug: " << this->b_debug << std::endl;
-  
+{  
   if ( this->b_debug )
   {
     std::cerr << "FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateFine" << std::endl;
@@ -1468,13 +1492,13 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateRough 
   // ---------------- compute the approximation of the second term --------------------
   double normKStar;
 
-  if ( q != NULL )
+  if ( this->q != NULL )
   {
     if ( precomputedTForVarEst == NULL )
     {
       fthrow ( Exception, "The precomputed LUT for uncertainty prediction is NULL...have you prepared the uncertainty prediction? Aborting..." );
     }
-    fmk->hikComputeKVNApproximationFast ( precomputedTForVarEst, *q, x, normKStar );
+    fmk->hikComputeKVNApproximationFast ( precomputedTForVarEst, this->q, x, normKStar );
   }
   else
   {
@@ -1482,7 +1506,7 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateRough 
     {
       fthrow ( Exception, "The precomputedAForVarEst is empty...have you trained this classifer? Aborting..." );
     }    
-    fmk->hikComputeKVNApproximation ( precomputedAForVarEst, x, normKStar, pf );
+    fmk->hikComputeKVNApproximation ( precomputedAForVarEst, x, normKStar, this->pf );
   }
 
   predVariance = kSelf - ( 1.0 / eigenMax[0] )* normKStar;
@@ -1635,7 +1659,7 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & _is,
   if ( _is.good() )
   {
     if ( b_restoreVerbose ) 
-      std::cerr << " in FMKGP restore" << std::endl;
+      std::cerr << " in FMKGPHyperparameterOptimization restore" << std::endl;
     
     std::string tmp;
     _is >> tmp; //class name 
@@ -1729,7 +1753,28 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & _is,
         {   
           if ( this->q != NULL )
             delete this->q;
-          this->q = new Quantization();
+          
+          std::string s_quantType;
+           _is >> s_quantType;
+           s_quantType = this->removeStartTag ( s_quantType );
+          
+          if ( s_quantType == "Quantization1DAequiDist0To1" )
+          {
+            this->q = new NICE::Quantization1DAequiDist0To1();
+          }
+          else if ( s_quantType == "Quantization1DAequiDist0ToMax" )
+          {           
+            this->q = new NICE::Quantization1DAequiDist0ToMax ( );
+          }
+          else if ( s_quantType == "QuantizationNDAequiDist0ToMax" )
+          {
+            this->q = new NICE::QuantizationNDAequiDist0ToMax ( );
+          }
+          else
+          {
+            fthrow(Exception, "Quantization type is unknown " << s_quantType);
+          }
+               
           this->q->restore ( _is, _format );
         }
         else
@@ -1763,14 +1808,17 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & _is,
           throw;
         } 
         
-        std::string transform = this->removeStartTag ( tmp );
-        
+        std::string transform ( this->removeStartTag( tmp ) );
 
         if ( transform == "PFAbsExp" )
         {
-          this->pf = new PFAbsExp ();
+          this->pf = new NICE::PFAbsExp ();
         } else if ( transform == "PFExp" ) {
-          this->pf = new PFExp ();
+          this->pf = new NICE::PFExp ();
+        }
+        else if ( transform == "PFIdentity" )
+        {
+          this->pf = new NICE::PFIdentity( );          
         } else {
           fthrow(Exception, "Transformation type is unknown " << transform);
         }
@@ -1796,7 +1844,7 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & _is,
           PrecomputedType pct;
           pct.setIoUntilEndOfFile ( false );
           pct.restore ( _is, _format );
-          precomputedA.insert ( std::pair<uint, PrecomputedType> ( nr, pct ) );
+          this->precomputedA.insert ( std::pair<uint, PrecomputedType> ( nr, pct ) );
         }
         
         _is >> tmp; // end of block 
@@ -1818,7 +1866,7 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & _is,
           PrecomputedType pct;
           pct.setIoUntilEndOfFile ( false );
           pct.restore ( _is, _format );
-          precomputedB.insert ( std::pair<uint, PrecomputedType> ( nr, pct ) );
+          this->precomputedB.insert ( std::pair<uint, PrecomputedType> ( nr, pct ) );
         }    
         
         _is >> tmp; // end of block 
@@ -2220,7 +2268,7 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & _os,
     if ( q != NULL )
     {
       _os << "NOTNULL" << std::endl;
-      q->store ( _os, _format );
+      this->q->store ( _os, _format );
     }
     else
     {

@@ -293,6 +293,13 @@ template<class T> class FeatureMatrixT : public NICE::Persistent
                                     const T & _elem, 
                                     uint & _position
                                    ) const;
+                                   
+                                   
+    T getLargestValue ( const bool & _getTransformedValue = false ) const;
+    
+    NICE::VectorT<T> getLargestValuePerDimension ( const double & _quantile=1.0,
+                                                              const bool & _getTransformedValue = false
+                                                            ) const;
     
     //------------------------------------------------------
     // high level methods

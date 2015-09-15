@@ -22,14 +22,14 @@ b_debug                             = false;
 b_uncertaintyPredictionForClassification ...
                                     = true; 
 b_optimize_noise                    = false;
-b_use_quantization                  = false;
+b_use_quantization                  = true;
 b_ils_verbose                       = false;
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% integer
 i_nrOfEigenvaluesToConsiderForVarApprox ...
                                     = 1;
-i_num_bins                          = 100; % default
+i_num_bins                          = 1000; % default
 i_ils_max_iterations                = 1000; % default
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% double    
@@ -48,6 +48,9 @@ s_ils_method                        = 'CG'; % default
 
 % options: 'none', 'greedy', 'downhillsimplex'
 s_optimization_method               = 'downhillsimplex';
+
+% options: '1d-aequi-0-1' , '1d-aequi-0-max' or 'nd-aequi-0-1'
+s_quantType                         = '1d-aequi-0-1';
 
 % options:  'identity', 'exp', 'absexp'
 % with settings above, this equals 'identity'
@@ -79,6 +82,7 @@ myGPHIKClassifier = ...
                           ...
                           'ils_method',                                s_ils_method, ...
                           'optimization_method',                       s_optimization_method, ...   
+                          's_quantType',                               s_quantType, ...                          
                           'transform',                                 s_transform, ...
                           'varianceApproximation',                     s_varianceApproximation ...
         );
@@ -89,7 +93,7 @@ myGPHIKClassifier.train( myData, myLabels );
 
 %% evaluate model on test data
 
-myDataTest = 0:0.01:1;
+myDataTest = 0:0.001:1;
 % create l1-normalized 'histograms'
 myDataTest = cat(1, myDataTest, 1-myDataTest)';
 

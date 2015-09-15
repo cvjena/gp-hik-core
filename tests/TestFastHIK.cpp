@@ -12,6 +12,10 @@
 #include <gp-hik-core/kernels/GeneralizedIntersectionKernelFunction.h>
 #include <gp-hik-core/parameterizedFunctions/ParameterizedFunction.h>
 #include <gp-hik-core/parameterizedFunctions/PFAbsExp.h>
+// 
+// 
+#include "gp-hik-core/quantization/Quantization.h"
+#include "gp-hik-core/quantization/Quantization1DAequiDist0To1.h"
 
 #include "TestFastHIK.h"
 
@@ -199,8 +203,11 @@ void TestFastHIK::testKernelMultiplicationFast()
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testKernelMultiplicationFast ===================== " << std::endl;
   
-  Quantization q_gen ( numBins );
-  Quantization q ( 2*numBins -1);
+  NICE::Quantization * q_gen;
+  q_gen = new Quantization1DAequiDist0To1 ( numBins );  
+  
+  NICE::Quantization * q;
+  q = new Quantization1DAequiDist0To1 ( 2*numBins -1 );   
 
   // data is generated, such that there is no approximation error
   vector< vector<double> > dataMatrix;
@@ -212,7 +219,7 @@ void TestFastHIK::testKernelMultiplicationFast()
       if ( drand48() < sparse_prob ) {
         v[k] = 0;
       } else {
-        v[k] = q_gen.getPrototype( (rand() % numBins) );
+        v[k] = q_gen->getPrototype( (rand() % numBins) );
       }
     }
 
@@ -239,7 +246,7 @@ void TestFastHIK::testKernelMultiplicationFast()
     y[i] = sin(i);
    
   ParameterizedFunction *pf = new PFAbsExp ( 1.0 );
-  GMHIKernel gmkFast ( &fmk, pf, &q );
+  GMHIKernel gmkFast ( &fmk, pf, q );
 
 //   pf.applyFunctionToFeatureMatrix ( fmk.featureMatrix() );
     
@@ -377,7 +384,8 @@ void TestFastHIK::testKernelSumFast()
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testKernelSumFast ===================== " << std::endl;
   
-  Quantization q ( numBins );
+  NICE::Quantization * q;
+  q = new Quantization1DAequiDist0To1 ( numBins );
 
   // data is generated, such that there is no approximation error
   vector< vector<double> > dataMatrix;
@@ -389,7 +397,7 @@ void TestFastHIK::testKernelSumFast()
       if ( drand48() < sparse_prob ) {
         v[k] = 0;
       } else {
-        v[k] = q.getPrototype( (rand() % numBins) );
+        v[k] = q->getPrototype( (rand() % numBins) );
       }
     }
 
@@ -414,7 +422,7 @@ void TestFastHIK::testKernelSumFast()
     if ( drand48() < sparse_prob ) {
       xstar[i] = 0;
     } else {
-      xstar[i] = q.getPrototype( (rand() % numBins) );
+      xstar[i] = q->getPrototype( (rand() % numBins) );
     }
 
   // convert to STL vector
@@ -510,7 +518,8 @@ void TestFastHIK::testLUTUpdate()
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testLUTUpdate ===================== " << std::endl;
 
-  Quantization q ( numBins );
+  NICE::Quantization * q;
+  q = new Quantization1DAequiDist0To1 ( numBins );
 
   // data is generated, such that there is no approximation error
   vector< vector<double> > dataMatrix;
@@ -522,7 +531,7 @@ void TestFastHIK::testLUTUpdate()
       if ( drand48() < sparse_prob ) {
         v[k] = 0;
       } else {
-        v[k] = q.getPrototype( (rand() % numBins) );
+        v[k] = q->getPrototype( (rand() % numBins) );
       }
     }
 
@@ -600,7 +609,7 @@ void TestFastHIK::testLUTUpdate()
   }
   
   
-  bool equal = compareLUTs(T, TNew, q.size()*d, 10e-8);
+  bool equal = compareLUTs(T, TNew, q->size()*d, 10e-8);
   
   if (verbose)
   {
@@ -609,16 +618,16 @@ void TestFastHIK::testLUTUpdate()
     else
     {
       std::cerr << "T are not equal :( " << std::endl;
-      for (uint i = 0; i < q.size()*d; i++)
+      for (uint i = 0; i < q->size()*d; i++)
       {
-        if ( (i % q.size()) == 0)
+        if ( (i % q->size()) == 0)
           std::cerr << std::endl;
         std::cerr << T[i] << " ";
       }
       std::cerr << "TNew: "<< std::endl;
-      for (uint i = 0; i < q.size()*d; i++)
+      for (uint i = 0; i < q->size()*d; i++)
       {
-        if ( (i % q.size()) == 0)
+        if ( (i % q->size()) == 0)
           std::cerr << std::endl;
         std::cerr << TNew[i] << " ";
       }     
@@ -641,7 +650,8 @@ void TestFastHIK::testLinSolve()
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testLinSolve ===================== " << std::endl;
 
-  NICE::Quantization q ( numBins );
+  NICE::Quantization * q;
+  q = new Quantization1DAequiDist0To1 ( numBins );
 
   // data is generated, such that there is no approximation error
   std::vector< std::vector<double> > dataMatrix;
@@ -653,7 +663,7 @@ void TestFastHIK::testLinSolve()
       if ( drand48() < sparse_prob ) {
         v[k] = 0;
       } else {
-        v[k] = q.getPrototype( (rand() % numBins) );
+        v[k] = q->getPrototype( (rand() % numBins) );
       }
     }
 

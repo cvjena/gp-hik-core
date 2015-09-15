@@ -212,6 +212,14 @@ NICE::Config parseParametersGPHIKClassifier(const mxArray *prhs[], int nrhs)
         conf.sS("GPHIKClassifier", variable, value);
     }
 
+    if(variable == "s_quantType")
+    {
+      string value = MatlabConversion::convertMatlabToString( prhs[i+1] );
+      if( value != "1d-aequi-0-1" && value != "1d-aequi-0-max" && value != "nd-aequi-0-max" )
+        mexErrMsgIdAndTxt("mexnice:error","Unexpected parameter value for \'s_quantType\'. \'1d-aequi-0-1\' , \'1d-aequi-0-max\' or \'nd-aequi-0-max\' expected.");
+        conf.sS("GPHIKClassifier", variable, value);
+    }
+    
     if(variable == "transform")
     {
       string value = MatlabConversion::convertMatlabToString( prhs[i+1] );

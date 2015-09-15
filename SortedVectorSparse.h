@@ -255,7 +255,85 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
         return ( T ) 0;
       }
     }
+    
+    inline T getLargestValueUnsafe ( const double & _quantile = 1.0, 
+                                     const bool & _getTransformedValue = false
+                                   ) const
+    {
+        uint idxDest ( round ( (this->getNonZeros() - 1) * _quantile)  );
+        
+        if ( _quantile > 0.5 )
+        {
+          typename std::multimap< T, dataelement >::const_reverse_iterator it = this->nzData.rend();
+          
+          //
+          // take as many backward steps as indicated by _quantile
+          for ( uint idx = this->getNonZeros(); idx > idxDest; idx-- )
+          {
+            it++;
+          }          
+          // alternative usage for random access iterators:
+          // it = it + (uint) this->getNonZeros() * ( 1.0 -  _quantile );
 
+            if ( _getTransformedValue )
+              return it->second.second;
+            else
+              return it->first;
+        }
+        else
+        {
+          typename std::multimap< T, dataelement >::const_iterator it = this->nzData.begin();
+          
+          // take as many steps forward as indicated by _quantile
+          for ( uint idx = 0; idx < idxDest; idx++ )
+          {
+            it++;
+          }
+          // alternative usage for random access iterators:
+          // it = it + (uint) this->getNonZeros() * _quantile;  
+          
+          if ( _getTransformedValue )
+            return it->second.second;
+          else
+            return it->first;
+        }
+    }    
+    
+    inline T getLargestTransformedValueUnsafe ( const double & _quantile = 1.0 ) const
+    {
+        uint idxDest ( round ( (this->getNonZeros() - 1) * _quantile )  );
+        
+        if ( _quantile > 0.5 )
+        {
+          typename std::multimap< T, dataelement >::const_reverse_iterator it = this->nzData.rend();
+          
+          //
+          // take as many backward steps as indicated by _quantile
+          for ( uint idx = this->getNonZeros(); idx > idxDest; idx-- )
+          {
+            it++;
+          }          
+          // alternative usage for random access iterators:
+          // it = it + (uint) this->getNonZeros() * ( 1.0 -  _quantile );
+     
+          return it->second.second;
+        }
+        else
+        {
+          typename std::multimap< T, dataelement >::const_iterator it = this->nzData.begin();
+          
+          // take as many steps forward as indicated by _quantile
+          for ( uint idx = 0; idx < idxDest; idx++ )
+          {
+            it++;
+          }
+          // alternative usage for random access iterators:
+          // it = it + (uint) this->getNonZeros() * _quantile;  
+          
+          return it->second.second;
+        }
+    }
+      
     std::multimap< T, dataelement > & nonzeroElements()
     {
       return this->nzData;

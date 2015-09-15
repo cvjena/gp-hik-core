@@ -34,7 +34,7 @@ GMHIKernel::~GMHIKernel()
 void GMHIKernel::multiply (NICE::Vector & y, const NICE::Vector & x) const
 {
   //do we want to use any quantization at all?
-  if (q != NULL)
+  if ( this->q != NULL )
   {
     double *T;
     if (useOldPreparation)
@@ -43,13 +43,13 @@ void GMHIKernel::multiply (NICE::Vector & y, const NICE::Vector & x) const
       NICE::VVector B; 
       // prepare to calculate sum_i x_i K(x,x_i)
       fmk->hik_prepare_alpha_multiplications(x, A, B);
-      T = fmk->hik_prepare_alpha_multiplications_fast(A, B, *q, pf);
+      T = fmk->hik_prepare_alpha_multiplications_fast(A, B, this->q, pf);
     }
     else
     {
-      T = fmk->hikPrepareLookupTable(x, *q, pf );
+      T = fmk->hikPrepareLookupTable(x, this->q, pf );
     }
-    fmk->hik_kernel_multiply_fast ( T, *q, x, y ); 
+    fmk->hik_kernel_multiply_fast ( T, this->q, x, y ); 
     delete [] T;
   }
   else //no quantization
@@ -111,23 +111,23 @@ void GMHIKernel::setUseOldPreparation( const bool & _useOldPreparation)
 
 uint GMHIKernel::getNumParameters() const 
 {
-  if ( pf == NULL )
+  if ( this->pf == NULL )
     return 0;
   else
-    return pf->parameters().size();
+    return this->pf->parameters().size();
 }
 
-void GMHIKernel::getParameters(Vector & parameters) const
+void GMHIKernel::getParameters( NICE::Vector & parameters ) const
 {
-  if ( pf == NULL )
+  if ( this->pf == NULL )
     parameters.clear();
   else {
-    parameters.resize( pf->parameters().size() );
-    parameters = pf->parameters();
+    parameters.resize( this->pf->parameters().size() );
+    parameters = this->pf->parameters();
   }
 }
 
-void GMHIKernel::setParameters(const Vector & parameters)
+void GMHIKernel::setParameters( const NICE::Vector & parameters )
 {
   if ( pf == NULL && parameters.size() > 0 )
     fthrow(Exception, "Unable to set parameters of a non-parameterized GMHIKernel object");
@@ -135,8 +135,6 @@ void GMHIKernel::setParameters(const Vector & parameters)
   pf->parameters() = parameters;
   
   fmk->applyFunctionToFeatureMatrix( pf );
-
-  // only for debugging with small matrices: fmk->featureMatrix().print();
 }
 
 void GMHIKernel::getDiagonalElements ( Vector & diagonalElements ) const

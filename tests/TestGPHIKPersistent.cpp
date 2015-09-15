@@ -76,13 +76,13 @@ void TestGPHIKPersistent::testPersistentMethods()
   }  
   
   // TRAIN CLASSIFIER FROM SCRATCH
+  std::string confsection ( "GPHIKClassifier" );  
+  conf.sB ( confsection, "use_quantization", true );
+  conf.sS ( confsection, "s_quantType", "1d-aequi-0-1" );
+  conf.sS ( confsection, "transform", "identity");  
   
   classifier = new GPHIKClassifier ( &conf );  
-  
-  yBinTrain *= 2;
-  yBinTrain -= 1;
-  yBinTrain *= -1;
-  
+   
   if ( verbose )
   {
     std::cerr << yBinTrain << std::endl;
@@ -106,6 +106,11 @@ void TestGPHIKPersistent::testPersistentMethods()
   //   
   fbOut.close(); 
   
+  if ( verbose )
+  {
+    std::cerr << "store done successfully" << std::endl;    
+  }  
+  
   
   // TEST RESTORING ABILITIES
     
@@ -120,6 +125,11 @@ void TestGPHIKPersistent::testPersistentMethods()
   classifierRestored->restore( is );
   //   
   fbIn.close();   
+  
+  if ( verbose )
+  {
+    std::cerr << "restore done successfully" << std::endl;    
+  }    
   
   
   // TEST both classifiers to produce equal results

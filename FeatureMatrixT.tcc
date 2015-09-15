@@ -503,6 +503,46 @@ namespace NICE {
         _position += this->features[_dim].getZeros();
     }
     
+    template <typename T>
+    T FeatureMatrixT<T>::getLargestValue ( const bool & _getTransformedValue ) const
+    {
+      T vmax = (T) 0; 
+      T vtmp = (T) 0;
+      
+      uint tmp ( 0 );
+      for ( typename std::vector<NICE::SortedVectorSparse<T> >::const_iterator it = this->features.begin();
+            it != this->features.end();
+            it++, tmp++
+      )
+      {
+        vtmp = it->getLargestValueUnsafe( 1.0 /*quantile, we are interested in the largest value*/, _getTransformedValue );
+        if ( vtmp > vmax )
+        {
+          vmax = vtmp;
+        }
+      }
+      return vmax;
+    }
+    
+    template <typename T>
+    NICE::VectorT<T> FeatureMatrixT<T>::getLargestValuePerDimension ( const double & _quantile, 
+                                                                      const bool & _getTransformedValue
+                                                                    ) const     
+    {
+      NICE::VectorT<T> vmax ( this->get_d() );
+      
+      uint tmp ( 0 );      
+      typename NICE::VectorT<T>::iterator vmaxIt = vmax.begin();
+      for ( typename std::vector<NICE::SortedVectorSparse<T> >::const_iterator it = this->features.begin();
+            it != this->features.end();
+            it++, vmaxIt++, tmp++
+      )
+      {       
+        *vmaxIt = it->getLargestValueUnsafe( _quantile, _getTransformedValue );
+      }    
+      return vmax;
+    }
+    
     //------------------------------------------------------
     // high level methods
     //------------------------------------------------------

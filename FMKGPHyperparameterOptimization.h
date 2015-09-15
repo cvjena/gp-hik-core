@@ -28,9 +28,8 @@
 #include "gp-hik-core/GPLikelihoodApprox.h"
 #include "gp-hik-core/IKMLinearCombination.h"
 #include "gp-hik-core/OnlineLearnable.h"
-#include "gp-hik-core/Quantization.h"
 
-
+#include "gp-hik-core/quantization/Quantization.h"
 #include "gp-hik-core/parameterizedFunctions/ParameterizedFunction.h"
 
 namespace NICE {
@@ -103,9 +102,9 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     NICE::Vector labels; 
     
     //! store the class number of the positive class (i.e., larger class no), only used in binary settings
-    int i_binaryLabelPositive;
+    uint i_binaryLabelPositive;
     //! store the class number of the negative class (i.e., smaller class no), only used in binary settings
-    int i_binaryLabelNegative;
+    uint i_binaryLabelNegative;
     
     //! contains all class numbers of the currently known classes
     std::set<uint> knownClasses;

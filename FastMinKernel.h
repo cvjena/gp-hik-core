@@ -24,7 +24,8 @@
 // gp-hik-core includes
 #include "gp-hik-core/FeatureMatrixT.h"
 #include "gp-hik-core/OnlineLearnable.h"
-#include "gp-hik-core/Quantization.h"
+// 
+#include "gp-hik-core/quantization/Quantization.h"
 #include "gp-hik-core/parameterizedFunctions/ParameterizedFunction.h"
 
 namespace NICE {
@@ -229,7 +230,7 @@ namespace NICE {
                                NICE::Vector & _beta
                               ) const;
       void hik_kernel_multiply_fast(const double *_Tlookup, 
-                                    const Quantization & _q, 
+                                    const Quantization * _q, 
                                     const NICE::Vector & _alpha, 
                                     NICE::Vector & _beta
                                    ) const;
@@ -283,7 +284,7 @@ namespace NICE {
       * @param beta result of the calculation
       */
       void hik_kernel_sum_fast(const double* _Tlookup, 
-                               const Quantization & _q, 
+                               const Quantization * _q, 
                                const NICE::Vector & _xstar, 
                                double & _beta
                               ) const;
@@ -299,7 +300,7 @@ namespace NICE {
       */      
 
       void hik_kernel_sum_fast(const double *_Tlookup, 
-                               const Quantization & _q, 
+                               const Quantization * _q, 
                                const NICE::SparseVector & _xstar, 
                                double & _beta
                               ) const;
@@ -318,7 +319,7 @@ namespace NICE {
       */
       double *hik_prepare_alpha_multiplications_fast(const NICE::VVector & _A, 
                                                      const NICE::VVector & _B, 
-                                                     const Quantization & _q, 
+                                                     const Quantization * _q, 
                                                      const ParameterizedFunction *_pf = NULL 
                                                     ) const;
       
@@ -334,7 +335,7 @@ namespace NICE {
       * T[dim*q.size() + j], where j is a bin entry corresponding to quantization q.
       */
       double* hikPrepareLookupTable(const NICE::Vector & _alpha, 
-                                    const Quantization & _q, 
+                                    const Quantization * _q, 
                                     const ParameterizedFunction *_pf = NULL
                                    ) const;
 
@@ -353,7 +354,7 @@ namespace NICE {
                                 const double & _alphaNew, 
                                 const double & _alphaOld, 
                                 const uint & _idx, 
-                                const Quantization & _q, 
+                                const Quantization * _q, 
                                 const ParameterizedFunction *pf 
                                ) const;
 
@@ -382,7 +383,7 @@ namespace NICE {
        **/
       double *solveLin(const NICE::Vector & _y, 
                        NICE::Vector & _alpha, 
-                       const Quantization & _q, 
+                       const Quantization * _q, 
                        const ParameterizedFunction *_pf = NULL, 
                        const bool & _useRandomSubsets = true, 
                        uint _maxIterations = 10000, 
@@ -420,7 +421,7 @@ namespace NICE {
       * @return C standard vector representing a q.size()*d double matrix and the lookup table T. Elements can be accessed with
       * T[dim*q.size() + j], where j is a bin entry corresponding to quantization q.
       */
-      double * hikPrepareKVNApproximationFast(NICE::VVector & _A, const Quantization & _q, const ParameterizedFunction *_pf = NULL ) const;
+      double * hikPrepareKVNApproximationFast(NICE::VVector & _A, const Quantization * _q, const ParameterizedFunction *_pf = NULL ) const;
       
       /**
       * @brief Compute lookup table for HIK calculation of |k_*|^2 assuming quantized test samples ( equals hikPrepareSquaredKernelVector + hikPrepareSquaredKernelVectorFast, but is faster). Approximation does not considere mixed terms between dimensions.
@@ -433,7 +434,7 @@ namespace NICE {
       * @return C standard vector representing a q.size()*d double matrix and the lookup table T. Elements can be accessed with
       * T[dim*q.size() + j], where j is a bin entry corresponding to quantization q.
       */
-      double* hikPrepareLookupTableForKVNApproximation(const Quantization & _q, const ParameterizedFunction *_pf = NULL) const;
+      double* hikPrepareLookupTableForKVNApproximation(const Quantization * _q, const ParameterizedFunction *_pf = NULL) const;
       
     //////////////////////////////////////////
     // variance computation: sparse inputs
@@ -461,7 +462,7 @@ namespace NICE {
       * @param xstar feature vector (indirect k_*)
       * @param norm result of the calculation
       */
-      void hikComputeKVNApproximationFast(const double *_Tlookup, const Quantization & _q, const NICE::SparseVector & _xstar, double & _norm ) const;
+      void hikComputeKVNApproximationFast(const double *_Tlookup, const Quantization * _q, const NICE::SparseVector & _xstar, double & _norm ) const;
 
       /**
       * @brief Compute the kernel vector k_* between training examples and test example. Runtime. O(n \times D). Exploiting sparsity
@@ -499,7 +500,7 @@ namespace NICE {
       * @param xstar feature vector (indirect k_*)
       * @param norm result of the calculation
       */
-      void hikComputeKVNApproximationFast(const double *_Tlookup, const Quantization & _q, const NICE::Vector & _xstar, double & _norm ) const;      
+      void hikComputeKVNApproximationFast(const double *_Tlookup, const Quantization * _q, const NICE::Vector & _xstar, double & _norm ) const;      
       
       /**
       * @brief Compute the kernel vector k_* between training examples and test example. Runtime. O(n \times D). Does not exploit sparsity - deprecated!
