@@ -26,11 +26,6 @@ Quantization::~Quantization()
 {
 }
 
-uint Quantization::size() const
-{
-  return this->ui_numBins;
-}
-
 uint Quantization::getNumberOfBins() const
 {
   return this->ui_numBins;

@@ -300,6 +300,11 @@ void TestFastHIK::testKernelMultiplicationFast()
   if (verbose)
     std::cerr << "Sparse multiplication [galpha, galphaFast, galpha_slow]: " << std::endl <<  galpha << std::endl << galphaFast << std::endl << galpha_slow << std::endl << std::endl;
 
+  // clean-up
+  delete q_gen;
+  delete q;
+  
+  // final assertion
   CPPUNIT_ASSERT_DOUBLES_EQUAL((galphaFast-galpha_slow).normL1(), 0.0, 1e-8);
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testKernelMultiplicationFast done ===================== " << std::endl;
@@ -502,11 +507,19 @@ void TestFastHIK::testKernelSumFast()
 
     if (verbose)
       std::cerr << "beta_slow: " << beta_slow << std::endl << "beta_fast: " << beta_fast << std::endl << "beta_fast_sparse: " << beta_fast_sparse << std::endl << "betaSparse: " << betaSparse<< std::endl;
+    
+    // clean-up 
+    delete [] TlookupNew;
+    delete [] TlookupOld;    
+    
+    // final assertion    
     CPPUNIT_ASSERT_DOUBLES_EQUAL(beta_slow, beta_fast_sparse, 1e-8);
   
-    delete [] TlookupNew;
-    delete [] TlookupOld;
-  }
+
+  } // for-loop
+  
+  // clean-up
+  delete q;
   
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testKernelSumFast done ===================== " << std::endl;
@@ -522,10 +535,10 @@ void TestFastHIK::testLUTUpdate()
   q = new Quantization1DAequiDist0To1 ( numBins );
 
   // data is generated, such that there is no approximation error
-  vector< vector<double> > dataMatrix;
+  std::vector< std::vector<double> > dataMatrix;
   for ( uint i = 0; i < d ; i++ )
   {
-    vector<double> v;
+    std::vector<double> v;
     v.resize(n);
     for ( uint k = 0; k < n; k++ ) {
       if ( drand48() < sparse_prob ) {
@@ -545,11 +558,11 @@ void TestFastHIK::testLUTUpdate()
   }
 
   double noise = 1.0;
-  FastMinKernel fmk ( dataMatrix, noise );
+  NICE::FastMinKernel fmk ( dataMatrix, noise );
   
-  ParameterizedFunction *pf = new PFAbsExp ( 1.0 );
+  NICE::ParameterizedFunction *pf = new PFAbsExp ( 1.0 );
 
-  Vector alpha ( n );
+  NICE::Vector alpha ( n );
   for ( uint i = 0; i < alpha.size(); i++ )
     alpha[i] = sin(i);
   
@@ -609,7 +622,7 @@ void TestFastHIK::testLUTUpdate()
   }
   
   
-  bool equal = compareLUTs(T, TNew, q->size()*d, 10e-8);
+  bool equal = compareLUTs(T, TNew, q->getNumberOfBins()*d, 10e-8);
   
   if (verbose)
   {
@@ -618,30 +631,37 @@ void TestFastHIK::testLUTUpdate()
     else
     {
       std::cerr << "T are not equal :( " << std::endl;
-      for (uint i = 0; i < q->size()*d; i++)
+      for (uint i = 0; i < q->getNumberOfBins()*d; i++)
       {
-        if ( (i % q->size()) == 0)
+        if ( (i % q->getNumberOfBins()) == 0)
           std::cerr << std::endl;
         std::cerr << T[i] << " ";
       }
       std::cerr << "TNew: "<< std::endl;
-      for (uint i = 0; i < q->size()*d; i++)
+      for (uint i = 0; i < q->getNumberOfBins()*d; i++)
       {
-        if ( (i % q->size()) == 0)
+        if ( (i % q->getNumberOfBins()) == 0)
           std::cerr << std::endl;
         std::cerr << TNew[i] << " ";
       }     
     
     }    
   }
+
   
+  
+  // clean-up
+  delete q;  
+  delete pf;    
+  delete [] T;
+  delete [] TNew;  
+    
+  // final assertion        
   CPPUNIT_ASSERT(equal == true);
   
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testLUTUpdate done ===================== " << std::endl;
-  
-    delete [] T;
-    delete [] TNew;
+
 }
 
 void TestFastHIK::testLinSolve()
@@ -709,7 +729,7 @@ void TestFastHIK::testLinSolve()
   NICE::GeneralizedIntersectionKernelFunction<double> ghikSlow ( 1.0 );
   NICE::Matrix gK ( ghikSlow.computeKernelMatrix(dataMatrix_transposed, noise) );
   
-  Vector K_alphaRandomized;
+  NICE::Vector K_alphaRandomized;
   K_alphaRandomized.multiply(gK, alphaRandomized);
   
   if (solveLinWithoutRand)
@@ -746,8 +766,12 @@ void TestFastHIK::testLinSolve()
     std::cerr << "(K_alphaRandomized-y).normL1(): " << (K_alphaRandomized-y).normL1() << std::endl; 
   }
   
-
-//   CPPUNIT_ASSERT_DOUBLES_EQUAL((K_alphaRandomized-y).normL1(), 0.0, 1e-6);
+  // clean-up
+  delete q;  
+  delete pf;
+    
+  // final assertion        
+  CPPUNIT_ASSERT_DOUBLES_EQUAL((K_alphaRandomized-y).normL1(), 0.0, 1e-6);
   
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testLinSolve done ===================== " << std::endl;

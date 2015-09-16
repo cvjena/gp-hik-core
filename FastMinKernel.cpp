@@ -1,4 +1,4 @@
-/** 
+/**
  * @file FastMinKernel.cpp
  * @brief Efficient GPs with HIK for classification by regression (Implementation)
  * @author Alexander Freytag
@@ -38,14 +38,13 @@ FastMinKernel::FastMinKernel()
   this->setDebug(false);
 }
 
-FastMinKernel::FastMinKernel( const std::vector<std::vector<double> > & _X, 
+FastMinKernel::FastMinKernel( const std::vector<std::vector<double> > & _X,
                               const double _noise,
-                              const bool _debug, 
+                              const bool _debug,
                               const uint & _dim
                             )
 {
   this->setDebug(_debug);
-//   this->hik_prepare_kernel_multiplications ( _X, this->X_sorted, _dim);
   this->X_sorted.set_features( _X, _dim);
   this->ui_d         = this->X_sorted.get_d();
   this->ui_n         = this->X_sorted.get_n();
@@ -53,12 +52,12 @@ FastMinKernel::FastMinKernel( const std::vector<std::vector<double> > & _X,
   this->approxScheme = MEDIAN;
   this->b_verbose    = false;
 }
-      
+
 #ifdef NICE_USELIB_MATIO
-FastMinKernel::FastMinKernel ( const sparse_t & _X, 
-                               const double _noise, 
+FastMinKernel::FastMinKernel ( const sparse_t & _X,
+                               const double _noise,
                                const std::map<uint, uint> & _examples,
-                               const bool _debug, 
+                               const bool _debug,
                                const uint & _dim
                              ) : this->X_sorted( _X, _examples, _dim )
 {
@@ -71,15 +70,14 @@ FastMinKernel::FastMinKernel ( const sparse_t & _X,
 }
 #endif
 
-FastMinKernel::FastMinKernel ( const std::vector< const NICE::SparseVector * > & _X, 
-                               const double _noise, 
-                               const bool _debug, 
-                               const bool & _dimensionsOverExamples, 
+FastMinKernel::FastMinKernel ( const std::vector< const NICE::SparseVector * > & _X,
+                               const double _noise,
+                               const bool _debug,
+                               const bool & _dimensionsOverExamples,
                                const uint & _dim)
 {
   this->setDebug(_debug);
   this->X_sorted.set_features( _X, _dimensionsOverExamples, _dim);
-//   this->hik_prepare_kernel_multiplications ( _X, this->X_sorted, _dimensionsOverExamples, _dim);
   this->ui_d         = this->X_sorted.get_d();
   this->ui_n         = this->X_sorted.get_n();
   this->d_noise      = _noise;
@@ -95,7 +93,7 @@ FastMinKernel::~FastMinKernel()
 ///////////////////// ///////////////////// /////////////////////
 //                         GET / SET
 //                   INCLUDING ACCESS OPERATORS
-///////////////////// ///////////////////// //////////////////// 
+///////////////////// ///////////////////// ////////////////////
 
 uint FastMinKernel::get_n() const
 {
@@ -103,7 +101,7 @@ uint FastMinKernel::get_n() const
 }
 
 
-uint FastMinKernel::get_d() const 
+uint FastMinKernel::get_d() const
 {
   return this->ui_d;
 }
@@ -135,7 +133,7 @@ bool FastMinKernel::getDebug( )   const
 }
 
 
-      
+
 ///////////////////// ///////////////////// /////////////////////
 //                      CLASSIFIER STUFF
 ///////////////////// ///////////////////// /////////////////////
@@ -145,27 +143,8 @@ void FastMinKernel::applyFunctionToFeatureMatrix ( const NICE::ParameterizedFunc
   this->X_sorted.applyFunctionToFeatureMatrix( _pf );
 }
 
-void FastMinKernel::hik_prepare_kernel_multiplications(const std::vector<std::vector<double> > & _X, 
-                                                       NICE::FeatureMatrixT<double> & _X_sorted, 
-                                                       const uint & _dim
-                                                      )
-{
-  //FIXME why do we hand over the feature matrix here?
-  _X_sorted.set_features( _X, _dim);
-}
-
-void FastMinKernel::hik_prepare_kernel_multiplications(const std::vector< const NICE::SparseVector * > & _X, 
-                                                       NICE::FeatureMatrixT<double> & _X_sorted, 
-                                                       const bool & _dimensionsOverExamples, 
-                                                       const uint & _dim
-                                                      )
-{
-  //FIXME why do we hand over the feature matrix here?  
-  _X_sorted.set_features( _X, _dimensionsOverExamples, _dim );
-}
-
-void FastMinKernel::hik_prepare_alpha_multiplications(const NICE::Vector & _alpha, 
-                                                      NICE::VVector & _A, 
+void FastMinKernel::hik_prepare_alpha_multiplications(const NICE::Vector & _alpha,
+                                                      NICE::VVector & _A,
                                                       NICE::VVector & _B) const
 {
 //   std::cerr << "FastMinKernel::hik_prepare_alpha_multiplications" << std::endl;
@@ -175,32 +154,32 @@ void FastMinKernel::hik_prepare_alpha_multiplications(const NICE::Vector & _alph
 
   //  efficient calculation of k*alpha
   //  ---------------------------------
-  //  
+  //
   //  sum_i alpha_i k(x^i,x) = sum_i alpha_i sum_k min(x^i_k,x_k)
   //  = sum_k sum_i alpha_i min(x^i_k, x_k)
-  //  
+  //
   //  now let us define l_k = { i | x^i_k <= x_k }
   //  and u_k = { i | x^i_k > x_k }, this leads to
-  //  
+  //
   //  = sum_k ( sum_{l \in l_k} alpha_l x^i_k + sum_{u \in u_k} alpha_u x_k
   //  = sum_k ( sum_{l \in l_k} \alpha_l x^l_k + x_k * sum_{u \in u_k}
   //  alpha_u
-  // 
-  //  We also define 
+  //
+  //  We also define
   //  l^j_k = { i | x^i_j <= x^j_k } and
   //  u^j_k = { i | x^i_k > x^j_k }
   //
-  //  We now need the partial sums 
+  //  We now need the partial sums
   //
   //  (Definition 1)
-  //  a_{k,j} = \sum_{l \in l^j_k} \alpha_l x^l_k 
+  //  a_{k,j} = \sum_{l \in l^j_k} \alpha_l x^l_k
   //
-  //  and \sum_{u \in u^j_k} \alpha_u 
+  //  and \sum_{u \in u^j_k} \alpha_u
   //  according to increasing values of x^l_k
   //
-  //  With 
+  //  With
   //  (Definition 2)
-  //  b_{k,j} =  \sum_{l \in l^j_k} \alpha_l, 
+  //  b_{k,j} =  \sum_{l \in l^j_k} \alpha_l,
   //
   //  we get
   //  \sum_{u \in u^j_k} \alpha_u  = \sum_{u=1}^n alpha_u - \sum_{l \in l^j_k} \alpha_l
@@ -215,31 +194,31 @@ void FastMinKernel::hik_prepare_alpha_multiplications(const NICE::Vector & _alph
     _A[i].resize( numNonZero );
     _B[i].resize( numNonZero  );
   }
-  
+
   //  for more information see hik_prepare_alpha_multiplications
-  
+
   for (uint dim = 0; dim < this->ui_d; dim++)
   {
     double alpha_sum(0.0);
     double alpha_times_x_sum(0.0);
 
     uint cntNonzeroFeat(0);
-    
+
     const multimap< double, SortedVectorSparse<double>::dataelement> & nonzeroElements = this->X_sorted.getFeatureValues(dim).nonzeroElements();
     // loop through all elements in sorted order
     for ( SortedVectorSparse<double>::const_elementpointer i = nonzeroElements.begin(); i != nonzeroElements.end(); i++ )
     {
       const SortedVectorSparse<double>::dataelement & de = i->second;
-      
+
       // index of the feature
       int index = de.first;
       // transformed element of the feature
       //
       double elem( de.second );
-                
+
       alpha_times_x_sum += _alpha[index] * elem;
       _A[dim][cntNonzeroFeat] = alpha_times_x_sum;
-      
+
       alpha_sum += _alpha[index];
       _B[dim][cntNonzeroFeat] = alpha_sum;
       cntNonzeroFeat++;
@@ -248,14 +227,14 @@ void FastMinKernel::hik_prepare_alpha_multiplications(const NICE::Vector & _alph
 
 }
 
-double *FastMinKernel::hik_prepare_alpha_multiplications_fast(const NICE::VVector & _A, 
+double *FastMinKernel::hik_prepare_alpha_multiplications_fast(const NICE::VVector & _A,
                                                               const NICE::VVector & _B,
                                                               const Quantization * _q,
                                                               const ParameterizedFunction *_pf 
                                                              ) const
 {
   //NOTE keep in mind: for doing this, we already have precomputed A and B using hik_prepare_alpha_multiplications!
-  
+
   // number of quantization bins
   uint hmax = _q->getNumberOfBins();
 
@@ -294,10 +273,10 @@ double *FastMinKernel::hik_prepare_alpha_multiplications_fast(const NICE::VVecto
       continue;
 
     const multimap< double, SortedVectorSparse<double>::dataelement> & nonzeroElements = this->X_sorted.getFeatureValues(dim).nonzeroElements();
-      
+
     SortedVectorSparse<double>::const_elementpointer i = nonzeroElements.begin();
     SortedVectorSparse<double>::const_elementpointer iPredecessor = nonzeroElements.begin();
-    
+
     // index of the element, which is always bigger than the current value fval
     uint index = 0;
     // we use the quantization of the original features! the transformed feature were
@@ -307,7 +286,7 @@ double *FastMinKernel::hik_prepare_alpha_multiplications_fast(const NICE::VVecto
     // the next loop is linear in max(hmax, n)
     // REMARK: this could be changed to hmax*log(n), when
     // we use binary search
-    
+
     for (uint j = 0; j < hmax; j++)
     {
       double fval = prototypes[ dim*hmax + j ];
@@ -319,7 +298,7 @@ double *FastMinKernel::hik_prepare_alpha_multiplications_fast(const NICE::VVecto
         t = fval*( _B[dim][this->ui_n-1 - nrZeroIndices] );
       } else {
 
-         // move to next example, if necessary   
+         // move to next example, if necessary
         while ( (j >= qBin) && ( index < (this->ui_n-1-nrZeroIndices)) )
         {
           index++;
@@ -331,7 +310,8 @@ double *FastMinKernel::hik_prepare_alpha_multiplications_fast(const NICE::VVecto
         }
         // compute current element in the lookup table and keep in mind that
         // index is the next element and not the previous one
-        //NOTE pay attention: this is only valid if we all entries are positiv! - if not, ask wether the current feature is greater than zero. If so, subtract the nrZeroIndices, if not do not
+        //NOTE pay attention: this is only valid if all entries are positive! -
+        // If not, ask whether the current feature is greater than zero. If so, subtract the nrZeroIndices, if not do not
         if ( (j >= qBin) && ( index==(this->ui_n-1-nrZeroIndices) ) ) {
           // the current element (fval) is equal or bigger to the element indexed by index
           // in fact, the term B[dim][this->n-1-nrZeroIndices] - B[dim][index] is equal to zero and vanishes, which is logical, since all elements are smaller than j!
@@ -383,7 +363,7 @@ double *FastMinKernel::hikPrepareLookupTable(const NICE::Vector & _alpha,
   // for fast evaluation
   double *Tlookup = new double [ hmax * this->ui_d ];
 //   sizeOfLUT = hmax * this->d;
-  
+
   // loop through all dimensions
   for (uint dim = 0; dim < this->ui_d; dim++)
   {
@@ -392,21 +372,21 @@ double *FastMinKernel::hikPrepareLookupTable(const NICE::Vector & _alpha,
       continue;
 
     const multimap< double, SortedVectorSparse<double>::dataelement> & nonzeroElements = this->X_sorted.getFeatureValues(dim).nonzeroElements();
-    
+
     double alphaSumTotalInDim(0.0);
     double alphaTimesXSumTotalInDim(0.0);
     for ( SortedVectorSparse<double>::const_elementpointer i = nonzeroElements.begin(); i != nonzeroElements.end(); i++ )
     {
       alphaSumTotalInDim += _alpha[i->second.first];
       alphaTimesXSumTotalInDim += _alpha[i->second.first] * i->second.second;
-    }    
-      
+    }
+
     SortedVectorSparse<double>::const_elementpointer i = nonzeroElements.begin();
     SortedVectorSparse<double>::const_elementpointer iPredecessor = nonzeroElements.begin();
-    
+
     // index of the element, which is always bigger than the current value fval
     uint index = 0;
-    
+
     // we use the quantization of the original features! Nevetheless, the resulting lookupTable is computed using the transformed ones
     uint qBin = _q->quantize ( i->first, dim ); 
     
@@ -414,7 +394,7 @@ double *FastMinKernel::hikPrepareLookupTable(const NICE::Vector & _alpha,
     double alpha_times_x_sum(0.0);
     double alpha_sum_prev(0.0);
     double alpha_times_x_sum_prev(0.0);
-    
+
     for (uint j = 0; j < hmax; j++)
     {
       double fval = prototypes[ dim*hmax + j ];
@@ -427,14 +407,14 @@ double *FastMinKernel::hikPrepareLookupTable(const NICE::Vector & _alpha,
         t = fval*alphaSumTotalInDim;
       } else {
 
-         // move to next example, if necessary   
+         // move to next example, if necessary
         while ( (j >= qBin) && ( index < (this->ui_n-1-nrZeroIndices)) )
         {
           alpha_times_x_sum_prev = alpha_times_x_sum;
           alpha_sum_prev = alpha_sum;
           alpha_times_x_sum += _alpha[i->second.first] * i->second.second; //i->dataElement.transformedFeatureValue
           alpha_sum += _alpha[i->second.first]; //i->dataElement.OrigIndex
-          
+
           index++;
           iPredecessor = i;
           i++;
@@ -475,13 +455,13 @@ void FastMinKernel::hikUpdateLookupTable(double * _T,
                                          const ParameterizedFunction *_pf 
                                         ) const
 {
-  
+
   if (_T == NULL)
   {
     fthrow(Exception, "FastMinKernel::hikUpdateLookupTable LUT not initialized, run FastMinKernel::hikPrepareLookupTable first!");
     return;
   }
-  
+
   // number of quantization bins
   uint hmax = _q->getNumberOfBins();
 
@@ -506,12 +486,12 @@ void FastMinKernel::hikUpdateLookupTable(double * _T,
   }
   
   double diffOfAlpha(_alphaNew - _alphaOld);
-  
+
   // loop through all dimensions
   for ( uint dim = 0; dim < this->ui_d; dim++ )
-  {  
+  {
     double x_i ( (this->X_sorted( dim, _idx)) );
-    
+
     //TODO we could also check wether x_i < tol, if we would store the tol explicitely
     if ( x_i == 0.0 ) //nothing to do in this dimension
       continue;
@@ -525,8 +505,8 @@ void FastMinKernel::hikUpdateLookupTable(double * _T,
         if ( q_bin > j )
           fval = prototypes[ dim*hmax + j ];
         else
-          fval = x_i;      
-        
+          fval = x_i;
+
       _T[ dim*hmax + j ] += diffOfAlpha*fval;
     }
   }
@@ -535,9 +515,9 @@ void FastMinKernel::hikUpdateLookupTable(double * _T,
 }
 
 
-void FastMinKernel::hik_kernel_multiply(const NICE::VVector & _A, 
-                                        const NICE::VVector & _B, 
-                                        const NICE::Vector & _alpha, 
+void FastMinKernel::hik_kernel_multiply(const NICE::VVector & _A,
+                                        const NICE::VVector & _B,
+                                        const NICE::Vector & _alpha,
                                         NICE::Vector & _beta
                                        ) const
 {
@@ -561,10 +541,10 @@ void FastMinKernel::hik_kernel_multiply(const NICE::VVector & _A,
     {
       const SortedVectorSparse<double>::dataelement & de = i->second;
       uint feat = de.first;
-      uint inversePosition = cnt; 
+      uint inversePosition = cnt;
       double fval = de.second;
 
-      // in which position was the element sorted in? actually we only care about the nonzero elements, so we have to subtract the number of zero elements. 
+      // in which position was the element sorted in? actually we only care about the nonzero elements, so we have to subtract the number of zero elements.
       //NOTE pay attention: this is only valid if all entries are positiv! - if not, ask wether the current feature is greater than zero. If so, subtract the nrZeroIndices, if not do not
 
       //we definitly know that this element exists in inversePermutation, so we have not to check wether find returns .end() or not
@@ -591,9 +571,12 @@ void FastMinKernel::hik_kernel_multiply(const NICE::VVector & _A,
       _beta[feat] += firstPart + fval * secondPart; // i->elementpointer->dataElement->Value
     }
   }
-  
-  //FIXME
-  //do we really want to considere noisy labels?
+
+  // The following code simply adds noise * alpha to the result
+  // to calculate the multiplication with the regularized kernel matrix.
+  //
+  // Do we really want to considere noisy labels?
+  // Yes, otherwise this would be not consistent with solveLin etc.
   for (uint feat = 0; feat < this->ui_n; feat++)
   {
     _beta[feat] += this->d_noise*_alpha[feat];
@@ -620,21 +603,21 @@ void FastMinKernel::hik_kernel_multiply_fast(const double *_Tlookup,
       const SortedVectorSparse<double>::dataelement & de = i->second;
       uint feat = de.first;
       uint qBin = _q->quantize( i->first, dim );
-      _beta[feat] += _Tlookup[dim*_q->size() + qBin];
+      _beta[feat] += _Tlookup[dim*_q->getNumberOfBins() + qBin];
     }
   }
-  
-  //do we really want to considere noisy labels?
+
+  // comment about the following noise integration, see hik_kernel_multiply
   for (uint feat = 0; feat < this->ui_n; feat++)
   {
     _beta[feat] += this->d_noise*_alpha[feat];
   }
 }
 
-void FastMinKernel::hik_kernel_sum(const NICE::VVector & _A, 
-                                   const NICE::VVector & _B, 
-                                   const NICE::SparseVector & _xstar, 
-                                   double & _beta, 
+void FastMinKernel::hik_kernel_sum(const NICE::VVector & _A,
+                                   const NICE::VVector & _B,
+                                   const NICE::SparseVector & _xstar,
+                                   double & _beta,
                                    const ParameterizedFunction *_pf) const
 {
   // sparse version of hik_kernel_sum, no really significant changes,
@@ -642,12 +625,12 @@ void FastMinKernel::hik_kernel_sum(const NICE::VVector & _A,
   _beta = 0.0;
   for (SparseVector::const_iterator i = _xstar.begin(); i != _xstar.end(); i++)
   {
-  
+
     uint dim = i->first;
     double fval = i->second;
-        
-    uint nrZeroIndices = this->X_sorted.getNumberOfZeroElementsPerDimension(dim);    
-    
+
+    uint nrZeroIndices = this->X_sorted.getNumberOfZeroElementsPerDimension(dim);
+
     if ( nrZeroIndices == this->ui_n ) {
       // all features are zero and let us ignore it completely
       continue;
@@ -659,53 +642,53 @@ void FastMinKernel::hik_kernel_sum(const NICE::VVector & _A,
     //the sorted array? -> perform binary search, runtime O(log(n))
     // search using the original value
     this->X_sorted.findFirstLargerInDimension(dim, fval, position);
-    
+
     bool posIsZero ( position == 0 );
-    
+
     if ( !posIsZero )
     {
       position--;
     }
-    
-    
+
+
     //NOTE again - pay attention! This is only valid if all entries are NOT negative! - if not, ask wether the current feature is greater than zero. If so, subtract the nrZeroIndices, if not do not
     //sum_{l \in L_k} \alpha_l x^l_k
     double firstPart(0.0);
     //TODO in the "overnext" line there occurs the following error
     // Invalid read of size 8
-    if ( !posIsZero && ((position-nrZeroIndices) < this->ui_n) ) 
+    if ( !posIsZero && ((position-nrZeroIndices) < this->ui_n) )
     {
       firstPart = (_A[dim][position-nrZeroIndices]);
-    }      
-    
+    }
+
     // sum_{u \in U_k} alpha_u
-    
+
     // sum_{u \in U_k} alpha_u
     // => double secondPart( B(dim, n-1) - B(dim, position));
     //TODO in the next line there occurs the following error
-    // Invalid read of size 8        
+    // Invalid read of size 8
     double secondPart( _B[dim][this->ui_n-1-nrZeroIndices]);
     //TODO in the "overnext" line there occurs the following error
-    // Invalid read of size 8    
+    // Invalid read of size 8
     if ( !posIsZero && (position >= nrZeroIndices) )
     {
       secondPart-= _B[dim][position-nrZeroIndices];
     }
-    
+
     if ( _pf != NULL )
     {
       fval = _pf->f ( dim, fval );
-    }   
-      
+    }
+
     // but apply using the transformed one
     _beta += firstPart + secondPart* fval;
   }
 }
 
-void FastMinKernel::hik_kernel_sum(const NICE::VVector & _A, 
-                                   const NICE::VVector & _B, 
-                                   const NICE::Vector & _xstar, 
-                                   double & _beta, 
+void FastMinKernel::hik_kernel_sum(const NICE::VVector & _A,
+                                   const NICE::VVector & _B,
+                                   const NICE::Vector & _xstar,
+                                   double & _beta,
                                    const ParameterizedFunction *_pf
                                   ) const
 {
@@ -713,11 +696,11 @@ void FastMinKernel::hik_kernel_sum(const NICE::VVector & _A,
   uint dim ( 0 );
   for (NICE::Vector::const_iterator i = _xstar.begin(); i != _xstar.end(); i++, dim++)
   {
- 
+
     double fval = *i;
-    
+
     uint nrZeroIndices = this->X_sorted.getNumberOfZeroElementsPerDimension(dim);
-    
+
     if ( nrZeroIndices == this->ui_n ) {
       // all features are zero and let us ignore it completely
       continue;
@@ -729,49 +712,49 @@ void FastMinKernel::hik_kernel_sum(const NICE::VVector & _A,
     //the sorted array? -> perform binary search, runtime O(log(n))
     // search using the original value
     this->X_sorted.findFirstLargerInDimension(dim, fval, position);
-    
+
     bool posIsZero ( position == 0 );
-    
+
     if ( !posIsZero )
     {
       position--;
-    }    
-    
-  
+    }
+
+
     //NOTE again - pay attention! This is only valid if all entries are NOT negative! - if not, ask wether the current feature is greater than zero. If so, subtract the nrZeroIndices, if not do not
     //sum_{l \in L_k} \alpha_l x^l_k
     double firstPart(0.0);
     //TODO in the "overnext" line there occurs the following error
     // Invalid read of size 8
-    
-    
-    if ( !posIsZero && ((position-nrZeroIndices) < this->ui_n)  ) 
+
+
+    if ( !posIsZero && ((position-nrZeroIndices) < this->ui_n)  )
     {
       firstPart = (_A[dim][position-nrZeroIndices]);
     }
-    
+
     // sum_{u \in U_k} alpha_u
-    
+
     // sum_{u \in U_k} alpha_u
     // => double secondPart( B(dim, n-1) - B(dim, position));
     //TODO in the next line there occurs the following error
-    // Invalid read of size 8      
+    // Invalid read of size 8
     double secondPart( _B[dim][this->ui_n-1-nrZeroIndices] );
     //TODO in the "overnext" line there occurs the following error
-    // Invalid read of size 8    
-    
+    // Invalid read of size 8
+
     if ( !posIsZero && (position >= nrZeroIndices) )
     {
       secondPart-= _B[dim][position-nrZeroIndices];
     }
-    
-      
-    
+
+
+
     if ( _pf != NULL )
     {
       fval = _pf->f ( dim, fval );
-    }   
-    
+    }
+
     // but apply using the transformed one
     _beta += firstPart + secondPart* fval;
   }
@@ -796,7 +779,7 @@ void FastMinKernel::hik_kernel_sum_fast(const double *_Tlookup,
     double v = _xstar[dim];
     uint qBin = _q->quantize( v, dim );
     
-    _beta += _Tlookup[dim*_q->size() + qBin];
+    _beta += _Tlookup[dim*_q->getNumberOfBins() + qBin];
   }
 }
 
@@ -817,11 +800,11 @@ void FastMinKernel::hik_kernel_sum_fast(const double *_Tlookup,
     double v = i->second;
     uint qBin = _q->quantize( v, dim );
     
-    _beta += _Tlookup[dim*_q->size() + qBin];
+    _beta += _Tlookup[dim*_q->getNumberOfBins() + qBin];
   }
 }
 
-double *FastMinKernel::solveLin(const NICE::Vector & _y, 
+double *FastMinKernel::solveLin(const NICE::Vector & _y,
                                 NICE::Vector & _alpha,
                                 const Quantization * _q, 
                                 const ParameterizedFunction *_pf, 
@@ -831,63 +814,72 @@ double *FastMinKernel::solveLin(const NICE::Vector & _y,
                                 double _minDelta, 
                                 bool _timeAnalysis
                                ) const
-{ 
+{
+  // note: this is the optimization done in Wu10_AFD and a
+  // random version of it. In normal cases, IKM* should be
+  // used together with your iterative solver of choice
+  //
+
   uint sizeOfRandomSubset(_sizeOfRandomSubset);
 
   bool verboseMinimal ( false );
-  
+
   // number of quantization bins
-  uint hmax = _q->size();
+  uint hmax = _q->getNumberOfBins();
   
   NICE::Vector diagonalElements(_y.size(),0.0);
   this->X_sorted.hikDiagonalElements(diagonalElements);
   diagonalElements += this->d_noise;
-  
+
   NICE::Vector pseudoResidual (_y.size(),0.0);
   NICE::Vector delta_alpha (_y.size(),0.0);
   double alpha_old;
   double alpha_new;
   double x_i;
-  
-  // initialization
+
+  // initialization of the alpha vector
   if (_alpha.size() != _y.size())
   {
     _alpha.resize( _y.size() );
   }
   _alpha.set(0.0);
-  
+
+  // initialize the lookup table
   double *Tlookup = new double [ hmax * this->ui_d ];
-  if ( (hmax*this->ui_d) <= 0 ) 
+  if ( (hmax*this->ui_d) <= 0 )
     return Tlookup;
-  
+
   memset(Tlookup, 0, sizeof(Tlookup[0])*hmax*this->ui_d);
-  
+
   uint iter;
   Timer t;
   if ( _timeAnalysis )
     t.start();
-  
+
   if (_useRandomSubsets)
   {
+    // FIXME: this code looks bogus, since we only iterate over a random
+    // permutation of the training examples (several random subsets), without
+    // during anything particular between batches
     std::vector<uint> indices( _y.size() );
     for (uint i = 0; i < _y.size(); i++)
       indices[i] = i;
-    
-    if (sizeOfRandomSubset <= 0) 
+
+    if (sizeOfRandomSubset <= 0)
       sizeOfRandomSubset = _y.size();
-    
-    for ( iter = 1; iter <= _maxIterations; iter++ ) 
+
+    for ( iter = 1; iter <= _maxIterations; iter++ )
     {
       NICE::Vector perm;
       this->randomPermutation( perm, indices, _sizeOfRandomSubset );
- 
+
       if ( _timeAnalysis )
       {
         t.stop();
         Vector r;
         this->hik_kernel_multiply_fast(Tlookup, _q, _alpha, r);
         r = r - _y;
-        
+
         double res = r.normL2();
         double resMax = r.normInf();
 
@@ -895,8 +887,8 @@ double *FastMinKernel::solveLin(const NICE::Vector & _y,
 
         t.start();
       }
-     
-      for ( uint i = 0; i < sizeOfRandomSubset; i++)  
+
+      for ( uint i = 0; i < sizeOfRandomSubset; i++)
       {
 
         pseudoResidual(perm[i]) = -_y(perm[i]) + (this->d_noise * _alpha(perm[i]));
@@ -905,7 +897,7 @@ double *FastMinKernel::solveLin(const NICE::Vector & _y,
           x_i = this->X_sorted(j,perm[i]);
           pseudoResidual(perm[i]) += Tlookup[j*hmax + _q->quantize( x_i, j )];
         }
-      
+
         //NOTE: this threshhold could also be a parameter of the function call
         if ( fabs(pseudoResidual(perm[i])) > 1e-7 )
         {
@@ -915,48 +907,50 @@ double *FastMinKernel::solveLin(const NICE::Vector & _y,
 
 
           delta_alpha(perm[i]) = alpha_old-alpha_new;
-         
+
           this->hikUpdateLookupTable(Tlookup, alpha_new, alpha_old, perm[i], _q, _pf ); // works correctly
-          
+
         } else
         {
           delta_alpha(perm[i]) = 0.0;
         }
-        
+
       }
       // after this only residual(i) is the valid residual... we should
       // really update the whole vector somehow
-      
+
       double delta = delta_alpha.normL2();
       if ( this->b_verbose ) {
-        cerr << "FastMinKernel::solveLin: iteration " << iter << " / " << _maxIterations << endl;     
+        cerr << "FastMinKernel::solveLin: iteration " << iter << " / " << _maxIterations << endl;
         cerr << "FastMinKernel::solveLin: delta = " << delta << endl;
         cerr << "FastMinKernel::solveLin: pseudo residual = " << pseudoResidual.scalarProduct(pseudoResidual) << endl;
       }
-      
-      if ( delta < _minDelta ) 
+
+      if ( delta < _minDelta )
       {
         if ( this->b_verbose )
           cerr << "FastMinKernel::solveLin: small delta" << endl;
         break;
-      }    
+      }
     }
   }
   else //don't use random subsets
-  {   
-    for ( iter = 1; iter <= _maxIterations; iter++ ) 
+  {
+    // this is the standard coordinate descent optimization
+    // in each of the elements in alpha
+    for ( iter = 1; iter <= _maxIterations; iter++ )
     {
-      
+
       for ( uint i = 0; i < _y.size(); i++ )
       {
-          
+
         pseudoResidual(i) = -_y(i) + (this->d_noise* _alpha(i));
         for (uint j = 0; j < this->ui_d; j++)
         {
           x_i = this->X_sorted(j,i);
           pseudoResidual(i) += Tlookup[j*hmax + _q->quantize( x_i, j )];
         }
-      
+
         //NOTE: this threshhold could also be a parameter of the function call
         if ( fabs(pseudoResidual(i)) > 1e-7 )
         {
@@ -964,39 +958,39 @@ double *FastMinKernel::solveLin(const NICE::Vector & _y,
           alpha_new = alpha_old - (pseudoResidual(i)/diagonalElements(i));
           _alpha(i) = alpha_new;
           delta_alpha(i) = alpha_old-alpha_new;
-          
+
           this->hikUpdateLookupTable(Tlookup, alpha_new, alpha_old, i, _q, _pf ); // works correctly
-          
+
         } else
         {
           delta_alpha(i) = 0.0;
         }
-        
+
       }
-      
+
       double delta = delta_alpha.normL2();
       if ( this->b_verbose ) {
-        std::cerr << "FastMinKernel::solveLin: iteration " << iter << " / " << _maxIterations << std::endl;     
+        std::cerr << "FastMinKernel::solveLin: iteration " << iter << " / " << _maxIterations << std::endl;
         std::cerr << "FastMinKernel::solveLin: delta = " << delta << std::endl;
         std::cerr << "FastMinKernel::solveLin: pseudo residual = " << pseudoResidual.scalarProduct(pseudoResidual) << std::endl;
       }
-      
-      if ( delta < _minDelta ) 
+
+      if ( delta < _minDelta )
       {
         if ( this->b_verbose )
           std::cerr << "FastMinKernel::solveLin: small delta" << std::endl;
         break;
-      }    
+      }
     }
   }
-  
+
   if (verboseMinimal)
     std::cerr << "FastMinKernel::solveLin -- needed " << iter << " iterations" << std::endl;
   return Tlookup;
 }
 
-void FastMinKernel::randomPermutation(NICE::Vector & _permutation, 
-                                      const std::vector<uint> & _oldIndices, 
+void FastMinKernel::randomPermutation(NICE::Vector & _permutation,
+                                      const std::vector<uint> & _oldIndices,
                                       const uint & _newSize
                                      ) const
 {
@@ -1004,7 +998,7 @@ void FastMinKernel::randomPermutation(NICE::Vector & _permutation,
   const uint oldSize = _oldIndices.size();
   uint resultingSize (std::min( oldSize, _newSize) );
   _permutation.resize(resultingSize);
-  
+
   for ( uint i = 0; i < resultingSize; i++)
   {
     uint newIndex(rand() % indices.size());
@@ -1016,7 +1010,7 @@ void FastMinKernel::randomPermutation(NICE::Vector & _permutation,
 double FastMinKernel::getFrobNormApprox()
 {
   double frobNormApprox(0.0);
-  
+
   switch (this->approxScheme)
   {
     case MEDIAN:
@@ -1028,7 +1022,7 @@ double FastMinKernel::getFrobNormApprox()
         double median = this->X_sorted.getFeatureValues(i).getMedian();
         frobNormApprox += median;
       }
-      
+
       frobNormApprox = fabs(frobNormApprox) * this->ui_n/2.0;
       break;
     }
@@ -1037,12 +1031,12 @@ double FastMinKernel::getFrobNormApprox()
       std::cerr << "EXPECTATION" << std::endl;
       //\| K \|_F^1^2 ~ \sum K_{ii}^2     +    (n^2 - n) \left( \frac{1}{3} \sum_k \left( 2 a_k + b_k \right) \right)
       // with a_k = minimal value in dim k and b_k maximal value
-      
+
       //first term
       NICE::Vector diagEl;
       X_sorted.hikDiagonalElements(diagEl);
       frobNormApprox += diagEl.normL2();
-      
+
       //second term
       double secondTerm(0.0);
       for ( uint i = 0; i < this->ui_d; i++ )
@@ -1058,10 +1052,10 @@ double FastMinKernel::getFrobNormApprox()
       secondTerm = pow(secondTerm, 2);
       secondTerm *= (this->ui_n * ( this->ui_n - 1 ));
       frobNormApprox += secondTerm;
-      
-      
+
+
       frobNormApprox = sqrt(frobNormApprox);
-      
+
       break;
     }
     default:
@@ -1100,23 +1094,23 @@ void FastMinKernel::hikPrepareKVNApproximation(NICE::VVector & _A) const
 
   //  efficient calculation of |k_*|^2 = k_*^T * k_*
   //  ---------------------------------
-  //  
+  //
   //    \sum_{i=1}^{n} \left( \sum_{d=1}^{D} \min (x_d^*, x_d^i) \right)^2
-  //  <=\sum_{i=1}^{n} \sum_{d=1}^{D} \left( \min (x_d^*, x_d^i) \right)^2  
+  //  <=\sum_{i=1}^{n} \sum_{d=1}^{D} \left( \min (x_d^*, x_d^i) \right)^2
   //  = \sum_{d=1}^{D} \sum_{i=1}^{n} \left( \min (x_d^*, x_d^i) \right)^2
   //  = \sum_{d=1}^{D} \left( \sum_{i:x_d^i < x_*^d} (x_d^i)^2 + \sum_{j: x_d^* \leq x_d^j} (x_d^*)^2 \right)
   //
   //  again let us define l_d = { i | x_d^i <= x_d^* }
   //  and u_d = { i | x_d^i > x_d^* }, this leads to
-  //  
+  //
   //  = \sum_{d=1}^{D} ( \sum_{l \in l_d} (x_d^l)^2 + \sum_{u \in u_d} (x_d^*)^2
   //  = \sum_{d=1}^{D} ( \sum_{l \in l_d} (x_d^l)^2 + (x_d^*)^2 \sum_{u \in u_d} 1
-  // 
-  //  We also define 
+  //
+  //  We also define
   //  l_d^j = { i | x_d^i <= x_d^j } and
   //  u_d^j = { i | x_d^i > x_d^j }
   //
-  //  We now need the partial sums 
+  //  We now need the partial sums
   //
   //  (Definition 1)
   //  a_{d,j} = \sum_{l \in l_d^j} (x_d^l)^2
@@ -1133,22 +1127,22 @@ void FastMinKernel::hikPrepareKVNApproximation(NICE::VVector & _A) const
     _A[i].resize( numNonZero );
   }
   //  for more information see hik_prepare_alpha_multiplications
-  
+
   for (uint dim = 0; dim < this->ui_d; dim++)
   {
     double squared_sum(0.0);
 
     uint cntNonzeroFeat(0);
-    
+
     const multimap< double, SortedVectorSparse<double>::dataelement> & nonzeroElements = this->X_sorted.getFeatureValues(dim).nonzeroElements();
     // loop through all elements in sorted order
     for ( SortedVectorSparse<double>::const_elementpointer i = nonzeroElements.begin(); i != nonzeroElements.end(); i++ )
     {
       const SortedVectorSparse<double>::dataelement & de = i->second;
-      
+
       // de: first - index, second - transformed feature
       double elem( de.second );
-                
+
       squared_sum += pow( elem, 2 );
       _A[dim][cntNonzeroFeat] = squared_sum;
 
@@ -1162,7 +1156,7 @@ double * FastMinKernel::hikPrepareKVNApproximationFast(NICE::VVector & _A,
                                                        const ParameterizedFunction *_pf ) const
 {
   //NOTE keep in mind: for doing this, we already have precomputed A using hikPrepareSquaredKernelVector!
-  
+
   // number of quantization bins
   uint hmax = _q->getNumberOfBins();
 
@@ -1199,10 +1193,10 @@ double * FastMinKernel::hikPrepareKVNApproximationFast(NICE::VVector & _A,
       continue;
 
     const multimap< double, SortedVectorSparse<double>::dataelement> & nonzeroElements = this->X_sorted.getFeatureValues(dim).nonzeroElements();
-      
+
     SortedVectorSparse<double>::const_elementpointer i = nonzeroElements.begin();
     SortedVectorSparse<double>::const_elementpointer iPredecessor = nonzeroElements.begin();
-    
+
     // index of the element, which is always bigger than the current value fval
     uint index = 0;
     // we use the quantization of the original features! the transformed feature were
@@ -1213,7 +1207,7 @@ double * FastMinKernel::hikPrepareKVNApproximationFast(NICE::VVector & _A,
     // REMARK: this could be changed to hmax*log(n), when
     // we use binary search
     //FIXME we should do this!
-    
+
     for (uint j = 0; j < hmax; j++)
     {
       double fval = prototypes[ dim*hmax + j];
@@ -1225,7 +1219,7 @@ double * FastMinKernel::hikPrepareKVNApproximationFast(NICE::VVector & _A,
         t = pow( fval, 2 ) * (this->ui_n-nrZeroIndices-index);
       } else {
 
-         // move to next example, if necessary   
+         // move to next example, if necessary
         while ( (j >= qBin) && ( index < (this->ui_n-nrZeroIndices)) )
         {
           index++;
@@ -1254,7 +1248,7 @@ double * FastMinKernel::hikPrepareKVNApproximationFast(NICE::VVector & _A,
 
   delete [] prototypes;
 
-  return Tlookup;  
+  return Tlookup;
 }
 
 double* FastMinKernel::hikPrepareLookupTableForKVNApproximation(const Quantization * _q,
@@ -1287,7 +1281,7 @@ double* FastMinKernel::hikPrepareLookupTableForKVNApproximation(const Quantizati
   // creating the lookup table as pure C, which might be beneficial
   // for fast evaluation
   double *Tlookup = new double [ hmax * this->ui_d ];
-  
+
   // loop through all dimensions
   for (uint dim = 0; dim < this->ui_d; dim++)
   {
@@ -1296,18 +1290,18 @@ double* FastMinKernel::hikPrepareLookupTableForKVNApproximation(const Quantizati
       continue;
 
     const multimap< double, SortedVectorSparse<double>::dataelement> & nonzeroElements = this->X_sorted.getFeatureValues(dim).nonzeroElements();
-         
+
     SortedVectorSparse<double>::const_elementpointer i = nonzeroElements.begin();
     SortedVectorSparse<double>::const_elementpointer iPredecessor = nonzeroElements.begin();
-    
+
     // index of the element, which is always bigger than the current value fval
     uint index = 0;
-    
+
     // we use the quantization of the original features! Nevetheless, the resulting lookupTable is computed using the transformed ones
     uint qBin = _q->quantize ( i->first, dim ); 
-    
+
     double sum(0.0);
-    
+
     for (uint j = 0; j < hmax; j++)
     {
       double fval = prototypes[ dim*hmax + j];
@@ -1319,11 +1313,11 @@ double* FastMinKernel::hikPrepareLookupTableForKVNApproximation(const Quantizati
         t = pow( fval, 2 ) * (this->ui_n-nrZeroIndices-index);
       } else {
 
-         // move to next example, if necessary   
+         // move to next example, if necessary
         while ( (j >= qBin) && ( index < (this->ui_n-nrZeroIndices)) )
         {
           sum += pow( i->second.second, 2 ); //i->dataElement.transformedFeatureValue
-          
+
           index++;
           iPredecessor = i;
           i++;
@@ -1350,69 +1344,69 @@ double* FastMinKernel::hikPrepareLookupTableForKVNApproximation(const Quantizati
 
   delete [] prototypes;
 
-  return Tlookup;  
+  return Tlookup;
 }
 
     //////////////////////////////////////////
     // variance computation: sparse inputs
-    //////////////////////////////////////////    
+    //////////////////////////////////////////
 
-void FastMinKernel::hikComputeKVNApproximation(const NICE::VVector & _A, 
-                                               const NICE::SparseVector & _xstar, 
-                                               double & _norm, 
-                                               const ParameterizedFunction *_pf ) 
+void FastMinKernel::hikComputeKVNApproximation(const NICE::VVector & _A,
+                                               const NICE::SparseVector & _xstar,
+                                               double & _norm,
+                                               const ParameterizedFunction *_pf )
 {
   _norm = 0.0;
   for (SparseVector::const_iterator i = _xstar.begin(); i != _xstar.end(); i++)
   {
-  
+
     uint dim = i->first;
     double fval = i->second;
-    
+
     uint nrZeroIndices = this->X_sorted.getNumberOfZeroElementsPerDimension(dim);
     if ( nrZeroIndices == this->ui_n ) {
       // all features are zero so let us ignore them completely
       continue;
     }
 
-    
+
     uint position;
 
     //where is the example x^z_i located in
     //the sorted array? -> perform binary search, runtime O(log(n))
     // search using the original value
     this->X_sorted.findFirstLargerInDimension(dim, fval, position);
-    
+
     bool posIsZero ( position == 0 );
-    
+
     if ( !posIsZero )
     {
       position--;
-    }  
-  
+    }
+
     //NOTE again - pay attention! This is only valid if all entries are NOT negative! - if not, ask wether the current feature is greater than zero. If so, subtract the nrZeroIndices, if not do not
     double firstPart(0.0);
     //TODO in the "overnext" line there occurs the following error
-    // Invalid read of size 8    
-    if ( !posIsZero && ((position-nrZeroIndices) < this->ui_n) ) 
+    // Invalid read of size 8
+    if ( !posIsZero && ((position-nrZeroIndices) < this->ui_n) )
       firstPart = (_A[dim][position-nrZeroIndices]);
-    
-     
+
+
     if ( _pf != NULL )
       fval = _pf->f ( dim, fval );
-    
+
     fval = fval * fval;
-    
-    double secondPart( 0.0);    
-    
+
+    double secondPart( 0.0);
+
     if ( !posIsZero )
       secondPart = fval * (this->ui_n-nrZeroIndices-(position+1));
     else //if x_d^* is smaller than every non-zero training example
       secondPart = fval * (this->ui_n-nrZeroIndices);
-    
+
     // but apply using the transformed one
     _norm += firstPart + secondPart;
-  }  
+  }
 }
 
 void FastMinKernel::hikComputeKVNApproximationFast(const double *_Tlookup, 
@@ -1431,40 +1425,40 @@ void FastMinKernel::hikComputeKVNApproximationFast(const double *_Tlookup,
     // nonetheless, the lookup table was created using the parameterized function    
     uint qBin = _q->quantize( v, dim );
     
-    _norm += _Tlookup[dim*_q->size() + qBin];
+    _norm += _Tlookup[dim*_q->getNumberOfBins() + qBin];
   }  
 }
 
-void FastMinKernel::hikComputeKernelVector ( const NICE::SparseVector& _xstar, 
-                                             NICE::Vector & _kstar 
+void FastMinKernel::hikComputeKernelVector ( const NICE::SparseVector& _xstar,
+                                             NICE::Vector & _kstar
                                            ) const
 {
   //init
   _kstar.resize( this->ui_n );
   _kstar.set(0.0);
-  
+
   if ( this->b_debug )
   {
     std::cerr << " FastMinKernel::hikComputeKernelVector -- input: " << std::endl;
     _xstar.store( std::cerr);
   }
-  
+
   //let's start :)
   for (SparseVector::const_iterator i = _xstar.begin(); i != _xstar.end(); i++)
   {
-  
+
     uint dim = i->first;
     double fval = i->second;
-    
+
     if ( this->b_debug )
       std::cerr << "dim: " << dim  << " fval: " << fval << std::endl;
-    
+
     uint nrZeroIndices = this->X_sorted.getNumberOfZeroElementsPerDimension(dim);
     if ( nrZeroIndices == this->ui_n ) {
       // all features are zero so let us ignore them completely
       continue;
     }
-    
+
 
     uint position;
 
@@ -1473,20 +1467,20 @@ void FastMinKernel::hikComputeKernelVector ( const NICE::SparseVector& _xstar,
     // search using the original value
     this->X_sorted.findFirstLargerInDimension(dim, fval, position);
     //position--;
-    
+
     if ( this->b_debug )
       std::cerr << " position: " << position << std::endl;
-    
-    //get the non-zero elements for this dimension  
+
+    //get the non-zero elements for this dimension
     const multimap< double, SortedVectorSparse<double>::dataelement> & nonzeroElements = this->X_sorted.getFeatureValues(dim).nonzeroElements();
-    
+
     //run over the non-zero elements and add the corresponding entries to our kernel vector
 
     uint count(nrZeroIndices);
     for ( SortedVectorSparse<double>::const_elementpointer i = nonzeroElements.begin(); i != nonzeroElements.end(); i++, count++ )
     {
       uint origIndex(i->second.first); //orig index (i->second.second would be the transformed feature value)
-      
+
       if ( this->b_debug )
         std::cerr << "i->1.2: " << i->second.first <<  " origIndex: " << origIndex << " count: " << count << " position: " << position << std::endl;
       if (count < position)
@@ -1494,26 +1488,26 @@ void FastMinKernel::hikComputeKernelVector ( const NICE::SparseVector& _xstar,
       else
         _kstar[origIndex] += fval;
     }
-    
-  }  
+
+  }
 }
 
     //////////////////////////////////////////
     // variance computation: non-sparse inputs
-    //////////////////////////////////////////  
+    //////////////////////////////////////////
 
-void FastMinKernel::hikComputeKVNApproximation(const NICE::VVector & _A, 
-                                               const NICE::Vector & _xstar, 
+void FastMinKernel::hikComputeKVNApproximation(const NICE::VVector & _A,
+                                               const NICE::Vector & _xstar,
                                                double & _norm,
-                                               const ParameterizedFunction *_pf ) 
+                                               const ParameterizedFunction *_pf )
 {
   _norm = 0.0;
   uint dim ( 0 );
   for (Vector::const_iterator i = _xstar.begin(); i != _xstar.end(); i++, dim++)
   {
-  
+
     double fval = *i;
-    
+
     uint nrZeroIndices = this->X_sorted.getNumberOfZeroElementsPerDimension(dim);
     if ( nrZeroIndices == this->ui_n ) {
       // all features are zero so let us ignore them completely
@@ -1526,36 +1520,36 @@ void FastMinKernel::hikComputeKVNApproximation(const NICE::VVector & _A,
     //the sorted array? -> perform binary search, runtime O(log(n))
     // search using the original value
     this->X_sorted.findFirstLargerInDimension(dim, fval, position);
-    
+
     bool posIsZero ( position == 0 );
-    
+
     if ( !posIsZero )
     {
       position--;
-    } 
-  
+    }
+
     //NOTE again - pay attention! This is only valid if all entries are NOT negative! - if not, ask wether the current feature is greater than zero. If so, subtract the nrZeroIndices, if not do not
     double firstPart(0.0);
     //TODO in the "overnext" line there occurs the following error
-    // Invalid read of size 8    
-    if ( !posIsZero && ((position-nrZeroIndices) < this->ui_n) ) 
+    // Invalid read of size 8
+    if ( !posIsZero && ((position-nrZeroIndices) < this->ui_n) )
       firstPart = (_A[dim][position-nrZeroIndices]);
-    
+
     double secondPart( 0.0);
-      
+
     if ( _pf != NULL )
       fval = _pf->f ( dim, fval );
-    
+
     fval = fval * fval;
-    
-    if ( !posIsZero ) 
+
+    if ( !posIsZero )
       secondPart = fval * (this->ui_n-nrZeroIndices-(position+1));
     else //if x_d^* is smaller than every non-zero training example
       secondPart = fval * (this->ui_n-nrZeroIndices);
-    
+
     // but apply using the transformed one
     _norm += firstPart + secondPart;
-  }  
+  }
 }
 
 void FastMinKernel::hikComputeKVNApproximationFast(const double *_Tlookup, 
@@ -1574,32 +1568,32 @@ void FastMinKernel::hikComputeKVNApproximationFast(const double *_Tlookup,
     // nonetheless, the lookup table was created using the parameterized function    
     uint qBin = _q->quantize( v, dim );
     
-    _norm += _Tlookup[dim*_q->size() + qBin];
+    _norm += _Tlookup[dim*_q->getNumberOfBins() + qBin];
   }  
 }
 
 
-void FastMinKernel::hikComputeKernelVector( const NICE::Vector & _xstar, 
+void FastMinKernel::hikComputeKernelVector( const NICE::Vector & _xstar,
                                             NICE::Vector & _kstar) const
 {
   //init
   _kstar.resize(this->ui_n);
   _kstar.set(0.0);
 
- 
+
   //let's start :)
   uint dim ( 0 );
   for (NICE::Vector::const_iterator i = _xstar.begin(); i != _xstar.end(); i++, dim++)
   {
-  
+
     double fval = *i;
-    
+
     uint nrZeroIndices = this->X_sorted.getNumberOfZeroElementsPerDimension(dim);
     if ( nrZeroIndices == this->ui_n ) {
       // all features are zero so let us ignore them completely
       continue;
     }
-    
+
 
     uint position;
 
@@ -1607,12 +1601,12 @@ void FastMinKernel::hikComputeKernelVector( const NICE::Vector & _xstar,
     //the sorted array? -> perform binary search, runtime O(log(n))
     // search using the original value
     this->X_sorted.findFirstLargerInDimension(dim, fval, position);
-    //position--;    
-    
-    
-    //get the non-zero elements for this dimension  
+    //position--;
+
+
+    //get the non-zero elements for this dimension
     const multimap< double, SortedVectorSparse<double>::dataelement> & nonzeroElements = this->X_sorted.getFeatureValues(dim).nonzeroElements();
-    
+
     //run over the non-zero elements and add the corresponding entries to our kernel vector
 
     uint count(nrZeroIndices);
@@ -1624,66 +1618,66 @@ void FastMinKernel::hikComputeKernelVector( const NICE::Vector & _xstar,
       else
         _kstar[origIndex] += fval;
     }
-  }  
+  }
 }
 
 ///////////////////// INTERFACE PERSISTENT /////////////////////
 // interface specific methods for store and restore
-///////////////////// INTERFACE PERSISTENT ///////////////////// 
+///////////////////// INTERFACE PERSISTENT /////////////////////
 
-void FastMinKernel::restore ( std::istream & _is, 
+void FastMinKernel::restore ( std::istream & _is,
                               int _format )
 {
   bool b_restoreVerbose ( false );
   if ( _is.good() )
   {
-    if ( b_restoreVerbose ) 
+    if ( b_restoreVerbose )
       std::cerr << " restore FastMinKernel" << std::endl;
-    
+
     std::string tmp;
-    _is >> tmp; //class name 
-    
+    _is >> tmp; //class name
+
     if ( ! this->isStartTag( tmp, "FastMinKernel" ) )
     {
         std::cerr << " WARNING - attempt to restore FastMinKernel, but start flag " << tmp << " does not match! Aborting... " << std::endl;
         throw;
-    }   
-        
+    }
+
     _is.precision (numeric_limits<double>::digits10 + 1);
-    
+
     bool b_endOfBlock ( false ) ;
-    
+
     while ( !b_endOfBlock )
     {
-      _is >> tmp; // start of block 
-      
+      _is >> tmp; // start of block
+
       if ( this->isEndTag( tmp, "FastMinKernel" ) )
       {
         b_endOfBlock = true;
         continue;
-      }      
-      
+      }
+
       tmp = this->removeStartTag ( tmp );
-      
+
       if ( b_restoreVerbose )
         std::cerr << " currently restore section " << tmp << " in FastMinKernel" << std::endl;
-      
+
       if ( tmp.compare("ui_n") == 0 )
       {
-        _is >> this->ui_n;        
-        _is >> tmp; // end of block 
+        _is >> this->ui_n;
+        _is >> tmp; // end of block
         tmp = this->removeEndTag ( tmp );
       }
       else if ( tmp.compare("ui_d") == 0 )
       {
-        _is >> this->ui_d;        
-        _is >> tmp; // end of block 
+        _is >> this->ui_d;
+        _is >> tmp; // end of block
         tmp = this->removeEndTag ( tmp );
-      } 
+      }
       else if ( tmp.compare("d_noise") == 0 )
       {
         _is >> this->d_noise;
-        _is >> tmp; // end of block 
+        _is >> tmp; // end of block
         tmp = this->removeEndTag ( tmp );
       }
       else if ( tmp.compare("approxScheme") == 0 )
@@ -1691,16 +1685,16 @@ void FastMinKernel::restore ( std::istream & _is,
         int approxSchemeInt;
         _is >> approxSchemeInt;
         setApproximationScheme(approxSchemeInt);
-        _is >> tmp; // end of block 
-        tmp = this->removeEndTag ( tmp );	
+        _is >> tmp; // end of block
+        tmp = this->removeEndTag ( tmp );
       }
       else if ( tmp.compare("X_sorted") == 0 )
       {
         this->X_sorted.restore(_is,_format);
-        
-        _is >> tmp; // end of block 
+
+        _is >> tmp; // end of block
         tmp = this->removeEndTag ( tmp );
-      }       
+      }
       else
       {
         std::cerr << "WARNING -- unexpected FastMinKernel object -- " << tmp << " -- for restoration... aborting" << std::endl;
@@ -1714,49 +1708,49 @@ void FastMinKernel::restore ( std::istream & _is,
   }
 }
 
-void FastMinKernel::store ( std::ostream & _os, 
-                            int _format 
+void FastMinKernel::store ( std::ostream & _os,
+                            int _format
                           ) const
 {
   if (_os.good())
-  {    
+  {
     // show starting point
-    _os << this->createStartTag( "FastMinKernel" ) << std::endl;    
-    
+    _os << this->createStartTag( "FastMinKernel" ) << std::endl;
+
     _os.precision (numeric_limits<double>::digits10 + 1);
 
     _os << this->createStartTag( "ui_n" ) << std::endl;
     _os << this->ui_n << std::endl;
     _os << this->createEndTag( "ui_n" ) << std::endl;
-    
-    
+
+
     _os << this->createStartTag( "ui_d" ) << std::endl;
     _os << this->ui_d << std::endl;
     _os << this->createEndTag( "ui_d" ) << std::endl;
 
-    
+
     _os << this->createStartTag( "d_noise" ) << std::endl;
     _os << this->d_noise << std::endl;
     _os << this->createEndTag( "d_noise" ) << std::endl;
 
-    
+
     _os << this->createStartTag( "approxScheme" ) << std::endl;
     _os << this->approxScheme << std::endl;
     _os << this->createEndTag( "approxScheme" ) << std::endl;
-    
+
     _os << this->createStartTag( "X_sorted" ) << std::endl;
     //store the underlying data
     this->X_sorted.store(_os, _format);
-    _os << this->createEndTag( "X_sorted" ) << std::endl;   
-    
-    
+    _os << this->createEndTag( "X_sorted" ) << std::endl;
+
+
     // done
-    _os << this->createEndTag( "FastMinKernel" ) << std::endl;        
+    _os << this->createEndTag( "FastMinKernel" ) << std::endl;
   }
   else
   {
     std::cerr << "OutStream not initialized - storing not possible!" << std::endl;
-  }    
+  }
 }
 
 void FastMinKernel::clear ()
@@ -1768,12 +1762,12 @@ void FastMinKernel::clear ()
 // interface specific methods for incremental extensions
 ///////////////////// INTERFACE ONLINE LEARNABLE /////////////////////
 
-void FastMinKernel::addExample( const NICE::SparseVector * _example, 
-                                const double & _label, 
+void FastMinKernel::addExample( const NICE::SparseVector * _example,
+                                const double & _label,
                                 const bool & _performOptimizationAfterIncrement
                                 )
 {
-  // no parameterized function was given - use default 
+  // no parameterized function was given - use default
   this->addExample ( _example );
 }
 
@@ -1783,14 +1777,14 @@ void FastMinKernel::addMultipleExamples( const std::vector< const NICE::SparseVe
                                          const bool & _performOptimizationAfterIncrement
                                        )
 {
-  // no parameterized function was given - use default   
+  // no parameterized function was given - use default
   this->addMultipleExamples ( _newExamples );
 }
 
-void FastMinKernel::addExample( const NICE::SparseVector * _example, 
+void FastMinKernel::addExample( const NICE::SparseVector * _example,
                                 const NICE::ParameterizedFunction *_pf
                               )
-{ 
+{
   this->X_sorted.add_feature( *_example, _pf );
   this->ui_n++;
 }
@@ -1804,7 +1798,7 @@ void FastMinKernel::addMultipleExamples( const std::vector< const NICE::SparseVe
         exIt++ )
   {
     this->X_sorted.add_feature( **exIt, _pf );
-    this->ui_n++;     
-  } 
+    this->ui_n++;
+  }
 }
 

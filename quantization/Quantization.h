@@ -68,7 +68,6 @@ class Quantization  : public NICE::Persistent
   /**
   * @brief get the size of the vocabulary, i.e. the number of bins
   */
-  virtual uint size() const;
   virtual uint getNumberOfBins() const;  
 
   /**

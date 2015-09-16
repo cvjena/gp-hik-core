@@ -2320,7 +2320,7 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & _os,
     {
       int sizeOfLUT ( 0 );
       if ( q != NULL )
-        sizeOfLUT = q->size() * this->fmk->get_d();
+        sizeOfLUT = q->getNumberOfBins() * this->fmk->get_d();
       _os << "SizeOfLUTs: " << sizeOfLUT << std::endl;      
       for ( std::map< uint, double * >::const_iterator it = this->precomputedT.begin(); it != this->precomputedT.end(); it++ )
       {
@@ -2461,7 +2461,7 @@ void FMKGPHyperparameterOptimization::store ( std::ostream & _os,
       _os << "NOTNULL" << std::endl;
       int sizeOfLUT ( 0 );
       if ( q != NULL )
-        sizeOfLUT = q->size() * this->fmk->get_d();
+        sizeOfLUT = q->getNumberOfBins() * this->fmk->get_d();
       
       _os << sizeOfLUT << std::endl;
       for ( int i = 0; i < sizeOfLUT; i++ )
