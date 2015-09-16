@@ -12,8 +12,9 @@
 #include <gp-hik-core/kernels/GeneralizedIntersectionKernelFunction.h>
 #include <gp-hik-core/parameterizedFunctions/ParameterizedFunction.h>
 #include <gp-hik-core/parameterizedFunctions/PFAbsExp.h>
-// 
-// 
+#include <gp-hik-core/GMHIKernelRaw.h>
+//
+//
 #include "gp-hik-core/quantization/Quantization.h"
 #include "gp-hik-core/quantization/Quantization1DAequiDist0To1.h"
 
@@ -33,42 +34,42 @@ const bool smallTest = false;
 bool compareVVector(const NICE::VVector & A, const NICE::VVector & B, const double & tolerance = 10e-8)
 {
   bool result(true);
-  
+
 //   std::cerr << "A.size(): " << A.size() << " B.size(): " << B.size() << std::endl;
-  
+
   NICE::VVector::const_iterator itA = A.begin();
   NICE::VVector::const_iterator itB = B.begin();
-  
+
   while ( (itA != A.end()) && ( itB != B.end()) )
   {
     if (itA->size() != itB->size())
     {
       result = false;
       break;
-    } 
-    
+    }
+
     for(uint i = 0; (i < itA->size()) && (i < itB->size()); i++)
     {
       if (fabs((*itA)[i] - (*itB)[i]) > tolerance)
       {
         result = false;
-        break;        
+        break;
       }
     }
 
     if (result == false)
-          break;        
+          break;
     itA++;
     itB++;
   }
-  
+
   return result;
 }
 
 bool compareLUTs(const double* LUT1, const double* LUT2, const int & size, const double & tolerance = 10e-8)
 {
   bool result = true;
-  
+
   for (int i = 0; i < size; i++)
   {
     if ( fabs(LUT1[i] - LUT2[i]) > tolerance)
@@ -78,7 +79,7 @@ bool compareLUTs(const double* LUT1, const double* LUT2, const int & size, const
       break;
     }
   }
-  
+
   return result;
 }
 
@@ -95,7 +96,7 @@ void TestFastHIK::setUp() {
 void TestFastHIK::tearDown() {
 }
 
-void TestFastHIK::testKernelMultiplication() 
+void TestFastHIK::testKernelMultiplication()
 {
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testKernelMultiplication ===================== " << std::endl;
@@ -107,7 +108,7 @@ void TestFastHIK::testKernelMultiplication()
   for ( uint i = 0 ; i < d; i++ )
   {
     for ( uint k = 0; k < n; k++ )
-      if ( drand48() < sparse_prob ) 
+      if ( drand48() < sparse_prob )
       {
         dataMatrix[i][k] = 0.0;
         nrZeros++;
@@ -122,30 +123,43 @@ void TestFastHIK::testKernelMultiplication()
 
   double noise = 1.0;
   FastMinKernel fmk ( dataMatrix, noise );
-    
+
   if ( (n*d)>0)
   {
     CPPUNIT_ASSERT_DOUBLES_EQUAL(fmk.getSparsityRatio(), (double)nrZeros/(double)(n*d), 1e-8);
     if (verbose)
       std::cerr << "fmk.getSparsityRatio(): " << fmk.getSparsityRatio() << " (double)nrZeros/(double)(n*d): " << (double)nrZeros/(double)(n*d) << std::endl;
   }
-  
+
   GMHIKernel gmk ( &fmk );
   if (verbose)
-    gmk.setVerbose(true); //we want to see the size of size(A)+size(B) for non-sparse vs sparse solution 
+    gmk.setVerbose(true); //we want to see the size of size(A)+size(B) for non-sparse vs sparse solution
   else
-    gmk.setVerbose(false); //we don't want to see the size of size(A)+size(B) for non-sparse vs sparse solution 
+    gmk.setVerbose(false); //we don't want to see the size of size(A)+size(B) for non-sparse vs sparse solution
 
   Vector y ( n );
   for ( uint i = 0; i < y.size(); i++ )
     y[i] = sin(i);
- 
+
   Vector alpha;
-  
+
   gmk.multiply ( alpha, y );
-  
+
+  std::vector< const NICE::SparseVector * > dataMatrix_sparse;
+  for ( std::vector< std::vector<double> >::const_iterator i = dataMatrix.begin(); i != dataMatrix.end(); i++ )
+  {
+    Vector w ( *i );
+    SparseVector *v = new SparseVector ( w );
+    dataMatrix_sparse.push_back(v);
+  }
+
+  GMHIKernelRaw gmk_raw ( dataMatrix_sparse );
+
+  Vector alpha_raw;
+  gmk_raw.multiply ( alpha_raw, y );
+
   NICE::IntersectionKernelFunction<double> hikSlow;
-  
+
   // tic
   time_t  slow_start = clock();
   std::vector<std::vector<double> > dataMatrix_transposed (dataMatrix);
@@ -154,7 +168,7 @@ void TestFastHIK::testKernelMultiplication()
   //toc
   float time_slowComputation = (float) (clock() - slow_start);
   if (verbose)
-    std::cerr << "Time for computing the kernel matrix without using sparsity: " << time_slowComputation/CLOCKS_PER_SEC << " s" << std::endl;  
+    std::cerr << "Time for computing the kernel matrix without using sparsity: " << time_slowComputation/CLOCKS_PER_SEC << " s" << std::endl;
 
   // tic
   time_t  slow_sparse_start = clock();
@@ -163,9 +177,9 @@ void TestFastHIK::testKernelMultiplication()
   //toc
   float time_slowComputation_usingSparsity = (float) (clock() - slow_sparse_start);
   if (verbose)
-    std::cerr << "Time for computing the kernel matrix using sparsity: " << time_slowComputation_usingSparsity/CLOCKS_PER_SEC << " s" << std::endl;    
+    std::cerr << "Time for computing the kernel matrix using sparsity: " << time_slowComputation_usingSparsity/CLOCKS_PER_SEC << " s" << std::endl;
 
-  if ( verbose ) 
+  if ( verbose )
     cerr << "K = " << K << endl;
 
   // check the trace calculation
@@ -177,7 +191,7 @@ void TestFastHIK::testKernelMultiplication()
 
   if (verbose)
     std::cerr << "Sparse multiplication [alpha, alpha_slow]: " << std::endl <<  alpha << std::endl << alpha_slow << std::endl << std::endl;
-  
+
   CPPUNIT_ASSERT_DOUBLES_EQUAL((alpha-alpha_slow).normL1(), 0.0, 1e-8);
 
   // test the case, where we first transform and then use the multiply stuff
@@ -198,16 +212,16 @@ void TestFastHIK::testKernelMultiplication()
     std::cerr << "================== TestFastHIK::testKernelMultiplication done ===================== " << std::endl;
 }
 
-void TestFastHIK::testKernelMultiplicationFast() 
+void TestFastHIK::testKernelMultiplicationFast()
 {
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testKernelMultiplicationFast ===================== " << std::endl;
-  
+
   NICE::Quantization * q_gen;
-  q_gen = new Quantization1DAequiDist0To1 ( numBins );  
-  
+  q_gen = new Quantization1DAequiDist0To1 ( numBins );
+
   NICE::Quantization * q;
-  q = new Quantization1DAequiDist0To1 ( 2*numBins -1 );   
+  q = new Quantization1DAequiDist0To1 ( 2*numBins -1 );
 
   // data is generated, such that there is no approximation error
   vector< vector<double> > dataMatrix;
@@ -225,7 +239,7 @@ void TestFastHIK::testKernelMultiplicationFast()
 
     dataMatrix.push_back(v);
   }
-  
+
   if ( verbose ) {
     cerr << "data matrix: " << endl;
     printMatrix ( dataMatrix );
@@ -234,38 +248,38 @@ void TestFastHIK::testKernelMultiplicationFast()
 
   double noise = 1.0;
   FastMinKernel fmk ( dataMatrix, noise );
-  
+
   GMHIKernel gmk ( &fmk );
   if (verbose)
-    gmk.setVerbose(true); //we want to see the size of size(A)+size(B) for non-sparse vs sparse solution 
+    gmk.setVerbose(true); //we want to see the size of size(A)+size(B) for non-sparse vs sparse solution
   else
-    gmk.setVerbose(false); //we don't want to see the size of size(A)+size(B) for non-sparse vs sparse solution 
+    gmk.setVerbose(false); //we don't want to see the size of size(A)+size(B) for non-sparse vs sparse solution
 
   Vector y ( n );
   for ( uint i = 0; i < y.size(); i++ )
     y[i] = sin(i);
-   
+
   ParameterizedFunction *pf = new PFAbsExp ( 1.0 );
   GMHIKernel gmkFast ( &fmk, pf, q );
 
 //   pf.applyFunctionToFeatureMatrix ( fmk.featureMatrix() );
-    
+
   Vector alpha;
-  
+
   gmk.multiply ( alpha, y );
-  
+
   Vector alphaFast;
-  
+
   gmkFast.multiply ( alphaFast, y );
-  
+
   NICE::IntersectionKernelFunction<double> hikSlow;
-  
+
   std::vector<std::vector<double> > dataMatrix_transposed (dataMatrix);
   transposeVectorOfVectors(dataMatrix_transposed);
 
   NICE::Matrix K (hikSlow.computeKernelMatrix(dataMatrix_transposed, noise));
 
-  if ( verbose ) 
+  if ( verbose )
     cerr << "K = " << K << endl;
 
   // check the trace calculation
@@ -277,7 +291,7 @@ void TestFastHIK::testKernelMultiplicationFast()
 
   if ( verbose )
     std::cerr << "Sparse multiplication [alpha, alphaFast, alpha_slow]: " << std::endl <<  alpha << std::endl << alphaFast << std::endl << alpha_slow << std::endl << std::endl;
- 
+
   CPPUNIT_ASSERT_DOUBLES_EQUAL(0.0, (alphaFast-alpha_slow).normL1(), 1e-8);
 
   // test the case, where we first transform and then use the multiply stuff
@@ -290,20 +304,20 @@ void TestFastHIK::testKernelMultiplicationFast()
 
   Vector galphaFast;
   gmkFast.multiply ( galphaFast, y );
-  
+
   Vector galpha;
-  
+
   gmk.multiply ( galpha, y );
 
   Vector galpha_slow = gK * y;
-  
+
   if (verbose)
     std::cerr << "Sparse multiplication [galpha, galphaFast, galpha_slow]: " << std::endl <<  galpha << std::endl << galphaFast << std::endl << galpha_slow << std::endl << std::endl;
 
   // clean-up
   delete q_gen;
   delete q;
-  
+
   // final assertion
   CPPUNIT_ASSERT_DOUBLES_EQUAL((galphaFast-galpha_slow).normL1(), 0.0, 1e-8);
   if (verboseStartEnd)
@@ -311,11 +325,11 @@ void TestFastHIK::testKernelMultiplicationFast()
 }
 
 
-void TestFastHIK::testKernelSum() 
+void TestFastHIK::testKernelSum()
 {
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testKernelSum ===================== " << std::endl;
-  
+
   vector< vector<double> > dataMatrix;
   generateRandomFeatures ( d, n, dataMatrix );
 
@@ -323,13 +337,13 @@ void TestFastHIK::testKernelSum()
   for ( uint i = 0 ; i < d; i++ )
   {
     for ( uint k = 0; k < n; k++ )
-      if ( drand48() < sparse_prob ) 
+      if ( drand48() < sparse_prob )
       {
         dataMatrix[i][k] = 0.0;
         nrZeros++;
       }
   }
-  
+
   if ( verbose ) {
     cerr << "data matrix: " << endl;
     printMatrix ( dataMatrix );
@@ -338,13 +352,13 @@ void TestFastHIK::testKernelSum()
 
   double noise = 1.0;
   FastMinKernel fmk ( dataMatrix, noise );
-  
+
   Vector alpha = Vector::UniformRandom( n, 0.0, 1.0, 0 );
 
   NICE::VVector ASparse;
   NICE::VVector BSparse;
-  fmk.hik_prepare_alpha_multiplications ( alpha, ASparse, BSparse ); 
-  
+  fmk.hik_prepare_alpha_multiplications ( alpha, ASparse, BSparse );
+
   Vector xstar (d);
   for ( uint i = 0 ; i < d ; i++ )
     if ( drand48() < sparse_prob ) {
@@ -353,14 +367,14 @@ void TestFastHIK::testKernelSum()
       xstar[i] = rand();
     }
   SparseVector xstarSparse ( xstar );
-    
+
   double betaSparse;
   fmk.hik_kernel_sum ( ASparse, BSparse, xstarSparse, betaSparse );
-  
+
   if (verbose)
     std::cerr << "kernelSumSparse done, now do the thing without exploiting sparsity" << std::endl;
 
-  
+
   // checking the result
   std::vector<std::vector<double> > dataMatrix_transposed (dataMatrix);
   transposeVectorOfVectors(dataMatrix_transposed);
@@ -378,17 +392,17 @@ void TestFastHIK::testKernelSum()
   if (verbose)
     std::cerr << "difference of beta_slow and betaSparse: " << fabs(beta_slow - betaSparse) << std::endl;
   CPPUNIT_ASSERT_DOUBLES_EQUAL(beta_slow, betaSparse, 1e-8);
-  
+
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testKernelSum done ===================== " << std::endl;
 }
 
 
-void TestFastHIK::testKernelSumFast() 
+void TestFastHIK::testKernelSumFast()
 {
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testKernelSumFast ===================== " << std::endl;
-  
+
   NICE::Quantization * q;
   q = new Quantization1DAequiDist0To1 ( numBins );
 
@@ -408,7 +422,7 @@ void TestFastHIK::testKernelSumFast()
 
     dataMatrix.push_back(v);
   }
-  
+
   if ( verbose ) {
     cerr << "data matrix: " << endl;
     printMatrix ( dataMatrix );
@@ -436,10 +450,10 @@ void TestFastHIK::testKernelSumFast()
   for ( uint i = 0 ; i < d; i++ )
     xstar_stl[i] = xstar[i];
 
-  if ( verbose ) 
+  if ( verbose )
     cerr << "xstar = " << xstar << endl;
- 
-  for ( double gamma = 1.0 ; gamma < 2.0; gamma += 0.5 ) 
+
+  for ( double gamma = 1.0 ; gamma < 2.0; gamma += 0.5 )
   {
     if (verbose)
       std::cerr << "testing hik_kernel_sum_fast with ghik parameter: " << gamma << endl;
@@ -453,16 +467,16 @@ void TestFastHIK::testKernelSumFast()
     NICE::VVector B;
     if (verbose)
       std::cerr << "fmk.hik_prepare_alpha_multiplications ( alpha, A, B ) " << std::endl;
-    fmk.hik_prepare_alpha_multiplications ( alpha, A, B ); 
+    fmk.hik_prepare_alpha_multiplications ( alpha, A, B );
 
     if (verbose)
       //std::cerr << "double *Tlookup = fmk.hik_prepare_alpha_multiplications_fast( A, B, q )" << std::endl;
       std::cerr << "double *Tlookup = fmk.hik_prepare_alpha_multiplications_fast_alltogether( alpha, q, &pf )" << std::endl;
-    double *TlookupOld = fmk.hik_prepare_alpha_multiplications_fast( A, B, q, &pf ); 
-    double *TlookupNew = fmk.hikPrepareLookupTable( alpha, q, &pf ); 
-    
+    double *TlookupOld = fmk.hik_prepare_alpha_multiplications_fast( A, B, q, &pf );
+    double *TlookupNew = fmk.hikPrepareLookupTable( alpha, q, &pf );
+
     int maxAcces(numBins*d);
-    
+
     if (verbose)
     {
       std::cerr << "TlookupOld:  " << std::endl;
@@ -478,20 +492,20 @@ void TestFastHIK::testKernelSumFast()
         std::cerr << TlookupNew[i] << " ";
         if ( (i%numBins) == (numBins-1))
           std::cerr << std::endl;
-      }    
+      }
     }
-    
+
     if (verbose)
       std::cerr << "fmk.hik_kernel_sum_fast ( Tlookup, q, xstar, beta_fast )" << std::endl;
-    
+
     double beta_fast;
     fmk.hik_kernel_sum_fast ( TlookupNew, q, xstar, beta_fast );
-    
+
     NICE::SparseVector xstar_sparse(xstar);
-    
+
     double beta_fast_sparse;
     fmk.hik_kernel_sum_fast ( TlookupNew, q, xstar_sparse, beta_fast_sparse );
-    
+
     double betaSparse;
     fmk.hik_kernel_sum ( A, B, xstar_sparse, betaSparse, &pf );
 
@@ -507,20 +521,20 @@ void TestFastHIK::testKernelSumFast()
 
     if (verbose)
       std::cerr << "beta_slow: " << beta_slow << std::endl << "beta_fast: " << beta_fast << std::endl << "beta_fast_sparse: " << beta_fast_sparse << std::endl << "betaSparse: " << betaSparse<< std::endl;
-    
-    // clean-up 
+
+    // clean-up
     delete [] TlookupNew;
-    delete [] TlookupOld;    
-    
-    // final assertion    
+    delete [] TlookupOld;
+
+    // final assertion
     CPPUNIT_ASSERT_DOUBLES_EQUAL(beta_slow, beta_fast_sparse, 1e-8);
-  
+
 
   } // for-loop
-  
+
   // clean-up
   delete q;
-  
+
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testKernelSumFast done ===================== " << std::endl;
 
@@ -550,7 +564,7 @@ void TestFastHIK::testLUTUpdate()
 
     dataMatrix.push_back(v);
   }
-  
+
   if ( verbose ) {
     cerr << "data matrix: " << endl;
     printMatrix ( dataMatrix );
@@ -559,19 +573,19 @@ void TestFastHIK::testLUTUpdate()
 
   double noise = 1.0;
   NICE::FastMinKernel fmk ( dataMatrix, noise );
-  
+
   NICE::ParameterizedFunction *pf = new PFAbsExp ( 1.0 );
 
   NICE::Vector alpha ( n );
   for ( uint i = 0; i < alpha.size(); i++ )
     alpha[i] = sin(i);
-  
+
   if (verbose)
     std::cerr << "prepare LUT" << std::endl;
   double * T = fmk.hikPrepareLookupTable(alpha, q, pf);
   if (verbose)
     std::cerr << "preparation done -- printing T" << std::endl;
-  
+
   int maxAcces(numBins*d);
   if (verbose)
   {
@@ -580,21 +594,21 @@ void TestFastHIK::testLUTUpdate()
       std::cerr << T[i] << " ";
       if ( (i%numBins) == (numBins-1))
         std::cerr << std::endl;
-    }    
+    }
   }
 
   //lets change index 2
   int idx(2);
   double valAlphaOld(alpha[idx]);
   double valAlphaNew(1.2); //this value is definitely different from the previous one
-      
+
   Vector alphaNew(alpha);
   alphaNew[idx] = valAlphaNew;
-  
+
   double * TNew = fmk.hikPrepareLookupTable(alphaNew, q, pf);
   if (verbose)
     std::cerr << "calculated the new LUT, no print it: " << std::endl;
-  
+
   if (verbose)
   {
     for (int i = 0; i < maxAcces; i++)
@@ -602,7 +616,7 @@ void TestFastHIK::testLUTUpdate()
       std::cerr << TNew[i] << " ";
       if ( (i%numBins) == (numBins-1))
         std::cerr << std::endl;
-    } 
+    }
   }
 
   if (verbose)
@@ -610,7 +624,7 @@ void TestFastHIK::testLUTUpdate()
   fmk.hikUpdateLookupTable(T, valAlphaNew, valAlphaOld, idx, q, pf );
   if (verbose)
     std::cerr << "update is done, now print the updated version: " << std::endl;
-  
+
   if (verbose)
   {
     for (int i = 0; i < maxAcces; i++)
@@ -618,12 +632,12 @@ void TestFastHIK::testLUTUpdate()
       std::cerr << T[i] << " ";
       if ( (i%numBins) == (numBins-1))
         std::cerr << std::endl;
-    } 
+    }
   }
-  
-  
+
+
   bool equal = compareLUTs(T, TNew, q->getNumberOfBins()*d, 10e-8);
-  
+
   if (verbose)
   {
     if (equal)
@@ -643,22 +657,22 @@ void TestFastHIK::testLUTUpdate()
         if ( (i % q->getNumberOfBins()) == 0)
           std::cerr << std::endl;
         std::cerr << TNew[i] << " ";
-      }     
-    
-    }    
+      }
+
+    }
   }
 
-  
-  
+
+
   // clean-up
-  delete q;  
-  delete pf;    
+  delete q;
+  delete pf;
   delete [] T;
-  delete [] TNew;  
-    
-  // final assertion        
+  delete [] TNew;
+
+  // final assertion
   CPPUNIT_ASSERT(equal == true);
-  
+
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testLUTUpdate done ===================== " << std::endl;
 
@@ -689,7 +703,7 @@ void TestFastHIK::testLinSolve()
 
     dataMatrix.push_back(v);
   }
-  
+
   if ( verbose ) {
     std::cerr << "data matrix: " << std::endl;
     printMatrix ( dataMatrix );
@@ -698,14 +712,14 @@ void TestFastHIK::testLinSolve()
 
   double noise = 1.0;
   NICE::FastMinKernel fmk ( dataMatrix, noise );
-  
+
   NICE::ParameterizedFunction *pf = new NICE::PFAbsExp ( 1.0 );
   fmk.applyFunctionToFeatureMatrix( pf );
 
-  NICE::Vector y ( n );  
+  NICE::Vector y ( n );
   for ( uint i = 0; i < y.size(); i++ )
     y[i] = sin(i);
-  
+
   NICE::Vector alpha;
   NICE::Vector alphaRandomized;
 
@@ -718,20 +732,20 @@ void TestFastHIK::testLinSolve()
   fmk.solveLin(y,alphaRandomized,q,pf,true,solveLinMaxIterations,30);
   //toc
   t.stop();
-  float time_randomizedSolving = t.getLast();  
+  float time_randomizedSolving = t.getLast();
   if ( verbose )
-    std::cerr << "Time for solving with random subsets: " << time_randomizedSolving << " s" << std::endl;  
-  
+    std::cerr << "Time for solving with random subsets: " << time_randomizedSolving << " s" << std::endl;
+
   // test the case, where we first transform and then use the multiply stuff
   std::vector<std::vector<double> > dataMatrix_transposed (dataMatrix);
   transposeVectorOfVectors(dataMatrix_transposed);
-  
+
   NICE::GeneralizedIntersectionKernelFunction<double> ghikSlow ( 1.0 );
   NICE::Matrix gK ( ghikSlow.computeKernelMatrix(dataMatrix_transposed, noise) );
-  
+
   NICE::Vector K_alphaRandomized;
   K_alphaRandomized.multiply(gK, alphaRandomized);
-  
+
   if (solveLinWithoutRand)
   {
     if ( verbose )
@@ -739,40 +753,40 @@ void TestFastHIK::testLinSolve()
     fmk.solveLin(y,alpha,q,pf,false,1000);
     Vector K_alpha;
     K_alpha.multiply(gK, alpha);
-    
+
     if ( verbose )
     {
       std::cerr << "now assert that K_alpha == y" << std::endl;
       std::cerr << "(K_alpha-y).normL1(): " << (K_alpha-y).normL1() << std::endl;
     }
   }
-   
+
 //   std::cerr << "alpha: " << alpha << std::endl;
 //   std::cerr << "K_times_alpha: " << K_alpha << std::endl;
 //   std::cerr << "y: " << y << std::endl;
-//   
+//
 //   Vector test_alpha;
 //   ILSConjugateGradients cgm;
 //   cgm.solveLin( GMStandard(gK),y,test_alpha);
-//   
+//
 //   K_alpha.multiply( gK, test_alpha);
-//   
+//
 //   std::cerr << "test_alpha (CGM): " << test_alpha << std::endl;
 //   std::cerr << "K_times_alpha (CGM): " << K_alpha << std::endl;
-  
+
   if ( verbose )
   {
     std::cerr << "now assert that K_alphaRandomized == y" << std::endl;
-    std::cerr << "(K_alphaRandomized-y).normL1(): " << (K_alphaRandomized-y).normL1() << std::endl; 
+    std::cerr << "(K_alphaRandomized-y).normL1(): " << (K_alphaRandomized-y).normL1() << std::endl;
   }
-  
+
   // clean-up
-  delete q;  
+  delete q;
   delete pf;
-    
-  // final assertion        
+
+  // final assertion
   CPPUNIT_ASSERT_DOUBLES_EQUAL((K_alphaRandomized-y).normL1(), 0.0, 1e-6);
-  
+
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testLinSolve done ===================== " << std::endl;
 }
@@ -780,14 +794,14 @@ void TestFastHIK::testLinSolve()
 void TestFastHIK::testKernelVector()
 {
   if (verboseStartEnd)
-    std::cerr << "================== TestFastHIK::testKernelVector ===================== " << std::endl;  
-  
+    std::cerr << "================== TestFastHIK::testKernelVector ===================== " << std::endl;
+
   std::vector< std::vector<double> > dataMatrix;
-  
+
   std::vector<double> dim1; dim1.push_back(0.2);dim1.push_back(0.1);dim1.push_back(0.0);dim1.push_back(0.0);dim1.push_back(0.4); dataMatrix.push_back(dim1);
   std::vector<double> dim2; dim2.push_back(0.3);dim2.push_back(0.6);dim2.push_back(1.0);dim2.push_back(0.4);dim2.push_back(0.3); dataMatrix.push_back(dim2);
   std::vector<double> dim3; dim3.push_back(0.5);dim3.push_back(0.3);dim3.push_back(0.0);dim3.push_back(0.6);dim3.push_back(0.3); dataMatrix.push_back(dim3);
-  
+
   if ( verbose ) {
     std::cerr << "data matrix: " << std::endl;
     printMatrix ( dataMatrix );
@@ -796,13 +810,13 @@ void TestFastHIK::testKernelVector()
 
   double noise = 1.0;
   FastMinKernel fmk ( dataMatrix, noise, b_debug );
-  
+
 
   std::vector<double> xStar; xStar.push_back(0.2);xStar.push_back(0.7);xStar.push_back(0.1);
   NICE::Vector xStarVec (xStar);
   std::vector<double> x2; x2.push_back(0.7);x2.push_back(0.3);xStar.push_back(0.0);
   NICE::Vector x2Vec (x2);
-  
+
   NICE::SparseVector xStarsparse( xStarVec );
   NICE::SparseVector x2sparse( x2Vec );
 
@@ -812,17 +826,17 @@ void TestFastHIK::testKernelVector()
     fmk.store ( std::cerr );
     xStarsparse.store ( std::cerr );
   }
-  
+
   NICE::Vector k1;
   fmk.hikComputeKernelVector( xStarsparse, k1 );
 
-  
+
   NICE::Vector k2;
   fmk.hikComputeKernelVector( x2sparse, k2 );
-   
+
   NICE::Vector k1GT(5); k1GT[0] = 0.6; k1GT[1] = 0.8; k1GT[2] = 0.7; k1GT[3] = 0.5; k1GT[4] = 0.6;
   NICE::Vector k2GT(5); k2GT[0] = 0.5; k2GT[1] = 0.4; k2GT[2] = 0.3; k2GT[3] = 0.3; k2GT[4] = 0.7;
-  
+
   if (verbose)
   {
     std::cerr << "k1: " << k1 << std::endl;
@@ -830,17 +844,17 @@ void TestFastHIK::testKernelVector()
     std::cerr << "k2: " << k2 << std::endl;
     std::cerr << "GT: " << k2GT << std::endl;
   }
-    
+
   for (int i = 0; i < 5; i++)
   {
     CPPUNIT_ASSERT_DOUBLES_EQUAL(k1[i]-k1GT[i], 0.0, 1e-6);
     CPPUNIT_ASSERT_DOUBLES_EQUAL(k2[i]-k2GT[i], 0.0, 1e-6);
   }
 
-  
+
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testKernelVector done ===================== " << std::endl;
-  
+
 }
 
 #endif
