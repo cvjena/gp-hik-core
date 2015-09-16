@@ -21,11 +21,11 @@
 #include "TestFastHIK.h"
 
 const bool b_debug = false;
-const bool verbose = false;
+const bool verbose = true;
 const bool verboseStartEnd = true;
 const bool solveLinWithoutRand = false;
-const uint n = 30;//1500;//1500;//10;
-const uint d = 5;//200;//2;
+const uint n = 1500;//1500;//1500;//10;
+const uint d = 200;//200;//2;
 const uint numBins = 11;//1001;//1001;
 const uint solveLinMaxIterations = 1000;
 const double sparse_prob = 0.6;
@@ -115,14 +115,13 @@ void TestFastHIK::testKernelMultiplication()
       }
   }
 
-  if ( verbose ) {
-    cerr << "data matrix: " << endl;
-    printMatrix ( dataMatrix );
-    cerr << endl;
-  }
-
   double noise = 1.0;
+  NICE::Timer t;
+  t.start();
   FastMinKernel fmk ( dataMatrix, noise );
+  t.stop();
+  if (verbose)
+    std::cerr << "Time for FastMinKernel setup: " << t.getLast() << endl;
 
   if ( (n*d)>0)
   {
@@ -153,7 +152,11 @@ void TestFastHIK::testKernelMultiplication()
     dataMatrix_sparse.push_back(v);
   }
 
+  t.start();
   GMHIKernelRaw gmk_raw ( dataMatrix_sparse );
+  t.stop();
+  if (verbose)
+    std::cerr << "Time for GMHIKernelRaw setup: " << t.getLast() << endl;
 
   Vector alpha_raw;
   gmk_raw.multiply ( alpha_raw, y );
@@ -179,9 +182,6 @@ void TestFastHIK::testKernelMultiplication()
   if (verbose)
     std::cerr << "Time for computing the kernel matrix using sparsity: " << time_slowComputation_usingSparsity/CLOCKS_PER_SEC << " s" << std::endl;
 
-  if ( verbose )
-    cerr << "K = " << K << endl;
-
   // check the trace calculation
   //CPPUNIT_ASSERT_DOUBLES_EQUAL( K.trace(), fmk.featureMatrix().hikTrace() + noise*n, 1e-12 );
   CPPUNIT_ASSERT_DOUBLES_EQUAL( K.trace(), fmk.featureMatrix().hikTrace() + noise*n, 1e-8 );
@@ -189,7 +189,7 @@ void TestFastHIK::testKernelMultiplication()
   // let us compute the kernel multiplication with the slow version
   Vector alpha_slow = K*y;
 
-  if (verbose)
+  if (b_debug)
     std::cerr << "Sparse multiplication [alpha, alpha_slow]: " << std::endl <<  alpha << std::endl << alpha_slow << std::endl << std::endl;
 
   CPPUNIT_ASSERT_DOUBLES_EQUAL((alpha-alpha_slow).normL1(), 0.0, 1e-8);
@@ -240,12 +240,6 @@ void TestFastHIK::testKernelMultiplicationFast()
     dataMatrix.push_back(v);
   }
 
-  if ( verbose ) {
-    cerr << "data matrix: " << endl;
-    printMatrix ( dataMatrix );
-    cerr << endl;
-  }
-
   double noise = 1.0;
   FastMinKernel fmk ( dataMatrix, noise );
 
@@ -279,9 +273,6 @@ void TestFastHIK::testKernelMultiplicationFast()
 
   NICE::Matrix K (hikSlow.computeKernelMatrix(dataMatrix_transposed, noise));
 
-  if ( verbose )
-    cerr << "K = " << K << endl;
-
   // check the trace calculation
   //CPPUNIT_ASSERT_DOUBLES_EQUAL( K.trace(), fmk.featureMatrix().hikTrace() + noise*n, 1e-12 );
   CPPUNIT_ASSERT_DOUBLES_EQUAL( K.trace(), fmk.featureMatrix().hikTrace() + noise*n, 1e-8 );
@@ -289,7 +280,7 @@ void TestFastHIK::testKernelMultiplicationFast()
   // let us compute the kernel multiplication with the slow version
   Vector alpha_slow = K*y;
 
-  if ( verbose )
+  if ( b_debug )
     std::cerr << "Sparse multiplication [alpha, alphaFast, alpha_slow]: " << std::endl <<  alpha << std::endl << alphaFast << std::endl << alpha_slow << std::endl << std::endl;
 
   CPPUNIT_ASSERT_DOUBLES_EQUAL(0.0, (alphaFast-alpha_slow).normL1(), 1e-8);
@@ -311,7 +302,7 @@ void TestFastHIK::testKernelMultiplicationFast()
 
   Vector galpha_slow = gK * y;
 
-  if (verbose)
+  if ( b_debug )
     std::cerr << "Sparse multiplication [galpha, galphaFast, galpha_slow]: " << std::endl <<  galpha << std::endl << galphaFast << std::endl << galpha_slow << std::endl << std::endl;
 
   // clean-up
@@ -837,7 +828,7 @@ void TestFastHIK::testKernelVector()
   NICE::Vector k1GT(5); k1GT[0] = 0.6; k1GT[1] = 0.8; k1GT[2] = 0.7; k1GT[3] = 0.5; k1GT[4] = 0.6;
   NICE::Vector k2GT(5); k2GT[0] = 0.5; k2GT[1] = 0.4; k2GT[2] = 0.3; k2GT[3] = 0.3; k2GT[4] = 0.7;
 
-  if (verbose)
+  if (b_debug)
   {
     std::cerr << "k1: " << k1 << std::endl;
     std::cerr << "GT: " << k1GT << std::endl;
