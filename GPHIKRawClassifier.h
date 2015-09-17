@@ -17,6 +17,8 @@
 #include <core/vector/SparseVectorT.h>
 #include <core/algebra/IterativeLinearSolver.h>
 //
+#include "quantization/Quantization.h"
+#include "GMHIKernelRaw.h"
 
 namespace NICE {
 
@@ -64,6 +66,25 @@ class GPHIKRawClassifier //: public NICE::Persistent
     double d_noise;
 
     IterativeLinearSolver *solver;
+    /** object performing feature quantization */
+    NICE::Quantization *q;
+
+    typedef double ** PrecomputedType;
+
+    /** precomputed arrays A (1 per class) needed for classification without quantization  */
+    std::map< uint, PrecomputedType > precomputedA;
+    /** precomputed arrays B (1 per class) needed for classification without quantization  */
+    std::map< uint, PrecomputedType > precomputedB;
+
+    /** precomputed LUTs (1 per class) needed for classification with quantization  */
+    std::map< uint, double * > precomputedT;
+
+    uint *nnz_per_dimension;
+    uint num_examples;
+
+    double f_tolerance;
+
+    GMHIKernelRaw *gm;
 
     /////////////////////////
     /////////////////////////
@@ -122,19 +143,6 @@ class GPHIKRawClassifier //: public NICE::Persistent
      * @param scores (SparseVector) classification scores for known classes
      */
     void classify ( const NICE::SparseVector * _example,
-                    uint & _result,
-                    NICE::SparseVector & _scores
-                  ) const;
-
-    /**
-     * @brief classify a given example with the previously learnt model
-     * NOTE: whenever possible, you should the sparse version to obtain significantly smaller computation times*
-     * @author Alexander Freytag, Erik Rodner
-     * @param example (non-sparse Vector) to be classified given in a non-sparse representation
-     * @param result (int) class number of most likely class
-     * @param scores (SparseVector) classification scores for known classes
-     */
-    void classify ( const NICE::Vector * _example,
                     uint & _result,
                     NICE::SparseVector & _scores
                   ) const;

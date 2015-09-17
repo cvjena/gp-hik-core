@@ -109,6 +109,7 @@ void GMHIKernelRaw::initData ( const std::vector< const NICE::SparseVector *> &_
     }
 
     // pre-allocate the A and B matrices
+    this->table_A = allocateTable();
     this->table_A = new double *[this->num_dimension];
     this->table_B = new double *[this->num_dimension];
     for (uint i = 0; i < this->num_dimension; i++)
@@ -123,6 +124,37 @@ void GMHIKernelRaw::initData ( const std::vector< const NICE::SparseVector *> &_
         }
     }
 }
+
+double **GMHIKernelRaw::allocateTable() const
+{
+    double **table;
+    table = new double *[this->num_dimension];
+    for (uint i = 0; i < this->num_dimension; i++)
+    {
+        uint nnz = this->nnz_per_dimension[i];
+        if (nnz>0) {
+            table[i] = new double [ nnz ];
+        } else {
+            table[i] = NULL;
+        }
+    }
+    return table;
+}
+
+void GMHIKernelRaw::copyTable(double **src, double **dst) const
+{
+    for (uint i = 0; i < this->num_dimension; i++)
+    {
+        uint nnz = this->nnz_per_dimension[i];
+        if (nnz>0) {
+            for (uint j = 0; j < nnz; j++)
+                dst[i][j] = src[i][j];
+        } else {
+            dst[i] = NULL;
+        }
+    }
+}
+
 
 /** multiply with a vector: A*x = y */
 void GMHIKernelRaw::multiply (NICE::Vector & _y, const NICE::Vector & _x) const
@@ -158,8 +190,9 @@ void GMHIKernelRaw::multiply (NICE::Vector & _y, const NICE::Vector & _x) const
   for (uint dim = 0; dim < this->num_dimension; dim++)
   {
     uint nnz = this->nnz_per_dimension[dim];
+    uint nz  = this->num_examples - nnz;
 
-    if ( nnz == this->num_examples ) {
+    if ( nnz == 0 ) {
       // all values are zero in this dimension :) and we can simply ignore the feature
       continue;
     }
@@ -172,16 +205,14 @@ void GMHIKernelRaw::multiply (NICE::Vector & _y, const NICE::Vector & _x) const
       double fval = training_values_in_dim->value;
 
       double firstPart( this->table_A[dim][inversePosition] );
-      double secondPart( this->table_B[dim][this->num_examples-1-nnz] - this->table_B[dim][inversePosition]);
+      double secondPart( this->table_B[dim][this->num_examples-1-nz] - this->table_B[dim][inversePosition]);
 
       _y[cntNonzeroFeat] += firstPart + fval * secondPart;
     }
   }
 
   for (uint feat = 0; feat < this->num_examples; feat++)
-  {
     _y[feat] += this->d_noise * _x[feat];
-  }
 
 
 }
@@ -200,4 +231,24 @@ uint GMHIKernelRaw::cols () const
   return num_examples;
 }
 
+double **GMHIKernelRaw::getTableA() const
+{
+    double **t = allocateTable();
+    copyTable(this->table_A, t);
+    return t;
+}
 
+double **GMHIKernelRaw::getTableB() const
+{
+    double **t = allocateTable();
+    copyTable(this->table_B, t);
+    return t;
+}
+
+uint *GMHIKernelRaw::getNNZPerDimension() const
+{
+    uint *v = new uint[this->num_dimension];
+    for (uint i = 0; i < this->num_dimension; i++)
+        v[i] = this->nnz_per_dimension[i];
+    return v;
+}

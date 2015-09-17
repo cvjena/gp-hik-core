@@ -21,8 +21,7 @@ namespace NICE {
 
 class GMHIKernelRaw : public GenericMatrix
 {
-
-  protected:
+  public:
     typedef struct sparseVectorElement {
         uint example_index;
         double value;
@@ -33,6 +32,8 @@ class GMHIKernelRaw : public GenericMatrix
         }
 
     } sparseVectorElement;
+
+  protected:
 
     sparseVectorElement **examples_raw;
     double **table_A;
@@ -45,6 +46,8 @@ class GMHIKernelRaw : public GenericMatrix
 
     void initData ( const std::vector< const NICE::SparseVector *> & examples );
     void cleanupData ();
+    double **allocateTable() const;
+    void copyTable(double **src, double **dst) const;
 
   public:
 
@@ -60,8 +63,14 @@ class GMHIKernelRaw : public GenericMatrix
     /** get the number of columns in A */
     virtual uint cols () const;
 
+    double **getTableA() const;
+    double **getTableB() const;
+    uint *getNNZPerDimension() const;
+
     /** simple destructor */
     virtual ~GMHIKernelRaw();
+
+    sparseVectorElement **getDataMatrix() const { return examples_raw; };
 };
 
 }
