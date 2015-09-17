@@ -18,12 +18,48 @@ using namespace std;
 
 GMHIKernelRaw::GMHIKernelRaw( const std::vector< const NICE::SparseVector *> &_examples, const double _d_noise )
 {
+    this->examples_raw = NULL;
+    this->nnz_per_dimension = NULL;
+    this->table_A = NULL;
+    this->table_B = NULL;
+
     initData(_examples);
     this->d_noise = _d_noise;
 }
 
 GMHIKernelRaw::~GMHIKernelRaw()
 {
+    cleanupData();
+}
+
+void GMHIKernelRaw::cleanupData()
+{
+    if ( this->examples_raw != NULL ) {
+        for ( uint d = 0; d < this->num_dimension; d++ )
+            if (examples_raw[d] != NULL)
+                delete [] examples_raw[d];
+        delete [] this->examples_raw;
+        this->examples_raw = NULL;
+    }
+    if ( this->nnz_per_dimension != NULL ) {
+        delete [] this->nnz_per_dimension;
+        this->nnz_per_dimension = NULL;
+    }
+    if ( this->table_A != NULL ) {
+        for ( uint d = 0; d < this->num_dimension; d++ )
+            if (table_A[d] != NULL)
+                delete [] table_A[d];
+        delete [] this->table_A;
+        this->table_A = NULL;
+    }
+    if ( this->table_B != NULL ) {
+        for ( uint d = 0; d < this->num_dimension; d++ )
+            if (table_B[d] != NULL)
+                delete [] table_B[d];
+        delete [] this->table_B;
+        this->table_B = NULL;
+    }
+
 }
 
 void GMHIKernelRaw::initData ( const std::vector< const NICE::SparseVector *> &_examples )
@@ -31,7 +67,7 @@ void GMHIKernelRaw::initData ( const std::vector< const NICE::SparseVector *> &_
     if (_examples.size() == 0 )
         fthrow(Exception, "No examples given for learning");
 
-    // TODO: clean up data if it exists
+    cleanupData();
 
     this->num_dimension = _examples[0]->getDim();
     this->examples_raw = new sparseVectorElement *[num_dimension];

@@ -44,13 +44,14 @@ class GMHIKernelRaw : public GenericMatrix
     double d_noise;
 
     void initData ( const std::vector< const NICE::SparseVector *> & examples );
+    void cleanupData ();
 
   public:
 
     /** simple constructor */
     GMHIKernelRaw( const std::vector< const NICE::SparseVector *> & examples, const double d_noise = 0.1 );
 
-    /** multiply with a vector: A*x = y */
+    /** multiply with a vector: A*x = y; this is not really const anymore!! */
     virtual void multiply (NICE::Vector & y, const NICE::Vector & x) const;
 
     /** get the number of rows in A */
