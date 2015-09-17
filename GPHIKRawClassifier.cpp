@@ -80,6 +80,7 @@ GPHIKRawClassifier::GPHIKRawClassifier( const Config *_conf,
 
 GPHIKRawClassifier::~GPHIKRawClassifier()
 {
+  delete solver;
 }
 
 void GPHIKRawClassifier::initFromConfig(const Config *_conf,
@@ -91,6 +92,13 @@ void GPHIKRawClassifier::initFromConfig(const Config *_conf,
   this->confSection = _confSection;
   this->b_verbose   = _conf->gB( _confSection, "verbose", false);
   this->b_debug     = _conf->gB( _confSection, "debug", false);
+
+  string ilssection = "FMKGPHyperparameterOptimization";
+  uint ils_max_iterations = _conf->gI( ilssection, "ils_max_iterations", 1000 );
+  double ils_min_delta = _conf->gD( ilssection, "ils_min_delta", 1e-7 );
+  double ils_min_residual = _conf->gD( ilssection, "ils_min_residual", 1e-7 );
+  bool ils_verbose = _conf->gB( ilssection, "ils_verbose", false );
+  this->solver = new ILSConjugateGradients( ils_verbose, ils_max_iterations, ils_min_delta, ils_min_residual );
 }
 
 ///////////////////// ///////////////////// /////////////////////
@@ -204,8 +212,7 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
 
   // sort examples in each dimension and "transpose" the feature matrix
   // set up the GenericMatrix interface
-  GMHIKernelRaw gm ( _examples );
-  IterativeLinearSolver *ils = new ILSConjugateGradients();
+  GMHIKernelRaw gm ( _examples, this->d_noise );
 
   // solve linear equations for each class
   for ( map<uint, NICE::Vector>::const_iterator i = _binLabels.begin();
@@ -213,11 +220,10 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
   {
     const Vector & y = i->second;
     Vector alpha;
-    ils->solveLin( gm, y, alpha );
+    solver->solveLin( gm, y, alpha );
     // TODO: get lookup tables, A, B, etc. and store them
   }
 
-  delete ils;
 
   t.stop();
   if ( this->b_verbose )

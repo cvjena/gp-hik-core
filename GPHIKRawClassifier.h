@@ -15,6 +15,7 @@
 #include <core/basics/Config.h>
 #include <core/basics/Persistent.h>
 #include <core/vector/SparseVectorT.h>
+#include <core/algebra/IterativeLinearSolver.h>
 //
 
 namespace NICE {
@@ -61,6 +62,8 @@ class GPHIKRawClassifier //: public NICE::Persistent
 
     /** Gaussian label noise for model regularization */
     double d_noise;
+
+    IterativeLinearSolver *solver;
 
     /////////////////////////
     /////////////////////////
