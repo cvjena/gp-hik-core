@@ -35,17 +35,20 @@ class GMHIKernelRaw : public GenericMatrix
     } sparseVectorElement;
 
     sparseVectorElement **examples_raw;
+    double **table_A;
+    double **table_B;
 
     uint *nnz_per_dimension;
     uint num_dimension;
     uint num_examples;
+    double d_noise;
 
-    void initData ( const std::vector< const NICE::SparseVector *> &_examples );
+    void initData ( const std::vector< const NICE::SparseVector *> & examples );
 
   public:
 
     /** simple constructor */
-    GMHIKernelRaw( const std::vector< const NICE::SparseVector *> &_examples );
+    GMHIKernelRaw( const std::vector< const NICE::SparseVector *> & examples, const double d_noise = 0.1 );
 
     /** multiply with a vector: A*x = y */
     virtual void multiply (NICE::Vector & y, const NICE::Vector & x) const;

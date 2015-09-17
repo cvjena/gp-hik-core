@@ -20,12 +20,12 @@
 
 #include "TestFastHIK.h"
 
-const bool b_debug = false;
+const bool b_debug = true;
 const bool verbose = true;
 const bool verboseStartEnd = true;
 const bool solveLinWithoutRand = false;
-const uint n = 1500;//1500;//1500;//10;
-const uint d = 200;//200;//2;
+const uint n = 5000;//1500;//1500;//10;
+const uint d = 1000;//200;//2;
 const uint numBins = 11;//1001;//1001;
 const uint solveLinMaxIterations = 1000;
 const double sparse_prob = 0.6;
@@ -140,12 +140,22 @@ void TestFastHIK::testKernelMultiplication()
   for ( uint i = 0; i < y.size(); i++ )
     y[i] = sin(i);
 
+
+  // Test the GMHIKernel interface
   Vector alpha;
 
+  t.start();
   gmk.multiply ( alpha, y );
+  t.stop();
+  if (verbose)
+      std::cerr << "Time for kernel multiplication with GMHIKernel: " << t.getLast() << std::endl;
 
+
+  // convert data structures to test the GMHIKernelRaw interface
+  std::vector<std::vector<double> > dataMatrix_transposed (dataMatrix);
+  transposeVectorOfVectors(dataMatrix_transposed);
   std::vector< const NICE::SparseVector * > dataMatrix_sparse;
-  for ( std::vector< std::vector<double> >::const_iterator i = dataMatrix.begin(); i != dataMatrix.end(); i++ )
+  for ( std::vector< std::vector<double> >::const_iterator i = dataMatrix_transposed.begin(); i != dataMatrix_transposed.end(); i++ )
   {
     Vector w ( *i );
     SparseVector *v = new SparseVector ( w );
@@ -153,20 +163,26 @@ void TestFastHIK::testKernelMultiplication()
   }
 
   t.start();
-  GMHIKernelRaw gmk_raw ( dataMatrix_sparse );
+  GMHIKernelRaw gmk_raw ( dataMatrix_sparse, noise );
   t.stop();
   if (verbose)
-    std::cerr << "Time for GMHIKernelRaw setup: " << t.getLast() << endl;
+    std::cerr << "Time for GMHIKernelRaw setup: " << t.getLast() << std::endl;
 
   Vector alpha_raw;
+  t.start();
   gmk_raw.multiply ( alpha_raw, y );
+  t.stop();
+  if (verbose)
+      std::cerr << "Time for kernel multiplication with GMHIKernelRaw: " << t.getLast() << std::endl;
 
+
+
+
+  // compute the kernel matrix multiplication exactly
   NICE::IntersectionKernelFunction<double> hikSlow;
 
   // tic
   time_t  slow_start = clock();
-  std::vector<std::vector<double> > dataMatrix_transposed (dataMatrix);
-  transposeVectorOfVectors(dataMatrix_transposed);
   NICE::Matrix K (hikSlow.computeKernelMatrix(dataMatrix_transposed, noise));
   //toc
   float time_slowComputation = (float) (clock() - slow_start);
@@ -190,9 +206,10 @@ void TestFastHIK::testKernelMultiplication()
   Vector alpha_slow = K*y;
 
   if (b_debug)
-    std::cerr << "Sparse multiplication [alpha, alpha_slow]: " << std::endl <<  alpha << std::endl << alpha_slow << std::endl << std::endl;
+    std::cerr << "Sparse multiplication [alpha, alpha_slow, alpha_raw]: " << std::endl <<  alpha << std::endl << alpha_slow << std::endl << alpha_raw << std::endl << std::endl;
 
   CPPUNIT_ASSERT_DOUBLES_EQUAL((alpha-alpha_slow).normL1(), 0.0, 1e-8);
+  CPPUNIT_ASSERT_DOUBLES_EQUAL((alpha_raw-alpha_slow).normL1(), 0.0, 1e-8);
 
   // test the case, where we first transform and then use the multiply stuff
   NICE::GeneralizedIntersectionKernelFunction<double> ghikSlow ( 1.2 );
@@ -291,7 +308,6 @@ void TestFastHIK::testKernelMultiplicationFast()
   NICE::Matrix gK ( ghikSlow.computeKernelMatrix(dataMatrix_transposed, noise) );
   pf->parameters()[0] = 1.2;
   fmk.applyFunctionToFeatureMatrix( pf );
-//   pf->applyFunctionToFeatureMatrix ( fmk.featureMatrix() );
 
   Vector galphaFast;
   gmkFast.multiply ( galphaFast, y );
@@ -335,7 +351,7 @@ void TestFastHIK::testKernelSum()
       }
   }
 
-  if ( verbose ) {
+  if ( b_debug ) {
     cerr << "data matrix: " << endl;
     printMatrix ( dataMatrix );
     cerr << endl;
@@ -414,7 +430,7 @@ void TestFastHIK::testKernelSumFast()
     dataMatrix.push_back(v);
   }
 
-  if ( verbose ) {
+  if ( b_debug ) {
     cerr << "data matrix: " << endl;
     printMatrix ( dataMatrix );
     cerr << endl;
@@ -423,7 +439,7 @@ void TestFastHIK::testKernelSumFast()
   double noise = 1.0;
   FastMinKernel fmk ( dataMatrix, noise );
   Vector alpha = Vector::UniformRandom( n, 0.0, 1.0, 0 );
-  if ( verbose )
+  if ( b_debug )
     std::cerr << "alpha = " << alpha << endl;
 
   // generate xstar
@@ -441,7 +457,7 @@ void TestFastHIK::testKernelSumFast()
   for ( uint i = 0 ; i < d; i++ )
     xstar_stl[i] = xstar[i];
 
-  if ( verbose )
+  if ( b_debug )
     cerr << "xstar = " << xstar << endl;
 
   for ( double gamma = 1.0 ; gamma < 2.0; gamma += 0.5 )
@@ -460,15 +476,16 @@ void TestFastHIK::testKernelSumFast()
       std::cerr << "fmk.hik_prepare_alpha_multiplications ( alpha, A, B ) " << std::endl;
     fmk.hik_prepare_alpha_multiplications ( alpha, A, B );
 
-    if (verbose)
+    if (b_debug)
       //std::cerr << "double *Tlookup = fmk.hik_prepare_alpha_multiplications_fast( A, B, q )" << std::endl;
       std::cerr << "double *Tlookup = fmk.hik_prepare_alpha_multiplications_fast_alltogether( alpha, q, &pf )" << std::endl;
+
     double *TlookupOld = fmk.hik_prepare_alpha_multiplications_fast( A, B, q, &pf );
     double *TlookupNew = fmk.hikPrepareLookupTable( alpha, q, &pf );
 
     int maxAcces(numBins*d);
 
-    if (verbose)
+    if (b_debug)
     {
       std::cerr << "TlookupOld:  " << std::endl;
       for (int i = 0; i < maxAcces; i++)
@@ -510,7 +527,7 @@ void TestFastHIK::testKernelSumFast()
     for ( uint i = 0 ; i < n; i++ )
       beta_slow += kstar_stl[i] * alpha[i];
 
-    if (verbose)
+    if (b_debug)
       std::cerr << "beta_slow: " << beta_slow << std::endl << "beta_fast: " << beta_fast << std::endl << "beta_fast_sparse: " << beta_fast_sparse << std::endl << "betaSparse: " << betaSparse<< std::endl;
 
     // clean-up
@@ -556,7 +573,7 @@ void TestFastHIK::testLUTUpdate()
     dataMatrix.push_back(v);
   }
 
-  if ( verbose ) {
+  if ( b_debug ) {
     cerr << "data matrix: " << endl;
     printMatrix ( dataMatrix );
     cerr << endl;
@@ -695,7 +712,7 @@ void TestFastHIK::testLinSolve()
     dataMatrix.push_back(v);
   }
 
-  if ( verbose ) {
+  if ( b_debug ) {
     std::cerr << "data matrix: " << std::endl;
     printMatrix ( dataMatrix );
     std::cerr << std::endl;
@@ -793,7 +810,7 @@ void TestFastHIK::testKernelVector()
   std::vector<double> dim2; dim2.push_back(0.3);dim2.push_back(0.6);dim2.push_back(1.0);dim2.push_back(0.4);dim2.push_back(0.3); dataMatrix.push_back(dim2);
   std::vector<double> dim3; dim3.push_back(0.5);dim3.push_back(0.3);dim3.push_back(0.0);dim3.push_back(0.6);dim3.push_back(0.3); dataMatrix.push_back(dim3);
 
-  if ( verbose ) {
+  if ( b_debug ) {
     std::cerr << "data matrix: " << std::endl;
     printMatrix ( dataMatrix );
     std::cerr << endl;

@@ -16,10 +16,10 @@ using namespace NICE;
 using namespace std;
 
 
-GMHIKernelRaw::GMHIKernelRaw( const std::vector< const NICE::SparseVector *> &_examples )
+GMHIKernelRaw::GMHIKernelRaw( const std::vector< const NICE::SparseVector *> &_examples, const double _d_noise )
 {
     initData(_examples);
-
+    this->d_noise = _d_noise;
 }
 
 GMHIKernelRaw::~GMHIKernelRaw()
@@ -40,9 +40,9 @@ void GMHIKernelRaw::initData ( const std::vector< const NICE::SparseVector *> &_
 
     // waste memory and allocate a non-sparse data block
     sparseVectorElement **examples_raw_increment = new sparseVectorElement *[num_dimension];
-    for (uint d = 0; d < num_dimension; d++)
+    for (uint d = 0; d < this->num_dimension; d++)
     {
-        this->examples_raw[d] = new sparseVectorElement [ this->num_dimension ];
+        this->examples_raw[d] = new sparseVectorElement [ this->num_examples ];
         examples_raw_increment[d] = this->examples_raw[d];
         this->nnz_per_dimension[d] = 0;
     }
@@ -67,21 +67,87 @@ void GMHIKernelRaw::initData ( const std::vector< const NICE::SparseVector *> &_
     // sort along each dimension
     for (uint d = 0; d < this->num_dimension; d++)
     {
-        std::sort( this->examples_raw[d], this->examples_raw[d] + this->nnz_per_dimension[d] );
+        uint nnz = this->nnz_per_dimension[d];
+        if ( nnz > 1 )
+            std::sort( this->examples_raw[d], this->examples_raw[d] + nnz );
+    }
+
+    // pre-allocate the A and B matrices
+    this->table_A = new double *[this->num_dimension];
+    this->table_B = new double *[this->num_dimension];
+    for (uint i = 0; i < this->num_dimension; i++)
+    {
+        uint nnz = this->nnz_per_dimension[i];
+        if (nnz>0) {
+            this->table_A[i] = new double [ nnz ];
+            this->table_B[i] = new double [ nnz ];
+        } else {
+            this->table_A[i] = NULL;
+            this->table_B[i] = NULL;
+        }
     }
 }
 
 /** multiply with a vector: A*x = y */
-void GMHIKernelRaw::multiply (NICE::Vector & y, const NICE::Vector & x) const
+void GMHIKernelRaw::multiply (NICE::Vector & _y, const NICE::Vector & _x) const
 {
-    /*
-    NICE::VVector A;
-    NICE::VVector B;
-    // prepare to calculate sum_i x_i K(x,x_i)
-    fmk->hik_prepare_alpha_multiplications(x, A, B);
+  // STEP 1: initialize tables A and B
+  for (uint dim = 0; dim < this->num_dimension; dim++)
+  {
+    double alpha_sum = 0.0;
+    double alpha_times_x_sum = 0.0;
+    uint nnz = nnz_per_dimension[dim];
 
-    fmk->hik_kernel_multiply(A, B, x, y);
-    */
+    // loop through all elements in sorted order
+    sparseVectorElement *training_values_in_dim = examples_raw[dim];
+    for ( uint cntNonzeroFeat = 0; cntNonzeroFeat < nnz; cntNonzeroFeat++, training_values_in_dim++ )
+    {
+      // index of the feature
+      int index = training_values_in_dim->example_index;
+      // element of the feature
+      double elem = training_values_in_dim->value;
+
+      alpha_times_x_sum += _x[index] * elem;
+      this->table_A[dim][cntNonzeroFeat] = alpha_times_x_sum;
+
+      alpha_sum += _x[index];
+      this->table_B[dim][cntNonzeroFeat] = alpha_sum;
+      cntNonzeroFeat++;
+    }
+  }
+
+  _y.resize( this->num_examples );
+  _y.set(0.0);
+
+  for (uint dim = 0; dim < this->num_dimension; dim++)
+  {
+    uint nnz = this->nnz_per_dimension[dim];
+
+    if ( nnz == this->num_examples ) {
+      // all values are zero in this dimension :) and we can simply ignore the feature
+      continue;
+    }
+
+    sparseVectorElement *training_values_in_dim = examples_raw[dim];
+    for ( uint cntNonzeroFeat = 0; cntNonzeroFeat < nnz; cntNonzeroFeat++, training_values_in_dim++ )
+    {
+      uint feat = training_values_in_dim->example_index;
+      uint inversePosition = cntNonzeroFeat;
+      double fval = training_values_in_dim->value;
+
+      double firstPart( this->table_A[dim][inversePosition] );
+      double secondPart( this->table_B[dim][this->num_examples-1-nnz] - this->table_B[dim][inversePosition]);
+
+      _y[cntNonzeroFeat] += firstPart + fval * secondPart;
+    }
+  }
+
+  for (uint feat = 0; feat < this->num_examples; feat++)
+  {
+    _y[feat] += this->d_noise * _x[feat];
+  }
+
+
 }
 
 /** get the number of rows in A */
