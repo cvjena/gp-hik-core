@@ -100,6 +100,8 @@ void GMHIKernelRaw::initData ( const std::vector< const NICE::SparseVector *> &_
         }
     }
 
+    delete [] examples_raw_increment;
+
     // sort along each dimension
     for (uint d = 0; d < this->num_dimension; d++)
     {
@@ -180,7 +182,6 @@ void GMHIKernelRaw::multiply (NICE::Vector & _y, const NICE::Vector & _x) const
 
       alpha_sum += _x[index];
       this->table_B[dim][cntNonzeroFeat] = alpha_sum;
-      cntNonzeroFeat++;
     }
   }
 
@@ -204,10 +205,10 @@ void GMHIKernelRaw::multiply (NICE::Vector & _y, const NICE::Vector & _x) const
       uint inversePosition = cntNonzeroFeat;
       double fval = training_values_in_dim->value;
 
-      double firstPart( this->table_A[dim][inversePosition] );
-      double secondPart( this->table_B[dim][this->num_examples-1-nz] - this->table_B[dim][inversePosition]);
+      double firstPart = this->table_A[dim][inversePosition];
+      double secondPart = this->table_B[dim][nnz-1] - this->table_B[dim][inversePosition];
 
-      _y[cntNonzeroFeat] += firstPart + fval * secondPart;
+      _y[feat] += firstPart + fval * secondPart;
     }
   }
 

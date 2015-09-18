@@ -24,8 +24,8 @@ const bool b_debug = true;
 const bool verbose = true;
 const bool verboseStartEnd = true;
 const bool solveLinWithoutRand = false;
-const uint n = 500;//1500;//1500;//10;
-const uint d = 200;//200;//2;
+const uint n = 10;//1500;//1500;//10;
+const uint d = 3;//200;//2;
 const uint numBins = 11;//1001;//1001;
 const uint solveLinMaxIterations = 1000;
 const double sparse_prob = 0.6;
@@ -113,6 +113,12 @@ void TestFastHIK::testKernelMultiplication()
         dataMatrix[i][k] = 0.0;
         nrZeros++;
       }
+  }
+
+  if ( b_debug ) {
+    cerr << "data matrix: " << endl;
+    printMatrix ( dataMatrix );
+    cerr << endl;
   }
 
   double noise = 1.0;
@@ -217,6 +223,7 @@ void TestFastHIK::testKernelMultiplication()
   NICE::Matrix gK ( ghikSlow.computeKernelMatrix(dataMatrix_transposed, noise) );
   ParameterizedFunction *pf = new PFAbsExp( 1.2 );
   fmk.applyFunctionToFeatureMatrix( pf );
+
 //   pf->applyFunctionToFeatureMatrix ( fmk.featureMatrix() );
 
   Vector galpha;
@@ -227,6 +234,8 @@ void TestFastHIK::testKernelMultiplication()
   CPPUNIT_ASSERT_DOUBLES_EQUAL((galpha-galpha_slow).normL1(), 0.0, 1e-8);
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testKernelMultiplication done ===================== " << std::endl;
+
+  delete pf;
 }
 
 void TestFastHIK::testKernelMultiplicationFast()
@@ -272,6 +281,7 @@ void TestFastHIK::testKernelMultiplicationFast()
 
   ParameterizedFunction *pf = new PFAbsExp ( 1.0 );
   GMHIKernel gmkFast ( &fmk, pf, q );
+
 
 //   pf.applyFunctionToFeatureMatrix ( fmk.featureMatrix() );
 
@@ -329,6 +339,8 @@ void TestFastHIK::testKernelMultiplicationFast()
   CPPUNIT_ASSERT_DOUBLES_EQUAL((galphaFast-galpha_slow).normL1(), 0.0, 1e-8);
   if (verboseStartEnd)
     std::cerr << "================== TestFastHIK::testKernelMultiplicationFast done ===================== " << std::endl;
+
+  delete pf;
 }
 
 
