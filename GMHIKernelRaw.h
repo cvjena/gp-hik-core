@@ -71,6 +71,7 @@ class GMHIKernelRaw : public GenericMatrix
     virtual ~GMHIKernelRaw();
 
     sparseVectorElement **getDataMatrix() const { return examples_raw; };
+    void updateTables ( const NICE::Vector _x ) const;
 };
 
 }

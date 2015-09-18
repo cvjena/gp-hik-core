@@ -95,6 +95,7 @@ void GPHIKRawClassifier::initFromConfig(const Config *_conf,
   this->confSection = _confSection;
   this->b_verbose   = _conf->gB( _confSection, "verbose", false);
   this->b_debug     = _conf->gB( _confSection, "debug", false);
+  this->f_tolerance = _conf->gD( _confSection, "f_tolerance", 1e-10);
 
   string ilssection = "FMKGPHyperparameterOptimization";
   uint ils_max_iterations = _conf->gI( ilssection, "ils_max_iterations", 1000 );
@@ -139,7 +140,7 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
   {
     uint classno = i->first;
     maxClassNo = std::max ( maxClassNo, classno );
-    double beta;
+    double beta = 0;
 
     if ( this->q != NULL ) {
       std::map<uint, double *>::const_iterator j = this->precomputedT.find ( classno );
@@ -157,7 +158,6 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
       std::map<uint, PrecomputedType>::const_iterator j = this->precomputedB.find ( classno );
       const PrecomputedType & B = j->second;
 
-      beta = 0.0;
       for (SparseVector::const_iterator i = _xstar->begin(); i != _xstar->end(); i++)
       {
         uint dim = i->first;
@@ -176,9 +176,6 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
         fval_element.value = fval;
         GMHIKernelRaw::sparseVectorElement *it = upper_bound ( dataMatrix[dim], dataMatrix[dim] + nnz, fval_element );
         position = distance ( dataMatrix[dim], it );
-
-
-
 
         bool posIsZero ( position == 0 );
         if ( !posIsZero )
@@ -200,7 +197,25 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
 
     _scores[ classno ] = beta;
   }
-  _scores.setDim ( maxClassNo + 1 );
+  _scores.setDim ( *this->knownClasses.rbegin() + 1 );
+
+
+  if ( this->knownClasses.size() > 2 )
+  { // multi-class classification
+    _result = _scores.maxElement();
+  }
+  else if ( this->knownClasses.size() == 2 ) // binary setting
+  {
+    uint class1 = *(this->knownClasses.begin());
+    uint class2 = *(this->knownClasses.rbegin());
+    uint class_for_which_we_have_a_score = _scores.begin()->first;
+    uint class_for_which_we_dont_have_a_score = (class1 == class_for_which_we_have_a_score ? class2 : class1);
+
+    _scores[class_for_which_we_dont_have_a_score] = - _scores[class_for_which_we_have_a_score];
+
+    _result = _scores[class_for_which_we_have_a_score] > 0.0 ? class_for_which_we_have_a_score : class_for_which_we_dont_have_a_score;
+  }
+
 }
 
 
@@ -216,12 +231,12 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
   }
   this->num_examples = _examples.size();
 
-  set<uint> classes;
+  this->knownClasses.clear();
   for ( uint i = 0; i < _labels.size(); i++ )
-    classes.insert((uint)_labels[i]);
+    this->knownClasses.insert((uint)_labels[i]);
 
   std::map<uint, NICE::Vector> binLabels;
-  for ( set<uint>::const_iterator j = classes.begin(); j != classes.end(); j++ )
+  for ( set<uint>::const_iterator j = knownClasses.begin(); j != knownClasses.end(); j++ )
   {
     uint current_class = *j;
     Vector labels_binary ( _labels.size() );
@@ -232,7 +247,7 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
   }
 
   // handle special binary case
-  if ( classes.size() == 2 )
+  if ( knownClasses.size() == 2 )
   {
     std::map<uint, NICE::Vector>::iterator it = binLabels.begin();
     it++;
@@ -279,12 +294,17 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
           i != _binLabels.end(); i++ )
   {
     uint classno = i->first;
+    if (b_verbose)
+        std::cerr << "Training for class " << classno << endl;
     const Vector & y = i->second;
     Vector alpha;
     solver->solveLin( *gm, y, alpha );
     // TODO: get lookup tables, A, B, etc. and store them
-    precomputedA.insert ( pair<uint, PrecomputedType> ( classno, gm->getTableA() ) );
-    precomputedB.insert ( pair<uint, PrecomputedType> ( classno, gm->getTableB() ) );
+    gm->updateTables(alpha);
+    double **A = gm->getTableA();
+    double **B = gm->getTableB();
+    precomputedA.insert ( pair<uint, PrecomputedType> ( classno, A ) );
+    precomputedB.insert ( pair<uint, PrecomputedType> ( classno, B ) );
   }
 
 

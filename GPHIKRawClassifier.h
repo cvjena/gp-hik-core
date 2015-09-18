@@ -17,6 +17,7 @@
 #include <core/vector/SparseVectorT.h>
 #include <core/algebra/IterativeLinearSolver.h>
 //
+#include <set>
 #include "quantization/Quantization.h"
 #include "GMHIKernelRaw.h"
 
@@ -85,6 +86,7 @@ class GPHIKRawClassifier //: public NICE::Persistent
     double f_tolerance;
 
     GMHIKernelRaw *gm;
+    std::set<uint> knownClasses;
 
     /////////////////////////
     /////////////////////////

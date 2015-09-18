@@ -157,33 +157,38 @@ void GMHIKernelRaw::copyTable(double **src, double **dst) const
     }
 }
 
+void GMHIKernelRaw::updateTables ( const NICE::Vector _x ) const
+{
+    for (uint dim = 0; dim < this->num_dimension; dim++)
+    {
+      double alpha_sum = 0.0;
+      double alpha_times_x_sum = 0.0;
+      uint nnz = nnz_per_dimension[dim];
+
+      // loop through all elements in sorted order
+      sparseVectorElement *training_values_in_dim = examples_raw[dim];
+      for ( uint cntNonzeroFeat = 0; cntNonzeroFeat < nnz; cntNonzeroFeat++, training_values_in_dim++ )
+      {
+        // index of the feature
+        int index = training_values_in_dim->example_index;
+        // element of the feature
+        double elem = training_values_in_dim->value;
+
+        alpha_times_x_sum += _x[index] * elem;
+        this->table_A[dim][cntNonzeroFeat] = alpha_times_x_sum;
+
+        alpha_sum += _x[index];
+        this->table_B[dim][cntNonzeroFeat] = alpha_sum;
+      }
+    }
+
+}
 
 /** multiply with a vector: A*x = y */
 void GMHIKernelRaw::multiply (NICE::Vector & _y, const NICE::Vector & _x) const
 {
   // STEP 1: initialize tables A and B
-  for (uint dim = 0; dim < this->num_dimension; dim++)
-  {
-    double alpha_sum = 0.0;
-    double alpha_times_x_sum = 0.0;
-    uint nnz = nnz_per_dimension[dim];
-
-    // loop through all elements in sorted order
-    sparseVectorElement *training_values_in_dim = examples_raw[dim];
-    for ( uint cntNonzeroFeat = 0; cntNonzeroFeat < nnz; cntNonzeroFeat++, training_values_in_dim++ )
-    {
-      // index of the feature
-      int index = training_values_in_dim->example_index;
-      // element of the feature
-      double elem = training_values_in_dim->value;
-
-      alpha_times_x_sum += _x[index] * elem;
-      this->table_A[dim][cntNonzeroFeat] = alpha_times_x_sum;
-
-      alpha_sum += _x[index];
-      this->table_B[dim][cntNonzeroFeat] = alpha_sum;
-    }
-  }
+  updateTables(_x);
 
   _y.resize( this->num_examples );
   _y.set(0.0);
