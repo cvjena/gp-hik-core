@@ -36,11 +36,12 @@ namespace NICE {
                                       const uint & _dim
                                      )
     {
-      this->ui_n = 0;
-      if (_dim < 0)
-        this->ui_d = (*_features.begin()).size();
-      else
-        this->ui_d = _dim;
+        // resize our data structure
+        if (_dim == 0)
+            this->set_d( (*_features.begin()).size() );
+        else
+            this->set_d( _dim );
+
 
       for (typename std::vector<std::vector<T> >::const_iterator it = _features.begin(); it != _features.end(); it++)
       {
@@ -53,23 +54,27 @@ namespace NICE {
     //Constructor reading data from a vector of sparse vector pointers
     template <typename T>
     FeatureMatrixT<T>::
-    FeatureMatrixT(const std::vector< const NICE::SparseVector * > & _X,
+    FeatureMatrixT(const std::vector< const NICE::SparseVector * > & _features,
                    const bool _dimensionsOverExamples,
                    const uint & _dim
                   )
     {
       this->features.clear();
 
-      // resize our data structure
-      set_d( _dim );
+        // resize our data structure
+        if (_dim == 0)
+            this->set_d( (*_features.begin())->getDim() );
+        else
+            this->set_d( _dim );
+
 
       // set number of examples n
       if ( this->ui_d > 0 )
       {
         if (_dimensionsOverExamples) //do we have dim x examples ?
-          this->ui_n = _X[0]->getDim(); //NOTE Pay attention: we assume, that this number is set!
+          this->ui_n = _features[0]->getDim(); //NOTE Pay attention: we assume, that this number is set!
         else //we have examples x dimes (as usually done)
-          this->ui_n = _X.size();
+          this->ui_n = _features.size();
       }
 
 
@@ -78,7 +83,7 @@ namespace NICE {
       {
         for (uint dim = 0; dim < this->ui_d; dim++)
         {
-          this->features[dim].insert( _X[dim] );
+          this->features[dim].insert( _features[dim] );
         }
       }
       else //we have examples x dimes (as usually done)
@@ -87,7 +92,7 @@ namespace NICE {
         for (uint nr = 0; nr < this->ui_n; nr++)
         {
           //loop over every dimension to add the specific value to the corresponding SortedVectorSparse
-          for (NICE::SparseVector::const_iterator elemIt = _X[nr]->begin(); elemIt != _X[nr]->end(); elemIt++)
+          for (NICE::SparseVector::const_iterator elemIt = _features[nr]->begin(); elemIt != _features[nr]->end(); elemIt++)
           {
             //elemIt->first: dim, elemIt->second: value
             this->features[elemIt->first].insert( (T) elemIt->second, nr);

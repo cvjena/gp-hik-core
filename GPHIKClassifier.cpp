@@ -276,7 +276,7 @@ void GPHIKClassifier::classify ( const NICE::Vector * _example,
   {
     //do nothing
     _uncertainty = std::numeric_limits<double>::max();
-  }  
+  }
 }
 
 /** training process */

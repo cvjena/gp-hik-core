@@ -53,7 +53,7 @@ uint Quantization1DAequiDist0ToMax::quantize ( double _value,
   else if ( _value >= this->v_upperBounds[0] ) 
     return this->ui_numBins-1;
   else 
-    return (uint)( _value/this->v_upperBounds[0]  * (this->ui_numBins-1) + 0.5 );
+    return static_cast<uint> ( floor( _value/this->v_upperBounds[0]  * (this->ui_numBins-1) + 0.5 ) );
 }
 
 
