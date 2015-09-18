@@ -20,12 +20,12 @@
 
 #include "TestFastHIK.h"
 
-const bool b_debug = true;
+const bool b_debug = false;
 const bool verbose = true;
 const bool verboseStartEnd = true;
 const bool solveLinWithoutRand = false;
-const uint n = 10;//1500;//1500;//10;
-const uint d = 3;//200;//2;
+const uint n = 1500;//1500;//1500;//10;
+const uint d = 100;//200;//2;
 const uint numBins = 11;//1001;//1001;
 const uint solveLinMaxIterations = 1000;
 const double sparse_prob = 0.6;
