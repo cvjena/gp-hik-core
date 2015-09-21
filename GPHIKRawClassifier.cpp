@@ -97,12 +97,18 @@ void GPHIKRawClassifier::initFromConfig(const Config *_conf,
   this->b_debug     = _conf->gB( _confSection, "debug", false);
   this->f_tolerance = _conf->gD( _confSection, "f_tolerance", 1e-10);
 
-  string ilssection = "FMKGPHyperparameterOptimization";
+  //FIXME this is not used in that way for the standard GPHIKClassifier
+  //string ilssection = "FMKGPHyperparameterOptimization";
+  string ilssection       = _confSection;
   uint ils_max_iterations = _conf->gI( ilssection, "ils_max_iterations", 1000 );
-  double ils_min_delta = _conf->gD( ilssection, "ils_min_delta", 1e-7 );
+  double ils_min_delta    = _conf->gD( ilssection, "ils_min_delta", 1e-7 );
   double ils_min_residual = _conf->gD( ilssection, "ils_min_residual", 1e-7 );
-  bool ils_verbose = _conf->gB( ilssection, "ils_verbose", false );
-  this->solver = new ILSConjugateGradients( ils_verbose, ils_max_iterations, ils_min_delta, ils_min_residual );
+  bool ils_verbose        = _conf->gB( ilssection, "ils_verbose", false );
+  this->solver            = new ILSConjugateGradients( ils_verbose,
+                                                       ils_max_iterations,
+                                                       ils_min_delta,
+                                                       ils_min_residual
+                                                     );
 }
 
 ///////////////////// ///////////////////// /////////////////////
@@ -114,7 +120,7 @@ std::set<uint> GPHIKRawClassifier::getKnownClassNumbers ( ) const
   if ( ! this->b_isTrained )
      fthrow(Exception, "Classifier not trained yet -- aborting!" );
 
-  fthrow(Exception, "GPHIKRawClassifier::getKnownClassNumbers() not yet implemented");
+  return this->knownClasses;
 }
 
 
