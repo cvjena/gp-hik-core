@@ -107,7 +107,7 @@ class GPHIKRawClassifier //: public NICE::Persistent
      * @brief standard constructor
      */
     GPHIKRawClassifier( const NICE::Config *_conf ,
-                     const std::string & s_confSection = "GPHIKClassifier"
+                     const std::string & s_confSection = "GPHIKRawClassifier"
                    );
 
     /**

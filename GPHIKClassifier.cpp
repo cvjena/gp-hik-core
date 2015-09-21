@@ -451,7 +451,6 @@ void GPHIKClassifier::predictUncertainty( const NICE::SparseVector * _example,
     }
     case APPROXIMATE_FINE:
     {
-      std::cerr << "gphyper->computePredictiveVarianceApproximateFine" << std::endl;
       this->gphyper->computePredictiveVarianceApproximateFine( *_example, _uncertainty );
       break;
     }    

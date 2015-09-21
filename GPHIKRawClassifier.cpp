@@ -83,7 +83,8 @@ GPHIKRawClassifier::GPHIKRawClassifier( const Config *_conf,
 
 GPHIKRawClassifier::~GPHIKRawClassifier()
 {
-  delete solver;
+  delete this->solver;
+  this->solver = NULL;
 }
 
 void GPHIKRawClassifier::initFromConfig(const Config *_conf,
@@ -109,6 +110,17 @@ void GPHIKRawClassifier::initFromConfig(const Config *_conf,
                                                        ils_min_delta,
                                                        ils_min_residual
                                                      );
+  if ( this->b_verbose )
+  {
+      std::cerr << "GPHIKRawClassifier::initFromConfig " <<std::endl;
+      std::cerr << "   confSection " << confSection << std::endl;
+      std::cerr << "   d_noise " << d_noise << std::endl;
+      std::cerr << "   f_tolerance " << f_tolerance << std::endl;
+      std::cerr << "   ils_max_iterations " << ils_max_iterations << std::endl;
+      std::cerr << "   ils_min_delta " << ils_min_delta << std::endl;
+      std::cerr << "   ils_min_residual " << ils_min_residual << std::endl;
+      std::cerr << "   ils_verbose " << ils_verbose << std::endl;
+  }
 }
 
 ///////////////////// ///////////////////// /////////////////////
