@@ -49,7 +49,7 @@ uint Quantization1DAequiDist0To1::quantize ( double _value,
   else if ( _value >= 1.0 ) 
     return this->ui_numBins-1;
   else 
-    return (uint)( _value * (this->ui_numBins-1) + 0.5 );
+    return static_cast<uint> ( _value * (this->ui_numBins-1) + 0.5 );
 }
 
 void Quantization1DAequiDist0To1::computeParametersFromData ( const NICE::FeatureMatrix *  _fm )

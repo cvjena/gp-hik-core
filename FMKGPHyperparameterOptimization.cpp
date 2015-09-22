@@ -1150,11 +1150,9 @@ uint FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & _xst
     fthrow ( Exception, "The precomputation vector is zero...have you trained this classifier?" );
   }
 
-  uint maxClassNo = 0;
   for ( std::map<uint, PrecomputedType>::const_iterator i = this->precomputedA.begin() ; i != this->precomputedA.end(); i++ )
   {
     uint classno = i->first;
-    maxClassNo = std::max ( maxClassNo, classno );
     double beta;
 
     if ( this->q != NULL ) {
@@ -1178,7 +1176,7 @@ uint FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & _xst
 
     _scores[ classno ] = beta;
   }
-  _scores.setDim ( maxClassNo + 1 );
+  _scores.setDim ( *(this->knownClasses.rbegin() ) + 1 );
   
   if ( this->precomputedA.size() > 1 )
   { // multi-class classification
@@ -1206,11 +1204,9 @@ uint FMKGPHyperparameterOptimization::classify ( const NICE::Vector & _xstar,
     fthrow ( Exception, "The precomputation vector is zero...have you trained this classifier?" );
   }
 
-  uint maxClassNo = 0;
   for ( std::map<uint, PrecomputedType>::const_iterator i = this->precomputedA.begin() ; i != this->precomputedA.end(); i++ )
   {
     uint classno = i->first;
-    maxClassNo = std::max ( maxClassNo, classno );
     
     double beta;
 
@@ -1238,7 +1234,8 @@ uint FMKGPHyperparameterOptimization::classify ( const NICE::Vector & _xstar,
 
     _scores[ classno ] = beta;
   }
-  _scores.setDim ( maxClassNo + 1 );
+
+  _scores.setDim ( *(this->knownClasses.rbegin() ) + 1 );
   
   
   if ( this->precomputedA.size() > 1 )

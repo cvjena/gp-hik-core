@@ -101,7 +101,7 @@ template<class T> class FeatureMatrixT : public NICE::Persistent
 #endif
 
     /** just another constructor for sparse features */
-    FeatureMatrixT(const std::vector< const NICE::SparseVector * > & _X, 
+    FeatureMatrixT(const std::vector< const NICE::SparseVector * > & _features,
                    const bool _dimensionsOverExamples = false, 
                    const uint & _dim = 0
                   );
