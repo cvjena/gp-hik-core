@@ -23,7 +23,6 @@
 #include <core/basics/Exception.h>
 // 
 #include <core/vector/Algorithms.h>
-#include <core/vector/Eigen.h>
 // 
 #include <core/optimization/blackbox/DownhillSimplexOptimizer.h>
 
@@ -826,6 +825,12 @@ void FMKGPHyperparameterOptimization::computeMatricesAndLUTs ( const GPLikelihoo
   {
     PrecomputedType A;
     PrecomputedType B;
+
+    if ( this->b_debug &&  i->first == 1)
+    {
+        std::cerr << "Training for class " << i->first << endl;
+        std::cerr << "  " << i->second << std::endl;
+    }
 
     fmk->hik_prepare_alpha_multiplications ( i->second, A, B );
     A.setIoUntilEndOfFile ( false );

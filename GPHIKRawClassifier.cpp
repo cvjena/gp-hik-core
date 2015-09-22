@@ -14,6 +14,7 @@
 #include <core/basics/Timer.h>
 
 #include <core/algebra/ILSConjugateGradients.h>
+#include <core/algebra/EigValues.h>
 
 // gp-hik-core includes
 #include "GPHIKRawClassifier.h"
@@ -272,7 +273,7 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
     binLabels.erase( binLabels.begin(), it );
   }
 
-  train ( _examples, binLabels );
+  this->train ( _examples, binLabels );
 }
 
 void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> & _examples,
@@ -306,17 +307,72 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
   gm = new GMHIKernelRaw ( _examples, this->d_noise );
   nnz_per_dimension = gm->getNNZPerDimension();
 
+  // compute largest eigenvalue of our kernel matrix
+  // note: this guy is shared among all categories,
+  //       since the kernel matrix is shared as well
+  NICE::Vector eigenMax;
+  NICE::Matrix eigenMaxV;
+  // for reproducibility during debuggin
+  srand ( 0 );
+  srand48 ( 0 );
+  NICE::EigValues * eig = new EVArnoldi ( false /* verbose flag */,
+                                        10 /*_maxiterations*/
+                                      );
+  eig->getEigenvalues( *gm, eigenMax, eigenMaxV, 1 /*rank*/ );
+
+  delete eig;
+
+  std::cerr << " largest eigenvalue: " << eigenMax[0] << std::endl;
+  // set simple jacobi pre-conditioning
+  NICE::Vector diagonalElements;
+  gm->getDiagonalElements ( diagonalElements );
+  solver->setJacobiPreconditioner ( diagonalElements );
+
   // solve linear equations for each class
   // be careful when parallising this!
-  for ( map<uint, NICE::Vector>::const_iterator i = _binLabels.begin();
-          i != _binLabels.end(); i++ )
+  for ( std::map<uint, NICE::Vector>::const_iterator i = _binLabels.begin();
+        i != _binLabels.end();
+        i++
+      )
   {
     uint classno = i->first;
     if (b_verbose)
         std::cerr << "Training for class " << classno << endl;
-    const Vector & y = i->second;
-    Vector alpha;
+    const NICE::Vector & y = i->second;
+    NICE::Vector alpha;
+
+
+  /** About finding a good initial solution (see also GPLikelihoodApproximation)
+    * K~ = K + sigma^2 I
+    *
+    * K~ \approx lambda_max v v^T
+    * \lambda_max v v^T * alpha = k_*     | multiply with v^T from left
+    * => \lambda_max v^T alpha = v^T k_*
+    * => alpha = k_* / lambda_max could be a good initial start
+    * If we put everything in the first equation this gives us
+    * v = k_*
+    *  This reduces the number of iterations by 5 or 8
+    */
+    alpha = (y * (1.0 / eigenMax[0]) );
+
+    //DEBUG!!!
+    if ( this->b_debug && classno == 1 )
+    {
+        std::cerr << "Training for class " << classno << endl;
+        std::cerr << y << std::endl;
+        std::cerr << " alpha before and after linsolve" << classno << endl;
+        std::cerr << "  " << alpha << std::endl;
+    }
+
     solver->solveLin( *gm, y, alpha );
+
+    //DEBUG!!!
+    if ( this->b_debug && classno == 1 )
+    {
+//        std::cerr << "Training for class " << classno << endl;
+        std::cerr << "  " << alpha << std::endl;
+    }
+
     // TODO: get lookup tables, A, B, etc. and store them
     gm->updateTables(alpha);
     double **A = gm->getTableA();

@@ -10,14 +10,15 @@
 // STL includes
 #include <string>
 #include <limits>
+#include <set>
 
 // NICE-core includes
 #include <core/basics/Config.h>
 #include <core/basics/Persistent.h>
 #include <core/vector/SparseVectorT.h>
-#include <core/algebra/IterativeLinearSolver.h>
+#include <core/algebra/ILSConjugateGradients.h>
+
 //
-#include <set>
 #include "quantization/Quantization.h"
 #include "GMHIKernelRaw.h"
 
@@ -66,7 +67,7 @@ class GPHIKRawClassifier //: public NICE::Persistent
     /** Gaussian label noise for model regularization */
     double d_noise;
 
-    IterativeLinearSolver *solver;
+    ILSConjugateGradients *solver;
     /** object performing feature quantization */
     NICE::Quantization *q;
 
@@ -132,6 +133,8 @@ class GPHIKRawClassifier //: public NICE::Persistent
      * @brief Return currently known class numbers
      */
     std::set<uint> getKnownClassNumbers ( ) const;
+
+
 
     ///////////////////// ///////////////////// /////////////////////
     //                      CLASSIFIER STUFF
