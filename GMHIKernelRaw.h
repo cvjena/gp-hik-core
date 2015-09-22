@@ -39,6 +39,8 @@ class GMHIKernelRaw : public GenericMatrix
     double **table_A;
     double **table_B;
 
+    NICE::Vector diagonalElements;
+
     uint *nnz_per_dimension;
     uint num_dimension;
     uint num_examples;
@@ -72,6 +74,10 @@ class GMHIKernelRaw : public GenericMatrix
 
     sparseVectorElement **getDataMatrix() const { return examples_raw; };
     void updateTables ( const NICE::Vector _x ) const;
+
+    /** get the diagonal elements of the current matrix */
+    void getDiagonalElements ( NICE::Vector & _diagonalElements ) const;
+
 };
 
 }

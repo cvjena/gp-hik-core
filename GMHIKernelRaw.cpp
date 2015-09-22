@@ -83,21 +83,42 @@ void GMHIKernelRaw::initData ( const std::vector< const NICE::SparseVector *> &_
         this->nnz_per_dimension[d] = 0;
     }
 
+    // additionally allocate a Vector with as many entries as examples
+    // this vector will contain the L1 norm values of all examples + noise
+    // thereby, it represents the diagonal entries of our kernel matrix for
+    // the special case of minimum kernel
+    this->diagonalElements.resize ( this->num_examples );
+    this->diagonalElements.set ( this->d_noise );
+
+
     uint example_index = 0;
-    for (std::vector< const NICE::SparseVector * >::const_iterator i = _examples.begin();
-            i != _examples.end(); i++, example_index++)
+    NICE::Vector::iterator itDiagEl = this->diagonalElements.begin();
+
+    // minor pre-allocation
+    uint index;
+    double value;
+    double l1norm;
+
+    for ( std::vector< const NICE::SparseVector * >::const_iterator i = _examples.begin();
+          i != _examples.end();
+          i++, example_index++, itDiagEl++
+        )
     {
+        l1norm = 0.0;
         const NICE::SparseVector *x = *i;
         for ( NICE::SparseVector::const_iterator j = x->begin(); j != x->end(); j++ )
         {
-            uint index = j->first;
-            double value = j->second;
+            index = j->first;
+            value = j->second;
             examples_raw_increment[index]->value = value;
             examples_raw_increment[index]->example_index = example_index;
             // move to the next element
             examples_raw_increment[index]++;
             this->nnz_per_dimension[index]++;
+
+            l1norm = l1norm + value;
         }
+        *itDiagEl = *itDiagEl + l1norm;
     }
 
     delete [] examples_raw_increment;
@@ -257,4 +278,10 @@ uint *GMHIKernelRaw::getNNZPerDimension() const
     for (uint i = 0; i < this->num_dimension; i++)
         v[i] = this->nnz_per_dimension[i];
     return v;
+}
+
+
+void NICE::GMHIKernelRaw::getDiagonalElements( NICE::Vector & _diagonalElements) const
+{
+    _diagonalElements = this->diagonalElements;
 }
