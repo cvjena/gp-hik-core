@@ -22,9 +22,9 @@ GMHIKernelRaw::GMHIKernelRaw( const std::vector< const NICE::SparseVector *> &_e
     this->nnz_per_dimension = NULL;
     this->table_A = NULL;
     this->table_B = NULL;
+    this->d_noise = _d_noise;
 
     initData(_examples);
-    this->d_noise = _d_noise;
 }
 
 GMHIKernelRaw::~GMHIKernelRaw()
@@ -89,7 +89,6 @@ void GMHIKernelRaw::initData ( const std::vector< const NICE::SparseVector *> &_
     // the special case of minimum kernel
     this->diagonalElements.resize ( this->num_examples );
     this->diagonalElements.set ( this->d_noise );
-
 
     uint example_index = 0;
     NICE::Vector::iterator itDiagEl = this->diagonalElements.begin();

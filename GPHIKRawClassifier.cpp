@@ -41,6 +41,8 @@ GPHIKRawClassifier::GPHIKRawClassifier( )
   this->b_isTrained = false;
   this->confSection = "";
   this->nnz_per_dimension = NULL;
+  this->q = NULL;
+  this->gm = NULL;
 
   // in order to be sure about all necessary variables be setup with default values, we
   // run initFromConfig with an empty config
@@ -59,7 +61,9 @@ GPHIKRawClassifier::GPHIKRawClassifier( const Config *_conf,
 
   this->b_isTrained = false;
   this->confSection = "";
+  this->nnz_per_dimension = NULL;
   this->q = NULL;
+  this->gm = NULL;
 
   ///////////
   // here comes the new code part different from the empty constructor
@@ -86,6 +90,9 @@ GPHIKRawClassifier::~GPHIKRawClassifier()
 {
   delete this->solver;
   this->solver = NULL;
+
+  if (gm != NULL)
+    delete gm;
 }
 
 void GPHIKRawClassifier::initFromConfig(const Config *_conf,
@@ -304,6 +311,9 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
 
   // sort examples in each dimension and "transpose" the feature matrix
   // set up the GenericMatrix interface
+  if (gm != NULL)
+    delete gm;
+
   gm = new GMHIKernelRaw ( _examples, this->d_noise );
   nnz_per_dimension = gm->getNNZPerDimension();
 
@@ -319,10 +329,8 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
                                         10 /*_maxiterations*/
                                       );
   eig->getEigenvalues( *gm, eigenMax, eigenMaxV, 1 /*rank*/ );
-
   delete eig;
 
-  std::cerr << " largest eigenvalue: " << eigenMax[0] << std::endl;
   // set simple jacobi pre-conditioning
   NICE::Vector diagonalElements;
   gm->getDiagonalElements ( diagonalElements );
