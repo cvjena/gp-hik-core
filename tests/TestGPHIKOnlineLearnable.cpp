@@ -184,6 +184,47 @@ void compareClassifierOutputs ( const NICE::GPHIKClassifier * classifier,
   }  
 }
 
+void compareClassifierOutputsRaw ( const NICE::GPHIKClassifier * classifier,
+                                const NICE::GPHIKRawClassifier * classifierRaw,
+                                const NICE::Matrix & data
+                              )
+{
+  int i_loopEnd  ( (int)data.rows() );
+
+  for (int i = 0; i < i_loopEnd ; i++)
+  {
+    NICE::Vector example ( data.getRow(i) );
+
+    NICE::SparseVector scores;
+    uint result;
+
+    // classify with incrementally trained classifier
+    classifier->classify( &example, result, scores );
+
+
+    NICE::SparseVector scoresRaw;
+    uint resultRaw;
+    NICE::SparseVector example_sparse(example);
+    classifierRaw->classify( &example_sparse, resultRaw, scoresRaw );
+
+
+    bool equal(true);
+    NICE::SparseVector::const_iterator itScores        = scores.begin();
+    NICE::SparseVector::const_iterator itScoresScratch = scoresRaw.begin();
+    for ( ; itScores != scores.end(); itScores++, itScoresScratch++)
+    {
+      if ( fabs( itScores->second - itScores->second ) > 10e-6)
+      {
+        std::cerr << " itScores->second: " << itScores->second << " itScores->second: " << itScores->second << std::endl;
+        equal = false;
+        break;
+      }
+    }
+
+    CPPUNIT_ASSERT_EQUAL ( equal, true );
+  }
+}
+
 void TestGPHIKOnlineLearnable::testOnlineLearningStartEmpty()
 {
   if (verboseStartEnd)
@@ -429,6 +470,8 @@ void TestGPHIKOnlineLearnable::testOnlineLearningOCCtoBinary()
   
   CPPUNIT_ASSERT_DOUBLES_EQUAL( arr, arrScratch, 1e-8);
   CPPUNIT_ASSERT_DOUBLES_EQUAL( arrScratch, arrScratchRaw, 1e-8);
+
+  compareClassifierOutputsRaw(classifier, classifierScratchRaw, dataTest);
   
   // don't waste memory
   

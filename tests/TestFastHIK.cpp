@@ -25,8 +25,8 @@ const bool verbose = true;
 const bool verboseStartEnd = true;
 // this test seems to be broken
 const bool solveLinWithoutRand = false;
-const uint n = 500;//1500;//1500;//10;
-const uint d = 50;//200;//2;
+const uint n = 1500;//1500;//1500;//10;
+const uint d = 100;//200;//2;
 const uint numBins = 11;//1001;//1001;
 const uint solveLinMaxIterations = 1000;
 const double sparse_prob = 0.6;
@@ -217,6 +217,13 @@ void TestFastHIK::testKernelMultiplication()
 
   CPPUNIT_ASSERT_DOUBLES_EQUAL((alpha-alpha_slow).normL1(), 0.0, 1e-8);
   CPPUNIT_ASSERT_DOUBLES_EQUAL((alpha_raw-alpha_slow).normL1(), 0.0, 1e-8);
+
+
+  Vector gmk_diag;
+  Vector gmk_raw_diag;
+  gmk.getDiagonalElements(gmk_diag);
+  gmk_raw.getDiagonalElements(gmk_raw_diag);
+  CPPUNIT_ASSERT_DOUBLES_EQUAL((gmk_diag - gmk_raw_diag).normL1(), 0.0, 1e-8);
 
   // test the case, where we first transform and then use the multiply stuff
   NICE::GeneralizedIntersectionKernelFunction<double> ghikSlow ( 1.2 );
@@ -776,7 +783,7 @@ void TestFastHIK::testLinSolve()
     if ( verbose )
       std::cerr << "solveLin without randomization" << std::endl;
 
-    fmk.solveLin(y, alpha, q, pf, false, 30);
+    fmk.solveLin(y, alpha, q, pf, false, 30 /* max iterations */);
     Vector K_alpha;
     K_alpha.multiply(gK, alpha);
 
@@ -803,6 +810,7 @@ void TestFastHIK::testLinSolve()
   if ( verbose )
   {
     std::cerr << "now assert that K_alphaRandomized == y" << std::endl;
+    // TODO: normL1 sometimes delivered a negative number here
     std::cerr << "(K_alphaRandomized-y).normL1(): " << (K_alphaRandomized - y).normL1() << std::endl;
   }
 

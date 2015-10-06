@@ -115,7 +115,7 @@ NICE::SparseVector MatlabConversion::convertSparseVectorToNice(
         {
           //note: no complex data supported her
             double value ( pr[total++] );
-            if ( b_adaptIndexMtoC ) 
+            if ( b_adaptIndexMtoC )
                 svec.insert( std::pair<uint, double>( row+1,  value ) );
             else
                 svec.insert( std::pair<uint, double>( row,  value ) );
@@ -130,7 +130,7 @@ NICE::SparseVector MatlabConversion::convertSparseVectorToNice(
     {
         //note: no complex data supported her
         double value ( pr[total++] );
-        if ( b_adaptIndexMtoC ) 
+        if ( b_adaptIndexMtoC )
             svec.insert( std::pair<uint, double>( ir[colNonZero]+1, value  ) );
         else
             svec.insert( std::pair<uint, double>( ir[colNonZero], value  ) );
