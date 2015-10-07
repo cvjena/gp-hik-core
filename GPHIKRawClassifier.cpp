@@ -201,8 +201,18 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
         //this->X_sorted.findFirstLargerInDimension(dim, fval, position);
         GMHIKernelRaw::sparseVectorElement fval_element;
         fval_element.value = fval;
+
+        //std::cerr << "value to search for " << fval << endl;
+        //std::cerr << "data matrix in dimension " << dim << endl;
+        //for (int j = 0; j < nnz; j++)
+        //    std::cerr << dataMatrix[dim][j].value << std::endl;
+
         GMHIKernelRaw::sparseVectorElement *it = upper_bound ( dataMatrix[dim], dataMatrix[dim] + nnz, fval_element );
         position = distance ( dataMatrix[dim], it );
+        // add zero elements
+        if ( fval_element.value > 0.0 )
+            position += nz;
+
 
         bool posIsZero ( position == 0 );
         if ( !posIsZero )
@@ -364,28 +374,13 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
     */
     alpha = (y * (1.0 / eigenMax[0]) );
 
-    //DEBUG!!!
-    if ( this->b_debug && classno == 1 )
-    {
-        std::cerr << "Training for class " << classno << endl;
-        std::cerr << y << std::endl;
-        std::cerr << " alpha before and after linsolve" << classno << endl;
-        std::cerr << "  " << alpha << std::endl;
-    }
-
     solver->solveLin( *gm, y, alpha );
-
-    //DEBUG!!!
-    if ( this->b_debug && classno == 1 )
-    {
-//        std::cerr << "Training for class " << classno << endl;
-        std::cerr << "  " << alpha << std::endl;
-    }
 
     // TODO: get lookup tables, A, B, etc. and store them
     gm->updateTables(alpha);
     double **A = gm->getTableA();
     double **B = gm->getTableB();
+
     precomputedA.insert ( pair<uint, PrecomputedType> ( classno, A ) );
     precomputedB.insert ( pair<uint, PrecomputedType> ( classno, B ) );
   }

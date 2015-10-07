@@ -132,19 +132,7 @@ void GMHIKernelRaw::initData ( const std::vector< const NICE::SparseVector *> &_
 
     // pre-allocate the A and B matrices
     this->table_A = allocateTable();
-    this->table_A = new double *[this->num_dimension];
-    this->table_B = new double *[this->num_dimension];
-    for (uint i = 0; i < this->num_dimension; i++)
-    {
-        uint nnz = this->nnz_per_dimension[i];
-        if (nnz>0) {
-            this->table_A[i] = new double [ nnz ];
-            this->table_B[i] = new double [ nnz ];
-        } else {
-            this->table_A[i] = NULL;
-            this->table_B[i] = NULL;
-        }
-    }
+    this->table_B = allocateTable();
 }
 
 double **GMHIKernelRaw::allocateTable() const
@@ -201,6 +189,7 @@ void GMHIKernelRaw::updateTables ( const NICE::Vector _x ) const
         this->table_B[dim][cntNonzeroFeat] = alpha_sum;
       }
     }
+
 
 }
 

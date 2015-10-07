@@ -191,16 +191,15 @@ void GPLikelihoodApprox::computeAlphaDirect(const OPTIMIZATION::matrix_type & _x
      *  This reduces the number of iterations by 5 or 8
      */
     NICE::Vector alpha;
-    
     alpha = (binaryLabels[classCnt] * (1.0 / _eigenValues[0]) );
-    
+
     if ( verbose )
       std::cerr << "Using the standard solver ..." << std::endl;
 
     t.start();
     linsolver->solveLin ( *ikm, binaryLabels[classCnt], alpha );
     t.stop();
-   
+
     alphas.insert( std::pair<uint, NICE::Vector> ( classCnt, alpha) );
   }  
   
