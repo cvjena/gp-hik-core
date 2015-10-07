@@ -172,7 +172,7 @@ void compareClassifierOutputs ( const NICE::GPHIKClassifier * classifier,
     NICE::SparseVector::const_iterator itScoresScratch = scoresScratch.begin();
     for ( ; itScores != scores.end(); itScores++, itScoresScratch++)
     {
-      if ( fabs( itScores->second - itScores->second ) > 10e-3)
+      if ( fabs( itScores->second - itScoresScratch->second ) > 10e-3)
       {
         std::cerr << " itScores->second: " << itScores->second << " itScores->second: " << itScores->second << std::endl;
         equal = false;
@@ -213,7 +213,7 @@ void compareClassifierOutputsRaw ( const NICE::GPHIKClassifier * classifier,
     NICE::SparseVector::const_iterator itScoresScratch = scoresRaw.begin();
     for ( ; itScores != scores.end(); itScores++, itScoresScratch++)
     {
-      if ( fabs( itScores->second - itScores->second ) > 10e-6)
+      if ( fabs( itScores->second - itScoresScratch->second ) > 10e-6)
       {
         std::cerr << " itScores->second: " << itScores->second << " itScores->second: " << itScores->second << std::endl;
         equal = false;
@@ -233,7 +233,7 @@ void TestGPHIKOnlineLearnable::testOnlineLearningStartEmpty()
   NICE::Config conf;
   
   conf.sB ( "GPHIKClassifier", "eig_verbose", false);
-  conf.sS ( "GPHIKClassifier", "optimization_method", "downhillsimplex");
+  conf.sS ( "GPHIKClassifier", "optimization_method", "none");
   
   std::string s_trainData = conf.gS( "main", "trainData", "toyExampleSmallScaleTrain.data" );
   
@@ -347,7 +347,7 @@ void TestGPHIKOnlineLearnable::testOnlineLearningOCCtoBinary()
   NICE::Config conf;
   
   conf.sB ( "GPHIKClassifier", "eig_verbose", false);
-  conf.sS ( "GPHIKClassifier", "optimization_method", "downhillsimplex");
+  conf.sS ( "GPHIKClassifier", "optimization_method", "none");
   conf.sB ( "GPHIKClassifier", "verbose", true);
   
   std::string s_trainData = conf.gS( "main", "trainData", "toyExampleSmallScaleTrain.data" );

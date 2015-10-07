@@ -193,7 +193,8 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
         uint nz = this->num_examples - nnz;
 
         if ( nnz == 0 ) continue;
-        if ( fval < this->f_tolerance ) continue;
+        // useful
+        //if ( fval < this->f_tolerance ) continue;
 
         uint position = 0;
 
