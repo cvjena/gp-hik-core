@@ -249,6 +249,57 @@ void GMHIKernelRaw::updateTables ( const NICE::Vector _x ) const
 
         alpha_sum += _x[index];
         this->table_B[dim][cntNonzeroFeat] = alpha_sum;
+
+        if ( this->q != NULL)
+        {
+//            // index of the element, which is always bigger than the current value fval
+//            uint index = 0;
+//            // we use the quantization of the original features! the transformed feature were
+//            // already used to calculate A and B, this of course assumes monotonic functions!!!
+//            uint qBin = _q->quantize ( i->first, dim );
+
+//            // the next loop is linear in max(hmax, n)
+//            // REMARK: this could be changed to hmax*log(n), when
+//            // we use binary search
+
+//            for (uint j = 0; j < hmax; j++)
+//            {
+//              double fval = prototypes[ dim*hmax + j ];
+//              double t;
+
+//              if (  (index == 0) && (j < qBin) ) {
+//                // current element is smaller than everything else
+//                // resulting value = fval * sum_l=1^n alpha_l
+//                t = fval*( _B[dim][this->ui_n-1 - nrZeroIndices] );
+//              } else {
+
+//                 // move to next example, if necessary
+//                while ( (j >= qBin) && ( index < (this->ui_n-1-nrZeroIndices)) )
+//                {
+//                  index++;
+//                  iPredecessor = i;
+//                  i++;
+
+//                  if ( i->first !=  iPredecessor->first )
+//                    qBin = _q->quantize ( i->first, dim );
+//                }
+//                // compute current element in the lookup table and keep in mind that
+//                // index is the next element and not the previous one
+//                //NOTE pay attention: this is only valid if all entries are positive! -
+//                // If not, ask whether the current feature is greater than zero. If so, subtract the nrZeroIndices, if not do not
+//                if ( (j >= qBin) && ( index==(this->ui_n-1-nrZeroIndices) ) ) {
+//                  // the current element (fval) is equal or bigger to the element indexed by index
+//                  // in fact, the term B[dim][this->n-1-nrZeroIndices] - B[dim][index] is equal to zero and vanishes, which is logical, since all elements are smaller than j!
+//                  t = _A[dim][index];// + fval*( _B[dim][this->ui_n-1-nrZeroIndices] - _B[dim][index] );
+//                } else {
+//                  // standard case
+//                  t = _A[dim][index-1] + fval*( _B[dim][this->ui_n-1-nrZeroIndices] - _B[dim][index-1] );
+//                }
+//              }
+
+//              Tlookup[ dim*hmax + j ] = t;
+//            }
+        }
       }
     }
 
