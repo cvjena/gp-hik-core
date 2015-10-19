@@ -60,6 +60,14 @@ void QuantizationNDAequiDist0ToMax::computeParametersFromData ( const NICE::Feat
   this->v_upperBounds = _fm->getLargestValuePerDimension( d_quantile );  
 }
 
+void QuantizationNDAequiDist0ToMax::computeParametersFromData ( const NICE::GMHIKernelRaw *  _gm )
+{
+  // 100% quantile...
+  double d_quantile ( 1.00 );
+  this->v_upperBounds = _gm->getLargestValuePerDimension( d_quantile );
+}
+
+
 // ---------------------- STORE AND RESTORE FUNCTIONS ----------------------
 
 void QuantizationNDAequiDist0ToMax::restore ( std::istream & _is, 

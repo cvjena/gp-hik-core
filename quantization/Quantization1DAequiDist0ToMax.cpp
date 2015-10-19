@@ -64,6 +64,13 @@ void Quantization1DAequiDist0ToMax::computeParametersFromData ( const NICE::Feat
       this->v_upperBounds.resize ( 1 );
       this->v_upperBounds ( 0 ) = vmax;
 }
+
+void Quantization1DAequiDist0ToMax::computeParametersFromData ( const NICE::GMHIKernelRaw *  _gm )
+{
+      double vmax = ( _gm->getLargestValue( ) );
+      this->v_upperBounds.resize ( 1 );
+      this->v_upperBounds ( 0 ) = vmax;
+}
 // ---------------------- STORE AND RESTORE FUNCTIONS ----------------------
 
 void Quantization1DAequiDist0ToMax::restore ( std::istream & _is, 

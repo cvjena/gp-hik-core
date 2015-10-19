@@ -56,6 +56,11 @@ void Quantization1DAequiDist0To1::computeParametersFromData ( const NICE::Featur
 {
   // nothing to do here...
 }
+
+void Quantization1DAequiDist0To1::computeParametersFromData ( const NICE::GMHIKernelRaw *  _gm )
+{
+  // nothing to do here...
+}
 // ---------------------- STORE AND RESTORE FUNCTIONS ----------------------
 
 void Quantization1DAequiDist0To1::restore ( std::istream & _is, 

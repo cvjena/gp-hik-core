@@ -25,12 +25,12 @@
 namespace NICE {
 
  /**
- * @class GPHIKClassifier
+ * @class GPHIKRawClassifier
  * @brief ...
- * @author Erik Rodner
+ * @author Erik Rodner, Alexander Freytag
  */
 
-class GPHIKRawClassifier //: public NICE::Persistent
+class GPHIKRawClassifier
 {
 
   protected:
@@ -83,6 +83,7 @@ class GPHIKRawClassifier //: public NICE::Persistent
 
     uint *nnz_per_dimension;
     uint num_examples;
+    uint num_dimension;
 
     double f_tolerance;
 
@@ -95,6 +96,12 @@ class GPHIKRawClassifier //: public NICE::Persistent
     /////////////////////////
     /////////////////////////
 
+
+    /////////////////////////
+    /////////////////////////
+    //    PUBLIC METHODS   //
+    /////////////////////////
+    /////////////////////////
 
   public:
 

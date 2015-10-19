@@ -17,8 +17,13 @@
 #include <core/algebra/EigValues.h>
 
 // gp-hik-core includes
-#include "GPHIKRawClassifier.h"
-#include "GMHIKernelRaw.h"
+#include "gp-hik-core/GPHIKRawClassifier.h"
+#include "gp-hik-core/GMHIKernelRaw.h"
+
+//
+#include "gp-hik-core/quantization/Quantization1DAequiDist0To1.h"
+#include "gp-hik-core/quantization/Quantization1DAequiDist0ToMax.h"
+#include "gp-hik-core/quantization/QuantizationNDAequiDist0ToMax.h"
 
 using namespace std;
 using namespace NICE;
@@ -29,6 +34,64 @@ using namespace NICE;
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
 
+
+double * GPHIKRawClassifier::computeTableT ( const NICE::Vector & _alpha
+                                           )
+{
+    if (this->q == NULL )
+    {
+        return NULL;
+    }
+
+    //
+    // number of quantization bins
+    uint hmax = _q->getNumberOfBins();
+
+    // store (transformed) prototypes
+    double * prototypes   = new double [ hmax * this->num_dimension ];
+    double * p_prototypes = prototypes;
+
+    for (uint dim = 0; dim < this->num_dimension; dim++)
+    {
+      for ( uint i = 0 ; i < hmax ; i++ )
+      {
+        if ( _pf != NULL )
+        {
+          *p_prototypes = _pf->f ( dim, _q->getPrototype( i, dim ) );
+        } else
+        {
+          *p_prototypes = _q->getPrototype( i, dim );
+        }
+
+        p_prototypes++;
+      }
+    }
+
+    //allocate memory for the LUT
+    double *Tlookup = new double [ hmax * this->num_dimension ];
+
+    // loop through all dimensions
+    for (uint dim = 0; dim < this->ui_d; dim++)
+    {
+        if ( nnz_per_dimension[dim] == 0 )
+            continue;
+
+        double alphaSumTotalInDim(0.0);
+        double alphaTimesXSumTotalInDim(0.0);
+
+        for ( SortedVectorSparse<double>::const_elementpointer i = nonzeroElements.begin(); i != nonzeroElements.end(); i++ )
+        {
+          alphaSumTotalInDim += _alpha[i->second.first];
+          alphaTimesXSumTotalInDim += _alpha[i->second.first] * i->second.second;
+        }
+    }
+
+    //don't waste memory
+    delete [] prototypes;
+
+    return Tlookup;
+
+}
 
 
 /////////////////////////////////////////////////////
@@ -128,6 +191,46 @@ void GPHIKRawClassifier::initFromConfig(const Config *_conf,
       std::cerr << "   ils_min_delta " << ils_min_delta << std::endl;
       std::cerr << "   ils_min_residual " << ils_min_residual << std::endl;
       std::cerr << "   ils_verbose " << ils_verbose << std::endl;
+  }
+
+  //quantization during classification?
+  bool useQuantization = _conf->gB ( _confSection, "use_quantization", false );
+
+  if ( this->b_verbose )
+  {
+    std::cerr << "_confSection: " << _confSection << std::endl;
+    std::cerr << "use_quantization: " << useQuantization << std::endl;
+  }
+
+  if ( _conf->gB ( _confSection, "use_quantization", false ) )
+  {
+    int numBins = _conf->gI ( _confSection, "num_bins", 100 );
+    if ( this->b_verbose )
+      std::cerr << "FMKGPHyperparameterOptimization: quantization initialized with " << numBins << " bins." << std::endl;
+
+
+    std::string s_quantType = _conf->gS( _confSection, "s_quantType", "1d-aequi-0-1" );
+
+    if ( s_quantType == "1d-aequi-0-1" )
+    {
+      this->q = new NICE::Quantization1DAequiDist0To1 ( numBins );
+    }
+    else if ( s_quantType == "1d-aequi-0-max" )
+    {
+      this->q = new NICE::Quantization1DAequiDist0ToMax ( numBins );
+    }
+    else if ( s_quantType == "nd-aequi-0-max" )
+    {
+      this->q = new NICE::QuantizationNDAequiDist0ToMax ( numBins );
+    }
+    else
+    {
+      fthrow(Exception, "Quantization type is unknown " << s_quantType);
+    }
+  }
+  else
+  {
+    this->q = NULL;
   }
 }
 
@@ -320,13 +423,16 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
   precomputedB.clear();
   precomputedT.clear();
 
+
   // sort examples in each dimension and "transpose" the feature matrix
   // set up the GenericMatrix interface
   if (gm != NULL)
     delete gm;
 
-  gm = new GMHIKernelRaw ( _examples, this->d_noise );
-  nnz_per_dimension = gm->getNNZPerDimension();
+  gm = new GMHIKernelRaw ( _examples, this->d_noise, this->q );
+  this->nnz_per_dimension = gm->getNNZPerDimension();
+  this->num_dimension     = gm->getNumberOfDimensions();
+
 
   // compute largest eigenvalue of our kernel matrix
   // note: this guy is shared among all categories,
@@ -383,13 +489,22 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
 
     precomputedA.insert ( pair<uint, PrecomputedType> ( classno, A ) );
     precomputedB.insert ( pair<uint, PrecomputedType> ( classno, B ) );
+
+    // Quantization for classification?
+    if ( this->q != NULL )
+    {
+      // (2) then compute the corresponding look-up table T
+        double **B = gm->getTableT();
+
+      double *T = this->computeTableT ( alpha );
+      precomputedT.insert( pair<uint, PrecomputedType> ( classno, T ) );
+    }
   }
 
 
   t.stop();
   if ( this->b_verbose )
     std::cerr << "Time used for setting up the fmk object: " << t.getLast() << std::endl;
-
 
   //indicate that we finished training successfully
   this->b_isTrained = true;

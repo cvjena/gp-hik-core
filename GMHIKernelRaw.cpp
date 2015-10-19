@@ -16,13 +16,17 @@ using namespace NICE;
 using namespace std;
 
 
-GMHIKernelRaw::GMHIKernelRaw( const std::vector< const NICE::SparseVector *> &_examples, const double _d_noise )
+GMHIKernelRaw::GMHIKernelRaw( const std::vector< const NICE::SparseVector *> &_examples,
+                              const double _d_noise
+                              const NICE::Quantization * _q
+                            )
 {
     this->examples_raw = NULL;
     this->nnz_per_dimension = NULL;
     this->table_A = NULL;
     this->table_B = NULL;
     this->d_noise = _d_noise;
+    this->q       = _q;
 
     initData(_examples);
 }
@@ -59,7 +63,6 @@ void GMHIKernelRaw::cleanupData()
         delete [] this->table_B;
         this->table_B = NULL;
     }
-
 }
 
 void GMHIKernelRaw::initData ( const std::vector< const NICE::SparseVector *> &_examples )
@@ -131,11 +134,19 @@ void GMHIKernelRaw::initData ( const std::vector< const NICE::SparseVector *> &_
     }
 
     // pre-allocate the A and B matrices
-    this->table_A = allocateTable();
-    this->table_B = allocateTable();
+    this->table_A = allocateTableAorB();
+    this->table_B = allocateTableAorB();
+
+    // Quantization for classification?
+    if ( this->q != NULL )
+    {
+      // (1) if yes, setup the parameters of the quantization object
+      this->q->computeParametersFromData ( this );
+      this->table_T = allocateTableT();
+    }
 }
 
-double **GMHIKernelRaw::allocateTable() const
+double **GMHIKernelRaw::allocateTableAorB() const
 {
     double **table;
     table = new double *[this->num_dimension];
@@ -151,7 +162,14 @@ double **GMHIKernelRaw::allocateTable() const
     return table;
 }
 
-void GMHIKernelRaw::copyTable(double **src, double **dst) const
+double **GMHIKernelRaw::allocateTableT() const
+{
+    double **table;
+    table = new double *[this->num_dimension * this->q->getNumberOfBins()];
+    return table;
+}
+
+void GMHIKernelRaw::copyTableAorB(double **src, double **dst) const
 {
     for (uint i = 0; i < this->num_dimension; i++)
     {
@@ -165,8 +183,52 @@ void GMHIKernelRaw::copyTable(double **src, double **dst) const
     }
 }
 
+void GMHIKernelRaw::copyTableC(double **src, double **dst) const
+{
+    for (uint i = 0; i < this->num_dimension; i++)
+    {
+        for (uint j = 0; j < this->q->getNumberOfBins(); j++)
+        {
+            //FIXME can we speed this up using pointer increments?
+            dst[i][j] = src[i][j];
+        }
+    }
+}
+
 void GMHIKernelRaw::updateTables ( const NICE::Vector _x ) const
 {
+    // pre-computions if quantization is activated
+    double * prototypes;
+    double * p_prototypes;
+
+    // store prototypes
+    if ( this->q != NULL)
+    {
+        // number of quantization bins
+        uint hmax = _q->getNumberOfBins();
+
+
+        double * prototypes   = new double [ hmax * this->ui_d ];
+        double * p_prototypes = prototypes;
+
+        for (uint dim = 0; dim < this->ui_d; dim++)
+        {
+          for ( uint i = 0 ; i < hmax ; i++ )
+          {
+            if ( _pf != NULL )
+            {
+              *p_prototypes = _pf->f ( dim, _q->getPrototype( i, dim ) );
+            } else
+            {
+              *p_prototypes = _q->getPrototype( i, dim );
+            }
+
+            p_prototypes++;
+          }
+        }
+    }
+
+    // start the actual computations of A, B, and optionally T
     for (uint dim = 0; dim < this->num_dimension; dim++)
     {
       double alpha_sum = 0.0;
@@ -248,15 +310,22 @@ uint GMHIKernelRaw::cols () const
 
 double **GMHIKernelRaw::getTableA() const
 {
-    double **t = allocateTable();
-    copyTable(this->table_A, t);
+    double **t = allocateTableAorB();
+    copyTableAorB(this->table_A, t);
     return t;
 }
 
 double **GMHIKernelRaw::getTableB() const
 {
-    double **t = allocateTable();
-    copyTable(this->table_B, t);
+    double **t = allocateTableAorB();
+    copyTableAorB(this->table_B, t);
+    return t;
+}
+
+double **GMHIKernelRaw::getTableT() const
+{
+    double **t = allocateTableT();
+    copyTableT(this->table_T, t);
     return t;
 }
 
@@ -269,7 +338,63 @@ uint *GMHIKernelRaw::getNNZPerDimension() const
 }
 
 
+uint NICE::GMHIKernelRaw::getNumberOfDimensions() const
+{
+    return this->num_dimension;
+}
+
 void NICE::GMHIKernelRaw::getDiagonalElements( NICE::Vector & _diagonalElements) const
 {
     _diagonalElements = this->diagonalElements;
+}
+
+double NICE::GMHIKernelRaw::getLargestValue ( ) const
+{
+  double vmax (0.0);
+  double vtmp (0.0);
+
+  uint tmpIdx ( 0 );
+  // compare largest elements of all dimensions
+  for (uint d = 0; d < this->num_dimension; d++)
+  {
+      uint nnz = this->nnz_per_dimension[d];
+
+      if ( nnz > 1 )
+      {
+          tmpIdx = tmpIdx + nnz;
+          vtmp   = this->examples_raw[tmpIdx];
+          if ( vtmp > vmax )
+          {
+            vmax = vtmp;
+          }
+      }
+  }
+
+  return vmax;
+}
+
+
+NICE::Vector NICE::GMHIKernelRaw::getLargestValuePerDimension ( ) const
+{
+  NICE::Vector vmax ( this->get_d() );
+
+  NICE::Vector::iterator vmaxIt = vmax.begin();
+
+  uint tmpIdx ( 0 );
+  for (uint d = 0; d < this->num_dimension; d++, vmaxIt++)
+  {
+      uint nnz = this->nnz_per_dimension[d];
+
+      if ( nnz > 1 )
+      {
+          tmpIdx  = tmpIdx + nnz;
+          *vmaxIt = this->examples_raw[tmpIdx];
+      }
+      else
+      {
+          *vmaxIt = 0.0;
+      }
+  }
+
+  return vmax;
 }
