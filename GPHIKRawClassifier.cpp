@@ -292,10 +292,11 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
 
           for (SparseVector::const_iterator i = _xstar->begin(); i != _xstar->end(); i++ )
           {
-            uint dim = i->first;
-            double v = i->second;
+            uint dim  = i->first;
+            double v  = i->second;
             uint qBin = this->q->quantize( v, dim );
 
+            //FIXME do we have problems indexing with uints if number of bins is quite large?
             beta += T[dim * this->q->getNumberOfBins() + qBin];
           }//for-loop over dimensions of test input
 
