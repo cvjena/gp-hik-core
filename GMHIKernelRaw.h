@@ -16,7 +16,7 @@
 namespace NICE {
 
  /**
- * @class GMHIKernel
+ * @class GMHIKernelRaw
  * @brief Fast multiplication with histogram intersection kernel matrices
  * @author Erik Rodner, Alexander Freytag
  */
@@ -40,7 +40,7 @@ class GMHIKernelRaw : public GenericMatrix
     sparseVectorElement **examples_raw;
     double **table_A;
     double **table_B;
-    double **table_T;
+    double *table_T;
 
     NICE::Vector diagonalElements;
 
@@ -63,11 +63,11 @@ class GMHIKernelRaw : public GenericMatrix
     void initData ( const std::vector< const NICE::SparseVector *> & examples );
     void cleanupData ();
 
-    double **allocateTableAorB() const;
-    double **allocateTableT() const
+    double** allocateTableAorB() const;
+    double* allocateTableT() const;
 
     void copyTableAorB(double **src, double **dst) const;
-    void copyTableT(double **src, double **dst) const;
+    void copyTableT(double *src, double *dst) const;
 
 
     double * computeTableT ( const NICE::Vector & _alpha
@@ -100,7 +100,7 @@ class GMHIKernelRaw : public GenericMatrix
 
     double **getTableA() const;
     double **getTableB() const;
-    double **getTableT() const;
+    double *getTableT() const;
 
     uint *getNNZPerDimension() const;
     uint getNumberOfDimensions() const;

@@ -15,7 +15,8 @@
 
 // gp-hik-core includes
 #include "gp-hik-core/FeatureMatrixT.h"
-#include "gp-hik-core/GMHIKernelRaw.h"
+// #include "gp-hik-core/GMHIKernelRaw.h"
+//FIXME cyclic dependency!
 
 namespace NICE {
   

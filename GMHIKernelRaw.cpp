@@ -142,7 +142,7 @@ void GMHIKernelRaw::initData ( const std::vector< const NICE::SparseVector *> &_
     {
       // (1) if yes, setup the parameters of the quantization object
       this->q->computeParametersFromData ( this );
-      this->table_T = allocateTableT();
+      this->table_T = this->allocateTableT();
     }
 }
 
@@ -162,10 +162,10 @@ double **GMHIKernelRaw::allocateTableAorB() const
     return table;
 }
 
-double **GMHIKernelRaw::allocateTableT() const
+double *GMHIKernelRaw::allocateTableT() const
 {
-    double **table;
-    table = new double *[this->num_dimension * this->q->getNumberOfBins()];
+    double *table;
+    table = new double [this->num_dimension * this->q->getNumberOfBins()];
     return table;
 }
 
@@ -183,16 +183,16 @@ void GMHIKernelRaw::copyTableAorB(double **src, double **dst) const
     }
 }
 
-void GMHIKernelRaw::copyTableC(double **src, double **dst) const
+void GMHIKernelRaw::copyTableT(double *_src, double *_dst) const
 {
-    for (uint i = 0; i < this->num_dimension; i++)
-    {
-        for (uint j = 0; j < this->q->getNumberOfBins(); j++)
-        {
-            //FIXME can we speed this up using pointer increments?
-            dst[i][j] = src[i][j];
-        }
-    }
+  double p_src = _src;
+  double p_dst = _dst;
+  for ( int i = 0; i < this->num_dimension * this->q->getNumberOfBins(); i++ )
+  {
+    *p_dst = *p_src;
+    p_src++;
+    p_dst++;    
+  }
 }
 
 void GMHIKernelRaw::updateTables ( const NICE::Vector _x ) const
@@ -200,30 +200,24 @@ void GMHIKernelRaw::updateTables ( const NICE::Vector _x ) const
     // pre-computions if quantization is activated
     double * prototypes;
     double * p_prototypes;
+    uint hmax;
 
     // store prototypes
     if ( this->q != NULL)
     {
         // number of quantization bins
-        uint hmax = _q->getNumberOfBins();
+         hmax = this->q->getNumberOfBins();
 
 
-        double * prototypes   = new double [ hmax * this->ui_d ];
+        double * prototypes   = new double [ hmax * this->num_dimension ];
         double * p_prototypes = prototypes;
 
-        for (uint dim = 0; dim < this->ui_d; dim++)
+        for (uint dim = 0; dim < this->num_dimension; dim++)
         {
           for ( uint i = 0 ; i < hmax ; i++ )
           {
-            if ( _pf != NULL )
-            {
-              *p_prototypes = _pf->f ( dim, _q->getPrototype( i, dim ) );
-            } else
-            {
-              *p_prototypes = _q->getPrototype( i, dim );
-            }
-
-            p_prototypes++;
+            *p_prototypes = this->q->getPrototype( i, dim );
+             p_prototypes++;
           }
         }
     }
@@ -234,7 +228,9 @@ void GMHIKernelRaw::updateTables ( const NICE::Vector _x ) const
       double alpha_sum = 0.0;
       double alpha_times_x_sum = 0.0;
       uint nnz = nnz_per_dimension[dim];
+      
 
+      //////////
       // loop through all elements in sorted order
       sparseVectorElement *training_values_in_dim = examples_raw[dim];
       for ( uint cntNonzeroFeat = 0; cntNonzeroFeat < nnz; cntNonzeroFeat++, training_values_in_dim++ )
@@ -249,61 +245,82 @@ void GMHIKernelRaw::updateTables ( const NICE::Vector _x ) const
 
         alpha_sum += _x[index];
         this->table_B[dim][cntNonzeroFeat] = alpha_sum;
+      }
 
-        if ( this->q != NULL)
+      if ( this->q != NULL)
+      {
+        //////////
+        // variables which are needed for computing T
+        uint idxProto ( 0 ); // previously j
+        double t;
+
+        uint idxProtoElem; // previously qBin
+        
+        sparseVectorElement * i            = examples_raw[dim];
+        sparseVectorElement * iPredecessor = examples_raw[dim];
+        
+        // index of the element, which is always bigger than the current value fval
+        int indexElem = 0;//training_values_in_dim->example_index;
+        // element of the feature
+        double elem = i->value;//training_values_in_dim->value;        
+           
+        for (uint idxProto = 0; idxProto < hmax; idxProto++) // previously j
         {
-//            // index of the element, which is always bigger than the current value fval
-//            uint index = 0;
-//            // we use the quantization of the original features! the transformed feature were
-//            // already used to calculate A and B, this of course assumes monotonic functions!!!
-//            uint qBin = _q->quantize ( i->first, dim );
+          double fvalProto = prototypes[ dim*hmax + idxProto ];
+          double t;
+          
+          
+          idxProtoElem = this->q->quantize ( elem, dim ); 
+            
 
-//            // the next loop is linear in max(hmax, n)
-//            // REMARK: this could be changed to hmax*log(n), when
-//            // we use binary search
+          if (  (indexElem == 0) && (idxProto < idxProtoElem) ) 
+          {
+            // current prototype is smaller than everything else
+            // resulting value = fval * sum_l=1^n alpha_l
+            t = fvalProto*( this->table_B[ dim ][ nnz-1 ] );
+          }
+          else
+          {
+            //move to next example, which is smaller then the current prototype (if necessary)
+            // pay attentation to not loop over the number of non-zero elements
+               while ( (idxProto >= idxProtoElem) && ( indexElem < ( nnz - 1 ) ) ) //(this->ui_n-1-nrZeroIndices)) )
+               {
+                 indexElem++;
+                 iPredecessor = i;
+                 i++;
 
-//            for (uint j = 0; j < hmax; j++)
-//            {
-//              double fval = prototypes[ dim*hmax + j ];
-//              double t;
+                 if ( i->value !=  iPredecessor->value )
+                 {
+                   idxProtoElem = this->q->quantize ( i->value, dim );
+                 }
+               }
+               // compute current element in the lookup table and keep in mind that
+               // indexElem is the next element and not the previous one
+               if ( (idxProto >= idxProtoElem) && ( indexElem==( nnz-1 ) ) )
+               {
+                 // the current prototype is equal or bigger to the largest training example in this dimension
+                 // -> the term B[ dim ][ nnz-1 ] - B[ dim ][ indexElem ] is equal to zero and vanishes, which is logical, since all elements are smaller than j!
+                 t = table_A[ dim ][ indexElem ];
+               }
+               else
+               {
+                 // standard case
+                 t = table_A[ dim ][ indexElem-1 ] + fvalProto*( table_B[ dim ][ nnz-1 ] - table_B[ dim ][ indexElem-1 ] );
+               }
+             }
 
-//              if (  (index == 0) && (j < qBin) ) {
-//                // current element is smaller than everything else
-//                // resulting value = fval * sum_l=1^n alpha_l
-//                t = fval*( _B[dim][this->ui_n-1 - nrZeroIndices] );
-//              } else {
-
-//                 // move to next example, if necessary
-//                while ( (j >= qBin) && ( index < (this->ui_n-1-nrZeroIndices)) )
-//                {
-//                  index++;
-//                  iPredecessor = i;
-//                  i++;
-
-//                  if ( i->first !=  iPredecessor->first )
-//                    qBin = _q->quantize ( i->first, dim );
-//                }
-//                // compute current element in the lookup table and keep in mind that
-//                // index is the next element and not the previous one
-//                //NOTE pay attention: this is only valid if all entries are positive! -
-//                // If not, ask whether the current feature is greater than zero. If so, subtract the nrZeroIndices, if not do not
-//                if ( (j >= qBin) && ( index==(this->ui_n-1-nrZeroIndices) ) ) {
-//                  // the current element (fval) is equal or bigger to the element indexed by index
-//                  // in fact, the term B[dim][this->n-1-nrZeroIndices] - B[dim][index] is equal to zero and vanishes, which is logical, since all elements are smaller than j!
-//                  t = _A[dim][index];// + fval*( _B[dim][this->ui_n-1-nrZeroIndices] - _B[dim][index] );
-//                } else {
-//                  // standard case
-//                  t = _A[dim][index-1] + fval*( _B[dim][this->ui_n-1-nrZeroIndices] - _B[dim][index-1] );
-//                }
-//              }
-
-//              Tlookup[ dim*hmax + j ] = t;
-//            }
+             this->table_T[ dim*hmax + idxProto ] = t;
+           }
         }
       }
     }
 
 
+    // clean-up prototypes
+    if ( this->q != NULL)
+    {
+      delete [] prototypes;
+    }
 }
 
 /** multiply with a vector: A*x = y */
