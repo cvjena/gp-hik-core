@@ -17,51 +17,70 @@ using namespace std;
 
 
 GMHIKernelRaw::GMHIKernelRaw( const std::vector< const NICE::SparseVector *> &_examples,
-                              const double _d_noise
-                              const NICE::Quantization * _q
+                              const double _d_noise,
+                              NICE::Quantization * _q
                             )
 {
     this->examples_raw = NULL;
     this->nnz_per_dimension = NULL;
     this->table_A = NULL;
     this->table_B = NULL;
+    this->table_T = NULL;
     this->d_noise = _d_noise;
     this->q       = _q;
 
-    initData(_examples);
+    this->initData(_examples);
 }
 
 GMHIKernelRaw::~GMHIKernelRaw()
 {
-    cleanupData();
+    this->cleanupData();
 }
 
 void GMHIKernelRaw::cleanupData()
 {
-    if ( this->examples_raw != NULL ) {
+    // data structure of examples
+    if ( this->examples_raw != NULL )
+    {
         for ( uint d = 0; d < this->num_dimension; d++ )
             if (examples_raw[d] != NULL)
                 delete [] examples_raw[d];
         delete [] this->examples_raw;
         this->examples_raw = NULL;
     }
-    if ( this->nnz_per_dimension != NULL ) {
+
+    // counter of non-zero examples in each dimension
+    if ( this->nnz_per_dimension != NULL )
+    {
         delete [] this->nnz_per_dimension;
         this->nnz_per_dimension = NULL;
     }
-    if ( this->table_A != NULL ) {
+
+    // LUT A for classification without quantization
+    if ( this->table_A != NULL )
+    {
         for ( uint d = 0; d < this->num_dimension; d++ )
             if (table_A[d] != NULL)
                 delete [] table_A[d];
         delete [] this->table_A;
         this->table_A = NULL;
     }
-    if ( this->table_B != NULL ) {
+
+    // LUT B for classification without quantization
+    if ( this->table_B != NULL )
+    {
         for ( uint d = 0; d < this->num_dimension; d++ )
             if (table_B[d] != NULL)
                 delete [] table_B[d];
         delete [] this->table_B;
         this->table_B = NULL;
+    }
+
+    // LUT T for classification with quantization
+    if ( this->table_T != NULL )
+    {
+        delete [] this->table_T;
+        this->table_T = NULL;
     }
 }
 
@@ -72,10 +91,10 @@ void GMHIKernelRaw::initData ( const std::vector< const NICE::SparseVector *> &_
 
     cleanupData();
 
-    this->num_dimension = _examples[0]->getDim();
-    this->examples_raw = new sparseVectorElement *[num_dimension];
+    this->num_dimension     = _examples[0]->getDim();
+    this->examples_raw      = new sparseVectorElement *[num_dimension];
     this->nnz_per_dimension = new uint [num_dimension];
-    this->num_examples = _examples.size();
+    this->num_examples      = _examples.size();
 
     // waste memory and allocate a non-sparse data block
     sparseVectorElement **examples_raw_increment = new sparseVectorElement *[num_dimension];
@@ -97,10 +116,11 @@ void GMHIKernelRaw::initData ( const std::vector< const NICE::SparseVector *> &_
     NICE::Vector::iterator itDiagEl = this->diagonalElements.begin();
 
     // minor pre-allocation
-    uint index;
+    uint i_dimNonZero;
     double value;
     double l1norm;
 
+    // iterate over all provided training examples to process their data
     for ( std::vector< const NICE::SparseVector * >::const_iterator i = _examples.begin();
           i != _examples.end();
           i++, example_index++, itDiagEl++
@@ -108,15 +128,18 @@ void GMHIKernelRaw::initData ( const std::vector< const NICE::SparseVector *> &_
     {
         l1norm = 0.0;
         const NICE::SparseVector *x = *i;
+        // loop over all non-zero dimensions, copy dimension and value into our data structure, and compute the L1 norm
         for ( NICE::SparseVector::const_iterator j = x->begin(); j != x->end(); j++ )
         {
-            index = j->first;
-            value = j->second;
-            examples_raw_increment[index]->value = value;
-            examples_raw_increment[index]->example_index = example_index;
-            // move to the next element
-            examples_raw_increment[index]++;
-            this->nnz_per_dimension[index]++;
+            i_dimNonZero = j->first;
+            value        = j->second;
+
+            examples_raw_increment[i_dimNonZero]->value = value;
+            examples_raw_increment[i_dimNonZero]->example_index = example_index;
+
+            // move data pointer to the next element in the current dimension
+            examples_raw_increment[i_dimNonZero]++;
+            this->nnz_per_dimension[i_dimNonZero]++;
 
             l1norm = l1norm + value;
         }
@@ -141,7 +164,8 @@ void GMHIKernelRaw::initData ( const std::vector< const NICE::SparseVector *> &_
     if ( this->q != NULL )
     {
       // (1) if yes, setup the parameters of the quantization object
-      this->q->computeParametersFromData ( this );
+      NICE::Vector _maxValuesPerDimension = this->getLargestValuePerDimension();
+      this->q->computeParametersFromData ( _maxValuesPerDimension );
       this->table_T = this->allocateTableT();
     }
 }
@@ -185,43 +209,16 @@ void GMHIKernelRaw::copyTableAorB(double **src, double **dst) const
 
 void GMHIKernelRaw::copyTableT(double *_src, double *_dst) const
 {
-  double p_src = _src;
-  double p_dst = _dst;
-  for ( int i = 0; i < this->num_dimension * this->q->getNumberOfBins(); i++ )
+  double * p_src = _src;
+  double * p_dst = _dst;
+  for ( int i = 0; i < this->num_dimension * this->q->getNumberOfBins(); i++, p_src++, p_dst++ )
   {
     *p_dst = *p_src;
-    p_src++;
-    p_dst++;    
   }
 }
 
-void GMHIKernelRaw::updateTables ( const NICE::Vector _x ) const
+void GMHIKernelRaw::updateTablesAandB ( const NICE::Vector _x ) const
 {
-    // pre-computions if quantization is activated
-    double * prototypes;
-    double * p_prototypes;
-    uint hmax;
-
-    // store prototypes
-    if ( this->q != NULL)
-    {
-        // number of quantization bins
-         hmax = this->q->getNumberOfBins();
-
-
-        double * prototypes   = new double [ hmax * this->num_dimension ];
-        double * p_prototypes = prototypes;
-
-        for (uint dim = 0; dim < this->num_dimension; dim++)
-        {
-          for ( uint i = 0 ; i < hmax ; i++ )
-          {
-            *p_prototypes = this->q->getPrototype( i, dim );
-             p_prototypes++;
-          }
-        }
-    }
-
     // start the actual computations of A, B, and optionally T
     for (uint dim = 0; dim < this->num_dimension; dim++)
     {
@@ -245,35 +242,65 @@ void GMHIKernelRaw::updateTables ( const NICE::Vector _x ) const
 
         alpha_sum += _x[index];
         this->table_B[dim][cntNonzeroFeat] = alpha_sum;
-      }
+      }      
+    }
+}
 
-      if ( this->q != NULL)
+void GMHIKernelRaw::updateTableT ( const NICE::Vector _x ) const
+{
+    // sanity check
+    if ( this->q == NULL)
+    {
+        return;
+    }
+
+
+
+    // number of quantization bins
+    uint hmax = this->q->getNumberOfBins();
+
+
+    double * prototypes;
+    prototypes   = new double [ hmax * this->num_dimension ];
+
+    double * p_prototypes;
+    p_prototypes = prototypes;
+
+    // compute all prototypes to compare against lateron
+    for (uint dim = 0; dim < this->num_dimension; dim++)
+    {
+      for ( uint i = 0 ; i < hmax ; i++ )
       {
-        //////////
-        // variables which are needed for computing T
-        uint idxProto ( 0 ); // previously j
-        double t;
+        *p_prototypes = this->q->getPrototype( i, dim );
+         p_prototypes++;
+      }
+    }
 
-        uint idxProtoElem; // previously qBin
-        
+    // start the actual computation of  T
+    for (uint dim = 0; dim < this->num_dimension; dim++)
+    {
+      uint nnz = nnz_per_dimension[dim];
+
+        uint idxProtoElem; // denotes the bin number in dim i of a quantized example, previously termed qBin
+
         sparseVectorElement * i            = examples_raw[dim];
         sparseVectorElement * iPredecessor = examples_raw[dim];
-        
+
         // index of the element, which is always bigger than the current value fval
-        int indexElem = 0;//training_values_in_dim->example_index;
+        int indexElem = 0;
         // element of the feature
-        double elem = i->value;//training_values_in_dim->value;        
-           
+        double elem = i->value;
+
         for (uint idxProto = 0; idxProto < hmax; idxProto++) // previously j
         {
           double fvalProto = prototypes[ dim*hmax + idxProto ];
           double t;
-          
-          
-          idxProtoElem = this->q->quantize ( elem, dim ); 
-            
 
-          if (  (indexElem == 0) && (idxProto < idxProtoElem) ) 
+
+          idxProtoElem = this->q->quantize ( elem, dim );
+
+
+          if (  (indexElem == 0) && (idxProto < idxProtoElem) )
           {
             // current prototype is smaller than everything else
             // resulting value = fval * sum_l=1^n alpha_l
@@ -296,9 +323,11 @@ void GMHIKernelRaw::updateTables ( const NICE::Vector _x ) const
                }
                // compute current element in the lookup table and keep in mind that
                // indexElem is the next element and not the previous one
+
+
                if ( (idxProto >= idxProtoElem) && ( indexElem==( nnz-1 ) ) )
                {
-                 // the current prototype is equal or bigger to the largest training example in this dimension
+                 // the current prototype is equal to or larger than the largest training example in this dimension
                  // -> the term B[ dim ][ nnz-1 ] - B[ dim ][ indexElem ] is equal to zero and vanishes, which is logical, since all elements are smaller than j!
                  t = table_A[ dim ][ indexElem ];
                }
@@ -307,13 +336,12 @@ void GMHIKernelRaw::updateTables ( const NICE::Vector _x ) const
                  // standard case
                  t = table_A[ dim ][ indexElem-1 ] + fvalProto*( table_B[ dim ][ nnz-1 ] - table_B[ dim ][ indexElem-1 ] );
                }
-             }
 
-             this->table_T[ dim*hmax + idxProto ] = t;
            }
-        }
-      }
-    }
+
+           this->table_T[ dim*hmax + idxProto ] = t;
+        }//for-loop over prototypes
+    }//for-loop over dimensions
 
 
     // clean-up prototypes
@@ -327,7 +355,7 @@ void GMHIKernelRaw::updateTables ( const NICE::Vector _x ) const
 void GMHIKernelRaw::multiply (NICE::Vector & _y, const NICE::Vector & _x) const
 {
   // STEP 1: initialize tables A and B
-  updateTables(_x);
+  this->updateTablesAandB(_x);
 
   _y.resize( this->num_examples );
   _y.set(0.0);
@@ -390,11 +418,11 @@ double **GMHIKernelRaw::getTableB() const
     return t;
 }
 
-double **GMHIKernelRaw::getTableT() const
+double * GMHIKernelRaw::getTableT() const
 {
-    double **t = allocateTableT();
-    copyTableT(this->table_T, t);
-    return t;
+    double * T = this->allocateTableT();
+    copyTableT(this->table_T, T);
+    return T;
 }
 
 uint *GMHIKernelRaw::getNNZPerDimension() const
@@ -416,47 +444,20 @@ void NICE::GMHIKernelRaw::getDiagonalElements( NICE::Vector & _diagonalElements)
     _diagonalElements = this->diagonalElements;
 }
 
-double NICE::GMHIKernelRaw::getLargestValue ( ) const
-{
-  double vmax (0.0);
-  double vtmp (0.0);
-
-  uint tmpIdx ( 0 );
-  // compare largest elements of all dimensions
-  for (uint d = 0; d < this->num_dimension; d++)
-  {
-      uint nnz = this->nnz_per_dimension[d];
-
-      if ( nnz > 1 )
-      {
-          tmpIdx = tmpIdx + nnz;
-          vtmp   = this->examples_raw[tmpIdx];
-          if ( vtmp > vmax )
-          {
-            vmax = vtmp;
-          }
-      }
-  }
-
-  return vmax;
-}
-
 
 NICE::Vector NICE::GMHIKernelRaw::getLargestValuePerDimension ( ) const
 {
-  NICE::Vector vmax ( this->get_d() );
+  NICE::Vector vmax ( this->num_dimension );
 
   NICE::Vector::iterator vmaxIt = vmax.begin();
 
-  uint tmpIdx ( 0 );
   for (uint d = 0; d < this->num_dimension; d++, vmaxIt++)
   {
       uint nnz = this->nnz_per_dimension[d];
 
-      if ( nnz > 1 )
+      if ( nnz > 0 )
       {
-          tmpIdx  = tmpIdx + nnz;
-          *vmaxIt = this->examples_raw[tmpIdx];
+          *vmaxIt = this->examples_raw[ d ][ nnz-1 ].value;
       }
       else
       {

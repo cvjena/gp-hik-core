@@ -35,64 +35,53 @@ using namespace NICE;
 /////////////////////////////////////////////////////
 
 
-double * GPHIKRawClassifier::computeTableT ( const NICE::Vector & _alpha
-                                           )
+void GPHIKRawClassifier::clearSetsOfTablesAandB( )
 {
-    if (this->q == NULL )
+
+    // delete all LUTs A which are needed when no quantization is activated
+    for ( std::map< uint,PrecomputedType >::iterator itA = this->precomputedA.begin();
+          itA != this->precomputedA.end();
+          itA++
+        )
     {
-        return NULL;
-    }
-
-    //
-    // number of quantization bins
-    uint hmax = _q->getNumberOfBins();
-
-    // store (transformed) prototypes
-    double * prototypes   = new double [ hmax * this->num_dimension ];
-    double * p_prototypes = prototypes;
-
-    for (uint dim = 0; dim < this->num_dimension; dim++)
-    {
-      for ( uint i = 0 ; i < hmax ; i++ )
-      {
-        if ( _pf != NULL )
+        for ( uint idxDim = 0 ; idxDim < this->num_dimension; idxDim++ )
         {
-          *p_prototypes = _pf->f ( dim, _q->getPrototype( i, dim ) );
-        } else
-        {
-          *p_prototypes = _q->getPrototype( i, dim );
+            if ( (itA->second)[idxDim] != NULL )
+                delete [] (itA->second)[idxDim];
         }
-
-        p_prototypes++;
-      }
+        delete [] itA->second;
     }
+    this->precomputedA.clear();
 
-    //allocate memory for the LUT
-    double *Tlookup = new double [ hmax * this->num_dimension ];
 
-    // loop through all dimensions
-    for (uint dim = 0; dim < this->ui_d; dim++)
+    // delete all LUTs B which are needed when no quantization is activated
+    for ( std::map< uint,PrecomputedType >::iterator itB = this->precomputedB.begin();
+          itB != this->precomputedB.end();
+          itB++
+        )
     {
-        if ( nnz_per_dimension[dim] == 0 )
-            continue;
-
-        double alphaSumTotalInDim(0.0);
-        double alphaTimesXSumTotalInDim(0.0);
-
-        for ( SortedVectorSparse<double>::const_elementpointer i = nonzeroElements.begin(); i != nonzeroElements.end(); i++ )
+        for ( uint idxDim = 0 ; idxDim < this->num_dimension; idxDim++ )
         {
-          alphaSumTotalInDim += _alpha[i->second.first];
-          alphaTimesXSumTotalInDim += _alpha[i->second.first] * i->second.second;
+            if ( (itB->second)[idxDim] != NULL )
+                delete [] (itB->second)[idxDim];
         }
+        delete [] itB->second;
     }
-
-    //don't waste memory
-    delete [] prototypes;
-
-    return Tlookup;
-
+    this->precomputedB.clear();
 }
 
+void GPHIKRawClassifier::clearSetsOfTablesT( )
+{
+    // delete all LUTs used for quantization
+    for ( std::map< uint, double * >::iterator itT = this->precomputedT.begin();
+          itT != this->precomputedT.end();
+          itT++
+         )
+    {
+        delete [] itT->second;
+    }
+    this->precomputedT.clear();
+}
 
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
@@ -101,11 +90,16 @@ double * GPHIKRawClassifier::computeTableT ( const NICE::Vector & _alpha
 /////////////////////////////////////////////////////
 GPHIKRawClassifier::GPHIKRawClassifier( )
 {
-  this->b_isTrained = false;
-  this->confSection = "";
+  this->b_isTrained   = false;
+  this->confSection   = "";
+
   this->nnz_per_dimension = NULL;
-  this->q = NULL;
-  this->gm = NULL;
+  this->num_examples  = 0;
+  this->num_dimension = 0;
+
+  this->q             = NULL;
+  this->gm            = NULL;
+
 
   // in order to be sure about all necessary variables be setup with default values, we
   // run initFromConfig with an empty config
@@ -124,7 +118,11 @@ GPHIKRawClassifier::GPHIKRawClassifier( const Config *_conf,
 
   this->b_isTrained = false;
   this->confSection = "";
+
   this->nnz_per_dimension = NULL;
+  this->num_examples  = 0;
+  this->num_dimension = 0;
+
   this->q = NULL;
   this->gm = NULL;
 
@@ -151,11 +149,26 @@ GPHIKRawClassifier::GPHIKRawClassifier( const Config *_conf,
 
 GPHIKRawClassifier::~GPHIKRawClassifier()
 {
-  delete this->solver;
-  this->solver = NULL;
+  if ( this->solver != NULL )
+  {
+    delete this->solver;
+    this->solver = NULL;
+  }
 
-  if (gm != NULL)
-    delete gm;
+  if ( this->gm != NULL)
+  {
+    delete this->gm;
+    this->gm = NULL;
+  }
+
+  this->clearSetsOfTablesAandB();
+  this->clearSetsOfTablesT();
+
+  if ( this->q != NULL )
+  {
+      delete this->q;
+      this->q = NULL;
+  }
 }
 
 void GPHIKRawClassifier::initFromConfig(const Config *_conf,
@@ -262,81 +275,101 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
      fthrow(Exception, "Classifier not trained yet -- aborting!" );
   _scores.clear();
 
-  GMHIKernelRaw::sparseVectorElement **dataMatrix = gm->getDataMatrix();
 
-  uint maxClassNo = 0;
-  for ( std::map<uint, PrecomputedType>::const_iterator i = this->precomputedA.begin() ; i != this->precomputedA.end(); i++ )
-  {
-    uint classno = i->first;
-    maxClassNo = std::max ( maxClassNo, classno );
-    double beta = 0;
+    // classification with quantization of test inputs
+    if ( this->q != NULL )
+    {
+        uint maxClassNo = 0;
+        for ( std::map< uint, double * >::const_iterator itT = this->precomputedT.begin() ;
+              itT != this->precomputedT.end();
+              itT++
+            )
+        {
+          uint classno = itT->first;
+          maxClassNo   = std::max ( maxClassNo, classno );
+          double beta  = 0;
+          double *T    = itT->second;
 
-    if ( this->q != NULL ) {
-      std::map<uint, double *>::const_iterator j = this->precomputedT.find ( classno );
-      double *T = j->second;
-      for (SparseVector::const_iterator i = _xstar->begin(); i != _xstar->end(); i++ )
-      {
-        uint dim = i->first;
-        double v = i->second;
-        uint qBin = q->quantize( v, dim );
+          for (SparseVector::const_iterator i = _xstar->begin(); i != _xstar->end(); i++ )
+          {
+            uint dim = i->first;
+            double v = i->second;
+            uint qBin = this->q->quantize( v, dim );
 
-        beta += T[dim * q->getNumberOfBins() + qBin];
-      }
-    } else {
-      const PrecomputedType & A = i->second;
-      std::map<uint, PrecomputedType>::const_iterator j = this->precomputedB.find ( classno );
-      const PrecomputedType & B = j->second;
+            beta += T[dim * this->q->getNumberOfBins() + qBin];
+          }//for-loop over dimensions of test input
 
-      for (SparseVector::const_iterator i = _xstar->begin(); i != _xstar->end(); i++)
-      {
-        uint dim = i->first;
-        double fval = i->second;
+          _scores[ classno ] = beta;
 
-        uint nnz = this->nnz_per_dimension[dim];
-        uint nz = this->num_examples - nnz;
-
-        if ( nnz == 0 ) continue;
-        // useful
-        //if ( fval < this->f_tolerance ) continue;
-
-        uint position = 0;
-
-        //this->X_sorted.findFirstLargerInDimension(dim, fval, position);
-        GMHIKernelRaw::sparseVectorElement fval_element;
-        fval_element.value = fval;
-
-        //std::cerr << "value to search for " << fval << endl;
-        //std::cerr << "data matrix in dimension " << dim << endl;
-        //for (int j = 0; j < nnz; j++)
-        //    std::cerr << dataMatrix[dim][j].value << std::endl;
-
-        GMHIKernelRaw::sparseVectorElement *it = upper_bound ( dataMatrix[dim], dataMatrix[dim] + nnz, fval_element );
-        position = distance ( dataMatrix[dim], it );
-        // add zero elements
-        if ( fval_element.value > 0.0 )
-            position += nz;
-
-
-        bool posIsZero ( position == 0 );
-        if ( !posIsZero )
-            position--;
-
-
-        double firstPart = 0.0;
-        if ( !posIsZero && ((position-nz) < this->num_examples) )
-          firstPart = (A[dim][position-nz]);
-
-        double secondPart( B[dim][this->num_examples-1-nz]);
-        if ( !posIsZero && (position >= nz) )
-            secondPart -= B[dim][position-nz];
-
-        // but apply using the transformed one
-        beta += firstPart + secondPart* fval;
-      }
+        }//for-loop over 1-vs-all models
     }
+    // classification with exact test inputs, i.e., no quantization involved
+    else
+    {
+        uint maxClassNo = 0;
+        for ( std::map<uint, PrecomputedType>::const_iterator i = this->precomputedA.begin() ; i != this->precomputedA.end(); i++ )
+        {
+          uint classno = i->first;
+          maxClassNo = std::max ( maxClassNo, classno );
+          double beta = 0;
+          GMHIKernelRaw::sparseVectorElement **dataMatrix = gm->getDataMatrix();
 
-    _scores[ classno ] = beta;
-  }
+          const PrecomputedType & A = i->second;
+          std::map<uint, PrecomputedType>::const_iterator j = this->precomputedB.find ( classno );
+          const PrecomputedType & B = j->second;
+
+          for (SparseVector::const_iterator i = _xstar->begin(); i != _xstar->end(); i++)
+          {
+            uint dim = i->first;
+            double fval = i->second;
+
+            uint nnz = this->nnz_per_dimension[dim];
+            uint nz = this->num_examples - nnz;
+
+            if ( nnz == 0 ) continue;
+            // useful
+            //if ( fval < this->f_tolerance ) continue;
+
+            uint position = 0;
+
+            //this->X_sorted.findFirstLargerInDimension(dim, fval, position);
+            GMHIKernelRaw::sparseVectorElement fval_element;
+            fval_element.value = fval;
+
+            //std::cerr << "value to search for " << fval << endl;
+            //std::cerr << "data matrix in dimension " << dim << endl;
+            //for (int j = 0; j < nnz; j++)
+            //    std::cerr << dataMatrix[dim][j].value << std::endl;
+
+            GMHIKernelRaw::sparseVectorElement *it = upper_bound ( dataMatrix[dim], dataMatrix[dim] + nnz, fval_element );
+            position = distance ( dataMatrix[dim], it );
+            // add zero elements
+            if ( fval_element.value > 0.0 )
+                position += nz;
+
+
+            bool posIsZero ( position == 0 );
+            if ( !posIsZero )
+                position--;
+
+
+            double firstPart = 0.0;
+            if ( !posIsZero && ((position-nz) < this->num_examples) )
+              firstPart = (A[dim][position-nz]);
+
+            double secondPart( B[dim][this->num_examples-1-nz]);
+            if ( !posIsZero && (position >= nz) )
+                secondPart -= B[dim][position-nz];
+
+            // but apply using the transformed one
+            beta += firstPart + secondPart* fval;
+          }//for-loop over dimensions of test input
+
+          _scores[ classno ] = beta;
+
+        }//for-loop over 1-vs-all models
+
+    } // if-condition wrt quantization
   _scores.setDim ( *this->knownClasses.rbegin() + 1 );
 
 
@@ -419,9 +452,8 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
   Timer t;
   t.start();
 
-  precomputedA.clear();
-  precomputedB.clear();
-  precomputedT.clear();
+  this->clearSetsOfTablesAandB();
+  this->clearSetsOfTablesT();
 
 
   // sort examples in each dimension and "transpose" the feature matrix
@@ -482,8 +514,8 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
 
     solver->solveLin( *gm, y, alpha );
 
-    // TODO: get lookup tables, A, B, etc. and store them
-    gm->updateTables(alpha);
+    // get lookup tables, A, B, etc. and store them
+    gm->updateTablesAandB( alpha );
     double **A = gm->getTableA();
     double **B = gm->getTableB();
 
@@ -493,12 +525,17 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
     // Quantization for classification?
     if ( this->q != NULL )
     {
-      // (2) then compute the corresponding look-up table T
-        double **B = gm->getTableT();
+      gm->updateTableT( alpha );
+      double *T = gm->getTableT ( );
+      precomputedT.insert( pair<uint, double * > ( classno, T ) );
 
-      double *T = this->computeTableT ( alpha );
-      precomputedT.insert( pair<uint, PrecomputedType> ( classno, T ) );
     }
+  }
+
+  // NOTE if quantization is turned on, we do not need LUTs A and B anymore
+  if ( this->q != NULL )
+  {
+    this->clearSetsOfTablesAandB();
   }
 
 

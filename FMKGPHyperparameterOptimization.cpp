@@ -671,7 +671,8 @@ void FMKGPHyperparameterOptimization::setFastMinKernel ( FastMinKernel * _fmk )
   //
   if ( this->q != NULL )
   {  
-    this->q->computeParametersFromData ( &(this->fmk->featureMatrix()) );
+    NICE::Vector _maxValuesPerDimension = this->fmk->featureMatrix().getLargestValuePerDimension();
+    this->q->computeParametersFromData ( _maxValuesPerDimension );
   }
 }
 

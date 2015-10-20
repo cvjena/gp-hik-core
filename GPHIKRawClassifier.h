@@ -96,6 +96,9 @@ class GPHIKRawClassifier
     /////////////////////////
     /////////////////////////
 
+    void clearSetsOfTablesAandB();
+    void clearSetsOfTablesT();
+
 
     /////////////////////////
     /////////////////////////

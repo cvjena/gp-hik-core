@@ -77,8 +77,7 @@ class Quantization1DAequiDist0To1  : public NICE::Quantization
                           const uint & _dim = 0
                         ) const;
                         
-  virtual void computeParametersFromData ( const NICE::FeatureMatrix *  _fm ) ;
-  virtual void computeParametersFromData ( const NICE::GMHIKernelRaw *  _gm ) ;
+  virtual void computeParametersFromData ( const NICE::Vector & _maxValuesPerDimension );
   
   ///////////////////// INTERFACE PERSISTENT /////////////////////
   // interface specific methods for store and restore

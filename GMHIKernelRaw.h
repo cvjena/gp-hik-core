@@ -69,6 +69,9 @@ class GMHIKernelRaw : public GenericMatrix
     void copyTableAorB(double **src, double **dst) const;
     void copyTableT(double *src, double *dst) const;
 
+    void clearTablesAandB();
+    void clearTablesT();
+
 
     double * computeTableT ( const NICE::Vector & _alpha
                            );
@@ -82,9 +85,9 @@ class GMHIKernelRaw : public GenericMatrix
   public:
 
     /** simple constructor */
-    GMHIKernelRaw( const std::vector< const NICE::SparseVector *> & examples,
-                   const double d_noise = 0.1,
-                   const NICE::Quantization * _q = NULL
+    GMHIKernelRaw( const std::vector< const NICE::SparseVector *> & _examples,
+                   const double _d_noise = 0.1,
+                   NICE::Quantization * _q = NULL
                  );
 
     /** multiply with a vector: A*x = y; this is not really const anymore!! */
@@ -109,13 +112,11 @@ class GMHIKernelRaw : public GenericMatrix
     virtual ~GMHIKernelRaw();
 
     sparseVectorElement **getDataMatrix() const { return examples_raw; };
-    void updateTables ( const NICE::Vector _x ) const;
+    void updateTablesAandB ( const NICE::Vector _x ) const;
+    void updateTableT ( const NICE::Vector _x ) const;
 
     /** get the diagonal elements of the current matrix */
     void getDiagonalElements ( NICE::Vector & _diagonalElements ) const;
-
-
-    double getLargestValue ( ) const;
 
     NICE::Vector getLargestValuePerDimension ( ) const;
 
