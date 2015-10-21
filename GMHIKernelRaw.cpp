@@ -198,10 +198,13 @@ void GMHIKernelRaw::copyTableAorB(double **src, double **dst) const
     for (uint i = 0; i < this->num_dimension; i++)
     {
         uint nnz = this->nnz_per_dimension[i];
-        if (nnz>0) {
+        if (nnz>0)
+        {
             for (uint j = 0; j < nnz; j++)
                 dst[i][j] = src[i][j];
-        } else {
+        }
+        else
+        {
             dst[i] = NULL;
         }
     }
@@ -211,7 +214,10 @@ void GMHIKernelRaw::copyTableT(double *_src, double *_dst) const
 {
   double * p_src = _src;
   double * p_dst = _dst;
-  for ( int i = 0; i < this->num_dimension * this->q->getNumberOfBins(); i++, p_src++, p_dst++ )
+  for ( int i = 0; 
+        i < this->num_dimension * this->q->getNumberOfBins(); 
+        i++, p_src++, p_dst++ 
+      )
   {
     *p_dst = *p_src;
   }
@@ -222,25 +228,28 @@ void GMHIKernelRaw::updateTablesAandB ( const NICE::Vector _x ) const
     // start the actual computations of A, B, and optionally T
     for (uint dim = 0; dim < this->num_dimension; dim++)
     {
-      double alpha_sum = 0.0;
+      double alpha_sum         = 0.0;
       double alpha_times_x_sum = 0.0;
-      uint nnz = nnz_per_dimension[dim];
+      uint nnz                 = nnz_per_dimension[dim];
       
 
       //////////
       // loop through all elements in sorted order
       sparseVectorElement *training_values_in_dim = examples_raw[dim];
-      for ( uint cntNonzeroFeat = 0; cntNonzeroFeat < nnz; cntNonzeroFeat++, training_values_in_dim++ )
+      for ( uint cntNonzeroFeat = 0; 
+            cntNonzeroFeat < nnz; 
+            cntNonzeroFeat++, training_values_in_dim++ 
+          )
       {
         // index of the feature
-        int index = training_values_in_dim->example_index;
+        int index   = training_values_in_dim->example_index;
         // element of the feature
         double elem = training_values_in_dim->value;
 
         alpha_times_x_sum += _x[index] * elem;
-        this->table_A[dim][cntNonzeroFeat] = alpha_times_x_sum;
-
-        alpha_sum += _x[index];
+        alpha_sum         += _x[index];
+        
+        this->table_A[dim][cntNonzeroFeat] = alpha_times_x_sum;        
         this->table_B[dim][cntNonzeroFeat] = alpha_sum;
       }      
     }
@@ -290,57 +299,58 @@ void GMHIKernelRaw::updateTableT ( const NICE::Vector _x ) const
         int indexElem = 0;
         // element of the feature
         double elem = i->value;
+        
+        idxProtoElem = this->q->quantize ( elem, dim );
 
-        for (uint idxProto = 0; idxProto < hmax; idxProto++) // previously j
+        uint idxProto;
+        double * itProtoVal = prototypes + dim*hmax;
+        double * itT = this->table_T + dim*hmax;
+        
+        // special case 1:
+        // loop over all prototypes smaller then the smallest quantized example in this dimension
+        for ( idxProto = 0; idxProto < idxProtoElem; idxProto++, itProtoVal++, itT++) // idxProto previously j
         {
-          double fvalProto = prototypes[ dim*hmax + idxProto ];
-          double t;
+          // current prototype is smaller than all known examples
+          // -> resulting value = fval * sum_l=1^n alpha_l          
+          (*itT) = (*itProtoVal) * ( this->table_B[ dim ][ nnz-1 ] );          
+        }//for-loop over prototypes -- special case 1
 
-
-          idxProtoElem = this->q->quantize ( elem, dim );
-
-
-          if (  (indexElem == 0) && (idxProto < idxProtoElem) )
-          {
-            // current prototype is smaller than everything else
-            // resulting value = fval * sum_l=1^n alpha_l
-            t = fvalProto*( this->table_B[ dim ][ nnz-1 ] );
-          }
-          else
-          {
-            //move to next example, which is smaller then the current prototype (if necessary)
+        // standard case: prototypes larger then the smallest element, but smaller then the largest one in the corrent dimension        
+        for ( ; idxProto < hmax; idxProto++, itProtoVal++, itT++)
+        {
+            //move to next example, which is smaller then the current prototype after quantization
             // pay attentation to not loop over the number of non-zero elements
-               while ( (idxProto >= idxProtoElem) && ( indexElem < ( nnz - 1 ) ) ) //(this->ui_n-1-nrZeroIndices)) )
-               {
-                 indexElem++;
-                 iPredecessor = i;
-                 i++;
+            while ( (idxProto >= idxProtoElem) && ( indexElem < ( nnz - 1 ) ) ) //(this->ui_n-1-nrZeroIndices)) )
+            {
+              indexElem++;
+              iPredecessor = i;
+              i++;
 
-                 if ( i->value !=  iPredecessor->value )
-                 {
-                   idxProtoElem = this->q->quantize ( i->value, dim );
-                 }
-               }
-               // compute current element in the lookup table and keep in mind that
-               // indexElem is the next element and not the previous one
+              // only quantize if value changed
+              if ( i->value !=  iPredecessor->value )
+              {
+                idxProtoElem = this->q->quantize ( i->value, dim );
+              }
+            }
+            
+            // did we looped over the largest element in this dimension?
+            if ( indexElem==( nnz-1 ) )
+            {
+              break;
+            }
 
+            (*itT) = table_A[ dim ][ indexElem-1 ] + (*itProtoVal)*( table_B[ dim ][ nnz-1 ] - table_B[ dim ][ indexElem-1 ] );
+        }//for-loop over prototypes -- standard case 
+            
+        // special case 2:
+        // the current prototype is equal to or larger than the largest training example in this dimension
+        // -> the term B[ dim ][ nnz-1 ] - B[ dim ][ indexElem ] is equal to zero and vanishes, which is logical, since all elements are smaller than the remaining prototypes!
 
-               if ( (idxProto >= idxProtoElem) && ( indexElem==( nnz-1 ) ) )
-               {
-                 // the current prototype is equal to or larger than the largest training example in this dimension
-                 // -> the term B[ dim ][ nnz-1 ] - B[ dim ][ indexElem ] is equal to zero and vanishes, which is logical, since all elements are smaller than j!
-                 t = table_A[ dim ][ indexElem ];
-               }
-               else
-               {
-                 // standard case
-                 t = table_A[ dim ][ indexElem-1 ] + fvalProto*( table_B[ dim ][ nnz-1 ] - table_B[ dim ][ indexElem-1 ] );
-               }
-
-           }
-
-           this->table_T[ dim*hmax + idxProto ] = t;
-        }//for-loop over prototypes
+        for ( ; idxProto < hmax; idxProto++, itProtoVal++, itT++)
+        {
+          (*itT) = table_A[ dim ][ indexElem ];
+        }//for-loop over prototypes -- special case 2
+        
     }//for-loop over dimensions
 
 

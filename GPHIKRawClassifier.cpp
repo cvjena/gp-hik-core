@@ -90,15 +90,17 @@ void GPHIKRawClassifier::clearSetsOfTablesT( )
 /////////////////////////////////////////////////////
 GPHIKRawClassifier::GPHIKRawClassifier( )
 {
-  this->b_isTrained   = false;
-  this->confSection   = "";
+  this->b_isTrained       = false;
+  this->confSection       = "";
 
   this->nnz_per_dimension = NULL;
-  this->num_examples  = 0;
-  this->num_dimension = 0;
+  this->num_examples      = 0;
+  this->num_dimension     = 0;
 
-  this->q             = NULL;
-  this->gm            = NULL;
+  this->solver            = NULL;    
+  this->q                 = NULL;
+  this->gm                = NULL;
+
 
 
   // in order to be sure about all necessary variables be setup with default values, we
@@ -116,15 +118,16 @@ GPHIKRawClassifier::GPHIKRawClassifier( const Config *_conf,
   // same code as in empty constructor - duplication can be avoided with C++11 allowing for constructor delegation
   ///////////
 
-  this->b_isTrained = false;
-  this->confSection = "";
+  this->b_isTrained       = false;
+  this->confSection       = "";
 
   this->nnz_per_dimension = NULL;
-  this->num_examples  = 0;
-  this->num_dimension = 0;
+  this->num_examples      = 0;
+  this->num_dimension     = 0;
 
-  this->q = NULL;
-  this->gm = NULL;
+  this->solver            = NULL;    
+  this->q                 = NULL;
+  this->gm                = NULL;
 
   ///////////
   // here comes the new code part different from the empty constructor
@@ -292,8 +295,8 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
 
           for (SparseVector::const_iterator i = _xstar->begin(); i != _xstar->end(); i++ )
           {
-            uint dim = i->first;
-            double v = i->second;
+            uint dim  = i->first;
+            double v  = i->second;
             uint qBin = this->q->quantize( v, dim );
 
             beta += T[dim * this->q->getNumberOfBins() + qBin];
@@ -312,8 +315,7 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
           uint classno = i->first;
           maxClassNo   = std::max ( maxClassNo, classno );
           double beta  = 0;
-
-          GMHIKernelRaw::sparseVectorElement **dataMatrix = gm->getDataMatrix();
+          GMHIKernelRaw::sparseVectorElement **dataMatrix = this->gm->getDataMatrix();
 
           const PrecomputedType & A = i->second;
           std::map<uint, PrecomputedType>::const_iterator j = this->precomputedB.find ( classno );
@@ -344,26 +346,49 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
 
             GMHIKernelRaw::sparseVectorElement *it = upper_bound ( dataMatrix[dim], dataMatrix[dim] + nnz, fval_element );
             position = distance ( dataMatrix[dim], it );
-            // add zero elements
-            if ( fval_element.value > 0.0 )
-                position += nz;
+            
+//             /*// add zero elements
+//             if ( fval_element.value > 0.0 )
+//                 position += nz;*/
 
 
             bool posIsZero ( position == 0 );
-            if ( !posIsZero )
-                position--;
-
-
-            double firstPart = 0.0;
-            if ( !posIsZero && ((position-nz) < this->num_examples) )
-              firstPart = (A[dim][position-nz]);
-
-            double secondPart( B[dim][this->num_examples-1-nz]);
-            if ( !posIsZero && (position >= nz) )
-                secondPart -= B[dim][position-nz];
-
-            // but apply using the transformed one
-            beta += firstPart + secondPart* fval;
+            
+            // special case 1:
+            // new example is smaller than all known examples
+            // -> resulting value = fval * sum_l=1^n alpha_l               
+            if ( position == 0 )
+            {
+              beta += fval * B[ dim ][ nnz - 1 ];  
+            }
+            // special case 2:
+            // new example is equal to or larger than the largest training example in this dimension
+            // -> the term B[ dim ][ nnz-1 ] - B[ dim ][ indexElem ] is equal to zero and vanishes, which is logical, since all elements are smaller than the remaining prototypes!            
+            else if ( position == nnz )
+            {
+              beta += A[ dim ][ nnz - 1 ];
+            }
+            // standard case: new example is larger then the smallest element, but smaller then the largest one in the corrent dimension        
+            else
+            {
+              beta += A[ dim ][ position - 1 ] + fval * B[ dim ][ position - 1 ];
+            }
+            
+//             // correct upper bound to correct position, only possible if new example is not the smallest value in this dimension
+//             if ( !posIsZero )
+//                 position--;
+// 
+// 
+//             double firstPart = 0.0;
+//             if ( !posIsZero  )
+//               firstPart = ( A[ dim ][ position ] );
+// 
+//             double secondPart( B[ dim ][ this->num_examples-1-nz ]);
+//             if ( !posIsZero && (position >= nz) )
+//                 secondPart -= B[dim][ position ];
+// 
+//             // but apply using the transformed one
+//             beta += firstPart + secondPart* fval;
           }//for-loop over dimensions of test input
 
           _scores[ classno ] = beta;
@@ -415,9 +440,11 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
     uint current_class = *j;
     Vector labels_binary ( _labels.size() );
     for ( uint i = 0; i < _labels.size(); i++ )
+    {
         labels_binary[i] = ( _labels[i] == current_class ) ? 1.0 : -1.0;
+    }
 
-    binLabels.insert ( pair<uint, NICE::Vector>( current_class, labels_binary) );
+    binLabels.insert ( std::pair<uint, NICE::Vector>( current_class, labels_binary) );
   }
 
   // handle special binary case
@@ -432,8 +459,8 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
 }
 
 void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> & _examples,
-                              std::map<uint, NICE::Vector> & _binLabels
-                            )
+                                 std::map<uint, NICE::Vector> & _binLabels
+                               )
 {
   // security-check: examples and labels have to be of same size
   for ( std::map< uint, NICE::Vector >::const_iterator binLabIt = _binLabels.begin();
@@ -459,12 +486,12 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
 
   // sort examples in each dimension and "transpose" the feature matrix
   // set up the GenericMatrix interface
-  if (gm != NULL)
-    delete gm;
+  if ( this->gm != NULL )
+    delete this->gm;
 
-  gm = new GMHIKernelRaw ( _examples, this->d_noise, this->q );
-  this->nnz_per_dimension = gm->getNNZPerDimension();
-  this->num_dimension     = gm->getNumberOfDimensions();
+  this->gm = new GMHIKernelRaw ( _examples, this->d_noise, this->q );
+  this->nnz_per_dimension = this->gm->getNNZPerDimension();
+  this->num_dimension     = this->gm->getNumberOfDimensions();
 
 
   // compute largest eigenvalue of our kernel matrix
@@ -473,18 +500,19 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
   NICE::Vector eigenMax;
   NICE::Matrix eigenMaxV;
   // for reproducibility during debuggin
+  //FIXME
   srand ( 0 );
   srand48 ( 0 );
   NICE::EigValues * eig = new EVArnoldi ( false /* verbose flag */,
-                                        10 /*_maxiterations*/
-                                      );
+                                          10 /*_maxiterations*/
+                                        );
   eig->getEigenvalues( *gm, eigenMax, eigenMaxV, 1 /*rank*/ );
   delete eig;
 
   // set simple jacobi pre-conditioning
   NICE::Vector diagonalElements;
-  gm->getDiagonalElements ( diagonalElements );
-  solver->setJacobiPreconditioner ( diagonalElements );
+  this->gm->getDiagonalElements ( diagonalElements );
+  this->solver->setJacobiPreconditioner ( diagonalElements );
 
   // solve linear equations for each class
   // be careful when parallising this!
@@ -513,22 +541,22 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
     */
     alpha = (y * (1.0 / eigenMax[0]) );
 
-    solver->solveLin( *gm, y, alpha );
+    this->solver->solveLin( *gm, y, alpha );
 
     // get lookup tables, A, B, etc. and store them
-    gm->updateTablesAandB( alpha );
-    double **A = gm->getTableA();
-    double **B = gm->getTableB();
+    this->gm->updateTablesAandB( alpha );
+    double **A = this->gm->getTableA();
+    double **B = this->gm->getTableB();
 
-    precomputedA.insert ( pair<uint, PrecomputedType> ( classno, A ) );
-    precomputedB.insert ( pair<uint, PrecomputedType> ( classno, B ) );
+    this->precomputedA.insert ( std::pair<uint, PrecomputedType> ( classno, A ) );
+    this->precomputedB.insert ( std::pair<uint, PrecomputedType> ( classno, B ) );
 
     // Quantization for classification?
     if ( this->q != NULL )
     {
-      gm->updateTableT( alpha );
-      double *T = gm->getTableT ( );
-      precomputedT.insert( pair<uint, double * > ( classno, T ) );
+      this->gm->updateTableT( alpha );
+      double *T = this->gm->getTableT ( );
+      this->precomputedT.insert( std::pair<uint, double * > ( classno, T ) );
 
     }
   }
@@ -553,5 +581,3 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
 
 
 }
-
-
