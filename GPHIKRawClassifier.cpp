@@ -371,7 +371,7 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
             // standard case: new example is larger then the smallest element, but smaller then the largest one in the corrent dimension        
             else
             {
-              beta += A[ dim ][ position - 1 ] + fval * B[ dim ][ position - 1 ];
+                beta += A[ dim ][ position - 1 ] + fval * ( B[ dim ][ nnz - 1 ] - B[ dim ][ position - 1 ] );
             }
             
 //             // correct upper bound to correct position, only possible if new example is not the smallest value in this dimension
@@ -542,6 +542,9 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
     alpha = (y * (1.0 / eigenMax[0]) );
 
     this->solver->solveLin( *gm, y, alpha );
+
+//    //debug
+//      std::cerr << "alpha: " << alpha << std::endl;
 
     // get lookup tables, A, B, etc. and store them
     this->gm->updateTablesAandB( alpha );

@@ -290,6 +290,16 @@ void GMHIKernelRaw::updateTableT ( const NICE::Vector _x ) const
     {
       uint nnz = nnz_per_dimension[dim];
 
+      if ( nnz == 0 )
+      {
+          double * itT = this->table_T + dim*hmax;
+          for ( uint idxProto = 0; idxProto < hmax; idxProto++, itT++ )
+          {
+              *itT = 0;
+          }
+          continue;
+      }
+
         uint idxProtoElem; // denotes the bin number in dim i of a quantized example, previously termed qBin
 
         sparseVectorElement * i            = examples_raw[dim];
@@ -359,6 +369,14 @@ void GMHIKernelRaw::updateTableT ( const NICE::Vector _x ) const
     {
       delete [] prototypes;
     }
+
+//    //debug
+//    double * p_t = table_T;
+//    for ( uint i=0; i < hmax; i++ , p_t++)
+//    {
+//        std::cerr << " " << *p_t;
+//    }
+//    std::cerr << std::endl;
 }
 
 /** multiply with a vector: A*x = y */
