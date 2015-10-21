@@ -602,7 +602,7 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf,
   // this->eig = new EigValuesTRLAN();
   // My time measurements show that both methods use equal time, a comparision
   // of their numerical performance has not been done yet  
-  this->eig = new EVArnoldi ( _conf->gB ( _confSection, "eig_verbose", false ) /* verbose flag */, 10 );
+  this->eig = new EVArnoldi ( _conf->gB ( _confSection, "eig_verbose", false ) /* verbose flag */, 10 /*_maxiterations*/);
 
   this->nrOfEigenvaluesToConsider = std::max ( 1, _conf->gI ( _confSection, "nrOfEigenvaluesToConsider", 1 ) );
   
@@ -2064,7 +2064,7 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & _is,
         //TODO eig
         // currently hard coded, since EV does not offer Persistent functionalities and 
         // in addition, we currently have no other choice for EV then EVArnoldi
-        this->eig = new EVArnoldi ( false /*eig_verbose */, 10 );        
+        this->eig = new EVArnoldi ( false /*eig_verbose */, 10 /*_maxiterations*/ );
         _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }     

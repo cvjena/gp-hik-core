@@ -310,8 +310,9 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
         for ( std::map<uint, PrecomputedType>::const_iterator i = this->precomputedA.begin() ; i != this->precomputedA.end(); i++ )
         {
           uint classno = i->first;
-          maxClassNo = std::max ( maxClassNo, classno );
-          double beta = 0;
+          maxClassNo   = std::max ( maxClassNo, classno );
+          double beta  = 0;
+
           GMHIKernelRaw::sparseVectorElement **dataMatrix = gm->getDataMatrix();
 
           const PrecomputedType & A = i->second;
@@ -320,11 +321,11 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
 
           for (SparseVector::const_iterator i = _xstar->begin(); i != _xstar->end(); i++)
           {
-            uint dim = i->first;
+            uint dim    = i->first;
             double fval = i->second;
 
             uint nnz = this->nnz_per_dimension[dim];
-            uint nz = this->num_examples - nnz;
+            uint nz  = this->num_examples - nnz;
 
             if ( nnz == 0 ) continue;
             // useful
