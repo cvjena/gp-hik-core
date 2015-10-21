@@ -198,10 +198,13 @@ void GMHIKernelRaw::copyTableAorB(double **src, double **dst) const
     for (uint i = 0; i < this->num_dimension; i++)
     {
         uint nnz = this->nnz_per_dimension[i];
-        if (nnz>0) {
+        if (nnz>0)
+        {
             for (uint j = 0; j < nnz; j++)
                 dst[i][j] = src[i][j];
-        } else {
+        }
+        else
+        {
             dst[i] = NULL;
         }
     }
@@ -211,7 +214,10 @@ void GMHIKernelRaw::copyTableT(double *_src, double *_dst) const
 {
   double * p_src = _src;
   double * p_dst = _dst;
-  for ( int i = 0; i < this->num_dimension * this->q->getNumberOfBins(); i++, p_src++, p_dst++ )
+  for ( int i = 0; 
+        i < this->num_dimension * this->q->getNumberOfBins(); 
+        i++, p_src++, p_dst++ 
+      )
   {
     *p_dst = *p_src;
   }
@@ -222,25 +228,28 @@ void GMHIKernelRaw::updateTablesAandB ( const NICE::Vector _x ) const
     // start the actual computations of A, B, and optionally T
     for (uint dim = 0; dim < this->num_dimension; dim++)
     {
-      double alpha_sum = 0.0;
+      double alpha_sum         = 0.0;
       double alpha_times_x_sum = 0.0;
-      uint nnz = nnz_per_dimension[dim];
+      uint nnz                 = nnz_per_dimension[dim];
       
 
       //////////
       // loop through all elements in sorted order
       sparseVectorElement *training_values_in_dim = examples_raw[dim];
-      for ( uint cntNonzeroFeat = 0; cntNonzeroFeat < nnz; cntNonzeroFeat++, training_values_in_dim++ )
+      for ( uint cntNonzeroFeat = 0; 
+            cntNonzeroFeat < nnz; 
+            cntNonzeroFeat++, training_values_in_dim++ 
+          )
       {
         // index of the feature
-        int index = training_values_in_dim->example_index;
+        int index   = training_values_in_dim->example_index;
         // element of the feature
         double elem = training_values_in_dim->value;
 
         alpha_times_x_sum += _x[index] * elem;
-        this->table_A[dim][cntNonzeroFeat] = alpha_times_x_sum;
-
-        alpha_sum += _x[index];
+        alpha_sum         += _x[index];
+        
+        this->table_A[dim][cntNonzeroFeat] = alpha_times_x_sum;        
         this->table_B[dim][cntNonzeroFeat] = alpha_sum;
       }      
     }
