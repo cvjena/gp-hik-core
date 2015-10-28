@@ -532,9 +532,9 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
   {
     uint class1 = *(this->knownClasses.begin());
     uint class2 = *(this->knownClasses.rbegin());
-    uint class_for_which_we_have_a_score = _scores.begin()->first;
-    uint class_for_which_we_dont_have_a_score = (class1 == class_for_which_we_have_a_score ? class2 : class1);
-
+    uint class_for_which_we_have_a_score = ( class1 < class2  ? class2 : class1 );
+    uint class_for_which_we_dont_have_a_score = ( class1 < class2  ? class1 : class2);
+    
     _scores[class_for_which_we_dont_have_a_score] = - _scores[class_for_which_we_have_a_score];
 
     _result = _scores[class_for_which_we_have_a_score] > 0.0 ? class_for_which_we_have_a_score : class_for_which_we_dont_have_a_score;
@@ -547,11 +547,9 @@ void GPHIKRawClassifier::classify ( const std::vector< const NICE::SparseVector 
                                     NICE::Matrix & _scores
                                   ) const
 {
-    _scores.clear();
     _scores.resize( _examples.size(), this->knownClasses.size() );
     _scores.set( 0.0 );
 
-    _results.clear();
     _results.resize( _examples.size() );
     _results.set( 0.0 );
 
@@ -561,17 +559,18 @@ void GPHIKRawClassifier::classify ( const std::vector< const NICE::SparseVector 
 
 
     uint exCnt ( 0 );
-    for ( std::vector< const NICE::SparseVector *> exIt = _examples.begin();
+    for ( std::vector< const NICE::SparseVector *>::const_iterator exIt = _examples.begin();
           exIt != _examples.end();
-          exIt++, resultsIt++
+          exIt++, resultsIt++, exCnt++
         )
     {
-        this->classify ( exIt,
-                        *resultsIt,
-                        scoresSingle,
-                         exCnt++
+      uint resUI;
+        this->classify ( *exIt,
+                        resUI,
+                        scoresSingle
                        );
 
+        *resultsIt = resUI;
         _scores.setRow( exCnt, scoresSingle );
         scoresSingle.set( 0.0 );
     }
