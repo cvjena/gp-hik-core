@@ -848,8 +848,18 @@ void FMKGPHyperparameterOptimization::computeMatricesAndLUTs ( const GPLikelihoo
         delete precomputedT[ i->first ];
       
       precomputedT[ i->first ] = T;
+
+
+//      //debug
+//      double * p_t = T;
+//      for ( uint i=0; i < this->q->getNumberOfBins(); i++ , p_t++)
+//      {
+//          std::cerr << " " << *p_t;
+//      }
+//      std::cerr << std::endl;
     }
   }
+
   
   if ( this->precomputedTForVarEst != NULL )
   {

@@ -163,6 +163,30 @@ class GPHIKRawClassifier
                   ) const;
 
     /**
+     * @brief classify a given example with the previously learned model
+     * @author Alexander Freytag, Erik Rodner
+     * @param example (SparseVector) to be classified given in a sparse representation
+     * @param result (int) class number of most likely class
+     * @param scores (Vector) classification scores for known classes
+     */
+    void classify ( const NICE::SparseVector * _example,
+                    uint & _result,
+                    NICE::Vector & _scores
+                  ) const;
+
+    /**
+     * @brief classify a given set of examples with the previously learned model
+     * @author Alexander Freytag, Erik Rodner
+     * @param examples ((std::vector< NICE::SparseVector *>)) to be classified given in a sparse representation
+     * @param results (Vector) class number of most likely class per example
+     * @param scores (NICE::Matrix) classification scores for known classes and test examples
+     */
+    void classify ( const std::vector< const NICE::SparseVector *> _examples,
+                    NICE::Vector & _results,
+                    NICE::Matrix & _scores
+                  ) const;
+
+    /**
      * @brief train this classifier using a given set of examples and a given set of binary label vectors
      * @date 18-10-2012 (dd-mm-yyyy)
      * @author Alexander Freytag, Erik Rodner

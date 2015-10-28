@@ -418,6 +418,167 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
 }
 
 
+void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
+                                 uint & _result,
+                                 Vector & _scores
+                               ) const
+{
+  if ( ! this->b_isTrained )
+     fthrow(Exception, "Classifier not trained yet -- aborting!" );
+
+    // classification with quantization of test inputs
+    if ( this->q != NULL )
+    {
+        uint maxClassNo = 0;
+        for ( std::map< uint, double * >::const_iterator itT = this->precomputedT.begin() ;
+              itT != this->precomputedT.end();
+              itT++
+            )
+        {
+          uint classno = itT->first;
+          maxClassNo   = std::max ( maxClassNo, classno );
+          double beta  = 0;
+          double *T    = itT->second;
+
+          for (SparseVector::const_iterator i = _xstar->begin(); i != _xstar->end(); i++ )
+          {
+            uint dim  = i->first;
+            double v  = i->second;
+            uint qBin = this->q->quantize( v, dim );
+
+            beta += T[dim * this->q->getNumberOfBins() + qBin];
+          }//for-loop over dimensions of test input
+
+          _scores[ classno ] = beta;
+
+        }//for-loop over 1-vs-all models
+    }
+    // classification with exact test inputs, i.e., no quantization involved
+    else
+    {
+        uint maxClassNo = 0;
+        for ( std::map<uint, PrecomputedType>::const_iterator i = this->precomputedA.begin() ; i != this->precomputedA.end(); i++ )
+        {
+          uint classno = i->first;
+          maxClassNo   = std::max ( maxClassNo, classno );
+          double beta  = 0;
+          GMHIKernelRaw::sparseVectorElement **dataMatrix = this->gm->getDataMatrix();
+
+          const PrecomputedType & A = i->second;
+          std::map<uint, PrecomputedType>::const_iterator j = this->precomputedB.find ( classno );
+          const PrecomputedType & B = j->second;
+
+          for (SparseVector::const_iterator i = _xstar->begin(); i != _xstar->end(); i++)
+          {
+            uint dim    = i->first;
+            double fval = i->second;
+
+            uint nnz = this->nnz_per_dimension[dim];
+            uint nz  = this->num_examples - nnz;
+
+            if ( nnz == 0 ) continue;
+            // useful
+            //if ( fval < this->f_tolerance ) continue;
+
+            uint position = 0;
+
+            //this->X_sorted.findFirstLargerInDimension(dim, fval, position);
+            GMHIKernelRaw::sparseVectorElement fval_element;
+            fval_element.value = fval;
+
+            //std::cerr << "value to search for " << fval << endl;
+            //std::cerr << "data matrix in dimension " << dim << endl;
+            //for (int j = 0; j < nnz; j++)
+            //    std::cerr << dataMatrix[dim][j].value << std::endl;
+
+            GMHIKernelRaw::sparseVectorElement *it = upper_bound ( dataMatrix[dim], dataMatrix[dim] + nnz, fval_element );
+            position = distance ( dataMatrix[dim], it );
+
+            bool posIsZero ( position == 0 );
+
+            // special case 1:
+            // new example is smaller than all known examples
+            // -> resulting value = fval * sum_l=1^n alpha_l
+            if ( position == 0 )
+            {
+              beta += fval * B[ dim ][ nnz - 1 ];
+            }
+            // special case 2:
+            // new example is equal to or larger than the largest training example in this dimension
+            // -> the term B[ dim ][ nnz-1 ] - B[ dim ][ indexElem ] is equal to zero and vanishes, which is logical, since all elements are smaller than the remaining prototypes!
+            else if ( position == nnz )
+            {
+              beta += A[ dim ][ nnz - 1 ];
+            }
+            // standard case: new example is larger then the smallest element, but smaller then the largest one in the corrent dimension
+            else
+            {
+                beta += A[ dim ][ position - 1 ] + fval * ( B[ dim ][ nnz - 1 ] - B[ dim ][ position - 1 ] );
+            }
+
+          }//for-loop over dimensions of test input
+
+          _scores[ classno ] = beta;
+
+        }//for-loop over 1-vs-all models
+
+    } // if-condition wrt quantization
+
+  if ( this->knownClasses.size() > 2 )
+  { // multi-class classification
+    _result = _scores.MaxIndex();
+  }
+  else if ( this->knownClasses.size() == 2 ) // binary setting
+  {
+    uint class1 = *(this->knownClasses.begin());
+    uint class2 = *(this->knownClasses.rbegin());
+    uint class_for_which_we_have_a_score = _scores.begin()->first;
+    uint class_for_which_we_dont_have_a_score = (class1 == class_for_which_we_have_a_score ? class2 : class1);
+
+    _scores[class_for_which_we_dont_have_a_score] = - _scores[class_for_which_we_have_a_score];
+
+    _result = _scores[class_for_which_we_have_a_score] > 0.0 ? class_for_which_we_have_a_score : class_for_which_we_dont_have_a_score;
+  }
+
+}
+
+void GPHIKRawClassifier::classify ( const std::vector< const NICE::SparseVector *> _examples,
+                                    NICE::Vector & _results,
+                                    NICE::Matrix & _scores
+                                  ) const
+{
+    _scores.clear();
+    _scores.resize( _examples.size(), this->knownClasses.size() );
+    _scores.set( 0.0 );
+
+    _results.clear();
+    _results.resize( _examples.size() );
+    _results.set( 0.0 );
+
+
+    NICE::Vector::iterator resultsIt = _results.begin();
+    NICE::Vector scoresSingle( this->knownClasses.size(), 0.0);
+
+
+    uint exCnt ( 0 );
+    for ( std::vector< const NICE::SparseVector *> exIt = _examples.begin();
+          exIt != _examples.end();
+          exIt++, resultsIt++
+        )
+    {
+        this->classify ( exIt,
+                        *resultsIt,
+                        scoresSingle,
+                         exCnt++
+                       );
+
+        _scores.setRow( exCnt, scoresSingle );
+        scoresSingle.set( 0.0 );
+    }
+}
+
+
+
 /** training process */
 void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> & _examples,
                               const NICE::Vector & _labels
