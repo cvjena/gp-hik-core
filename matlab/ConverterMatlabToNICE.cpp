@@ -233,4 +233,22 @@ bool MatlabConversion::convertMatlabToBool( const mxArray *matlabBool )
   bool* ptr = (bool*) mxGetData( matlabBool );
   return ptr[0];
 }
+
+bool MatlabConversion::isSparseDataAMatrix( const mxArray *array_ptr )
+{
+     mwSize   i_numExamples, i_numDim;
+
+     // dimenions of the matrix -> feature dimension and number of examples
+     i_numExamples = mxGetM( array_ptr );
+     i_numDim = mxGetN( array_ptr );
+
+     if ( ( i_numExamples == 1) || ( i_numDim == 1) )
+     {
+         return false;
+     }
+     else
+     {
+         return true;
+     }
+ }
 #endif

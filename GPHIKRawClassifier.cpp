@@ -222,7 +222,7 @@ void GPHIKRawClassifier::initFromConfig(const Config *_conf,
   {
     int numBins = _conf->gI ( _confSection, "num_bins", 100 );
     if ( this->b_verbose )
-      std::cerr << "FMKGPHyperparameterOptimization: quantization initialized with " << numBins << " bins." << std::endl;
+      std::cerr << "GPHIKRawClassifier: quantization initialized with " << numBins << " bins." << std::endl;
 
 
     std::string s_quantType = _conf->gS( _confSection, "s_quantType", "1d-aequi-0-1" );
@@ -407,8 +407,11 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
   {
     uint class1 = *(this->knownClasses.begin());
     uint class2 = *(this->knownClasses.rbegin());
-    uint class_for_which_we_have_a_score = _scores.begin()->first;
-    uint class_for_which_we_dont_have_a_score = (class1 == class_for_which_we_have_a_score ? class2 : class1);
+
+    // since we erased the binary label vector corresponding to the smaller class number,
+    // we only have scores for the larger class number
+    uint class_for_which_we_have_a_score          = class2;
+    uint class_for_which_we_dont_have_a_score     = class1;
 
     _scores[class_for_which_we_dont_have_a_score] = - _scores[class_for_which_we_have_a_score];
 
@@ -532,8 +535,11 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
   {
     uint class1 = *(this->knownClasses.begin());
     uint class2 = *(this->knownClasses.rbegin());
-    uint class_for_which_we_have_a_score = ( class1 < class2  ? class2 : class1 );
-    uint class_for_which_we_dont_have_a_score = ( class1 < class2  ? class1 : class2);
+
+    // since we erased the binary label vector corresponding to the smaller class number,
+    // we only have scores for the larger class number
+    uint class_for_which_we_have_a_score          = class2;
+    uint class_for_which_we_dont_have_a_score     = class1;
     
     _scores[class_for_which_we_dont_have_a_score] = - _scores[class_for_which_we_have_a_score];
 
@@ -610,9 +616,18 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
   // handle special binary case
   if ( knownClasses.size() == 2 )
   {
-    std::map<uint, NICE::Vector>::iterator it = binLabels.begin();
-    it++;
-    binLabels.erase( binLabels.begin(), it );
+      // we erase the binary label vector which corresponds to the smaller class number as positive class
+      uint clNoSmall = *(this->knownClasses.begin());
+      std::map<uint, NICE::Vector>::iterator it = binLabels.begin();
+      it++;
+      if ( binLabels.begin()->first == clNoSmall )
+      {
+        binLabels.erase( binLabels.begin(), it );
+      }
+      else
+      {
+        binLabels.erase( it, binLabels.end() );
+      }
   }
 
   this->train ( _examples, binLabels );

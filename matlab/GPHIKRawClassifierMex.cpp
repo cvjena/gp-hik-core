@@ -294,7 +294,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
         if ( mxIsSparse( prhs[2] ) )
         {
-          if ( isMatrix )
+          if ( MatlabConversion::isSparseDataAMatrix( prhs[2] ) )
           {
             //----------------- conversion -------------
             std::vector< const NICE::SparseVector *> examplesTest;

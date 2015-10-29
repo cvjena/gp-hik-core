@@ -92,6 +92,14 @@ namespace NICE {
      **/    
     bool convertMatlabToBool( const mxArray *matlabBool );
 
+    /**
+     * @brief Checks whether a given sparse data structure is a matrix (or a vector instead)
+     *
+     * @param array_ptr Sparse MxD Matlab matrix
+     * @return bool. false of either M or D equals to 1
+     **/
+    bool isSparseDataAMatrix( const mxArray *array_ptr );
+
 } //ns MatlabConversion
 
 }
