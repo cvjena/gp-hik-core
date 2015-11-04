@@ -10,10 +10,10 @@ mxArray* MatlabConversion::convertSparseVectorFromNice( const NICE::SparseVector
 {
     mxArray * matlabSparseVec;
     
-    if ( b_adaptIndexCtoM ) 
-       matlabSparseVec = mxCreateSparse( niceSvec.getDim() -1 /*m*/, 1/*n*/, niceSvec.size() -1 /*nzmax*/, mxREAL);
+    if ( b_adaptIndexCtoM )
+        matlabSparseVec = mxCreateSparse( niceSvec.getDim()-1 /*m*/, 1/*n*/, niceSvec.size() /*nzmax*/, mxREAL);
     else
-      matlabSparseVec = mxCreateSparse( niceSvec.getDim() /*m*/, 1/*n*/, niceSvec.size() /*nzmax*/, mxREAL);
+        matlabSparseVec = mxCreateSparse( niceSvec.getDim() /*m*/, 1/*n*/, niceSvec.size() /*nzmax*/, mxREAL);
     
     
     // To make the returned sparse mxArray useful, you must initialize the pr, ir, jc, and (if it exists) pi arrays.    
@@ -36,7 +36,7 @@ mxArray* MatlabConversion::convertSparseVectorFromNice( const NICE::SparseVector
     for ( NICE::SparseVector::const_iterator myIt = niceSvec.begin(); myIt != niceSvec.end(); myIt++, cnt++ )
     {
         // set index
-        if ( b_adaptIndexCtoM ) 
+        if ( b_adaptIndexCtoM )
             ir[cnt] = myIt->first-1;
         else
             ir[cnt] = myIt->first;

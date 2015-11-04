@@ -17,6 +17,7 @@
 
 // gp-hik-core includes
 #include "gp-hik-core/GPHIKClassifier.h"
+#include "gp-hik-core/GPHIKRawClassifier.h"
 
 #include "TestGPHIKOnlineLearnable.h"
 
@@ -116,6 +117,33 @@ void evaluateClassifier ( NICE::Matrix & confusionMatrix,
   }
 }
 
+void evaluateClassifierRaw ( NICE::Matrix & confusionMatrix,
+                          const NICE::GPHIKRawClassifier * classifier,
+                          const NICE::Matrix & data,
+                          const NICE::Vector & yMulti,
+                          const std::map< uint,uint > & mapClNoToIdxTrain,
+                          const std::map< uint,uint > & mapClNoToIdxTest
+                        )
+{
+  int i_loopEnd  ( (int)data.rows() );
+
+  for (int i = 0; i < i_loopEnd ; i++)
+  {
+    NICE::Vector example_nonsparse ( data.getRow(i) );
+    NICE::SparseVector example (example_nonsparse);
+    NICE::SparseVector scores;
+    uint result;
+
+    // classify with incrementally trained classifier
+    classifier->classify( &example, result, scores );
+
+    uint gtlabel = mapClNoToIdxTest.find(yMulti[i])->second;
+    uint predlabel = mapClNoToIdxTrain.find(result)->second;
+    confusionMatrix( gtlabel, predlabel ) += 1.0;
+  }
+}
+
+
 void compareClassifierOutputs ( const NICE::GPHIKClassifier * classifier,
                                 const NICE::GPHIKClassifier * classifierScratch, 
                                 const NICE::Matrix & data
@@ -144,7 +172,7 @@ void compareClassifierOutputs ( const NICE::GPHIKClassifier * classifier,
     NICE::SparseVector::const_iterator itScoresScratch = scoresScratch.begin();
     for ( ; itScores != scores.end(); itScores++, itScoresScratch++)
     {
-      if ( fabs( itScores->second - itScores->second ) > 10e-3)
+      if ( fabs( itScores->second - itScoresScratch->second ) > 10e-3)
       {
         std::cerr << " itScores->second: " << itScores->second << " itScores->second: " << itScores->second << std::endl;
         equal = false;
@@ -156,6 +184,47 @@ void compareClassifierOutputs ( const NICE::GPHIKClassifier * classifier,
   }  
 }
 
+void compareClassifierOutputsRaw ( const NICE::GPHIKClassifier * classifier,
+                                const NICE::GPHIKRawClassifier * classifierRaw,
+                                const NICE::Matrix & data
+                              )
+{
+  int i_loopEnd  ( (int)data.rows() );
+
+  for (int i = 0; i < i_loopEnd ; i++)
+  {
+    NICE::Vector example ( data.getRow(i) );
+
+    NICE::SparseVector scores;
+    uint result;
+
+    // classify with incrementally trained classifier
+    classifier->classify( &example, result, scores );
+
+
+    NICE::SparseVector scoresRaw;
+    uint resultRaw;
+    NICE::SparseVector example_sparse(example);
+    classifierRaw->classify( &example_sparse, resultRaw, scoresRaw );
+
+
+    bool equal(true);
+    NICE::SparseVector::const_iterator itScores        = scores.begin();
+    NICE::SparseVector::const_iterator itScoresScratch = scoresRaw.begin();
+    for ( ; itScores != scores.end(); itScores++, itScoresScratch++)
+    {
+      if ( fabs( itScores->second - itScoresScratch->second ) > 10e-6)
+      {
+        std::cerr << " itScores->second: " << itScores->second << " itScores->second: " << itScores->second << std::endl;
+        equal = false;
+        break;
+      }
+    }
+
+    CPPUNIT_ASSERT_EQUAL ( equal, true );
+  }
+}
+
 void TestGPHIKOnlineLearnable::testOnlineLearningStartEmpty()
 {
   if (verboseStartEnd)
@@ -164,7 +233,7 @@ void TestGPHIKOnlineLearnable::testOnlineLearningStartEmpty()
   NICE::Config conf;
   
   conf.sB ( "GPHIKClassifier", "eig_verbose", false);
-  conf.sS ( "GPHIKClassifier", "optimization_method", "downhillsimplex");
+  conf.sS ( "GPHIKClassifier", "optimization_method", "none");
   
   std::string s_trainData = conf.gS( "main", "trainData", "toyExampleSmallScaleTrain.data" );
   
@@ -278,7 +347,8 @@ void TestGPHIKOnlineLearnable::testOnlineLearningOCCtoBinary()
   NICE::Config conf;
   
   conf.sB ( "GPHIKClassifier", "eig_verbose", false);
-  conf.sS ( "GPHIKClassifier", "optimization_method", "downhillsimplex");
+  conf.sS ( "GPHIKClassifier", "optimization_method", "none");
+  conf.sB ( "GPHIKClassifier", "verbose", true);
   
   std::string s_trainData = conf.gS( "main", "trainData", "toyExampleSmallScaleTrain.data" );
   
@@ -335,6 +405,8 @@ void TestGPHIKOnlineLearnable::testOnlineLearningOCCtoBinary()
   NICE::GPHIKClassifier * classifierScratch = new NICE::GPHIKClassifier ( &conf );
   classifierScratch->train ( examplesTrain, yBinTrain );
   
+  NICE::GPHIKRawClassifier * classifierScratchRaw = new NICE::GPHIKRawClassifier ( &conf );
+  classifierScratchRaw->train ( examplesTrain, yBinTrain );
     
   // TEST both classifiers to produce equal results
   
@@ -363,17 +435,19 @@ void TestGPHIKOnlineLearnable::testOnlineLearningOCCtoBinary()
   
   NICE::Matrix confusionMatrix         ( mapClNoToIdxTrain.size(), mapClNoToIdxTest.size(), 0.0);
   NICE::Matrix confusionMatrixScratch  ( mapClNoToIdxTrain.size(), mapClNoToIdxTest.size(), 0.0);
-  
+  NICE::Matrix confusionMatrixScratchRaw  ( mapClNoToIdxTrain.size(), mapClNoToIdxTest.size(), 0.0);
     
   // ------------------------------------------
   // ------------- CLASSIFICATION --------------
   // ------------------------------------------  
   evaluateClassifier ( confusionMatrix, classifier, dataTest, yBinTest,
-                          mapClNoToIdxTrain,mapClNoToIdxTest ); 
+                          mapClNoToIdxTrain, mapClNoToIdxTest );
   
   evaluateClassifier ( confusionMatrixScratch, classifierScratch, dataTest, yBinTest,
-                          mapClNoToIdxTrain,mapClNoToIdxTest );  
+                          mapClNoToIdxTrain, mapClNoToIdxTest );
   
+  evaluateClassifierRaw ( confusionMatrixScratchRaw, classifierScratchRaw, dataTest, yBinTest,
+                          mapClNoToIdxTrain, mapClNoToIdxTest );
     
   // post-process confusion matrices
   confusionMatrix.normalizeColumnsL1();
@@ -382,20 +456,28 @@ void TestGPHIKOnlineLearnable::testOnlineLearningOCCtoBinary()
   confusionMatrixScratch.normalizeColumnsL1();
   double arrScratch ( confusionMatrixScratch.trace()/confusionMatrixScratch.cols() );
 
+  confusionMatrixScratchRaw.normalizeColumnsL1();
+  double arrScratchRaw ( confusionMatrixScratchRaw.trace()/confusionMatrixScratchRaw.cols() );
   
   if ( verbose ) 
   {
     std::cerr << "confusionMatrix: " << confusionMatrix  << std::endl;
   
     std::cerr << "confusionMatrixScratch: " << confusionMatrixScratch << std::endl;
+
+    std::cerr << "confusionMatrixScratchRaw: " << confusionMatrixScratchRaw << std::endl;
   } 
   
   CPPUNIT_ASSERT_DOUBLES_EQUAL( arr, arrScratch, 1e-8);
+  CPPUNIT_ASSERT_DOUBLES_EQUAL( arrScratch, arrScratchRaw, 1e-8);
+
+  compareClassifierOutputsRaw(classifier, classifierScratchRaw, dataTest);
   
   // don't waste memory
   
   delete classifier;
   delete classifierScratch;  
+  delete classifierScratchRaw;
   
   for (std::vector< const NICE::SparseVector *>::iterator exTrainIt = examplesTrain.begin(); exTrainIt != examplesTrain.end(); exTrainIt++)
   {

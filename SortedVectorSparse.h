@@ -61,7 +61,7 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
     */
     SortedVectorSparse() {
       this->ui_n = 0;
-      this->tolerance = ( T ) 10e-10;
+      this->tolerance = ( T ) 0.0;
       this->b_verbose = false;
     }
 

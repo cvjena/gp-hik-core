@@ -147,8 +147,6 @@ void FastMinKernel::hik_prepare_alpha_multiplications(const NICE::Vector & _alph
                                                       NICE::VVector & _A,
                                                       NICE::VVector & _B) const
 {
-//   std::cerr << "FastMinKernel::hik_prepare_alpha_multiplications" << std::endl;
-//   std::cerr << "alpha: " << alpha << std::endl;
   _A.resize( this->ui_d );
   _B.resize( this->ui_d );
 
@@ -189,13 +187,9 @@ void FastMinKernel::hik_prepare_alpha_multiplications(const NICE::Vector & _alph
   for (uint i = 0; i < this->ui_d; i++)
   {
     uint numNonZero = this->X_sorted.getNumberOfNonZeroElementsPerDimension(i);
-    //DEBUG
-    //std::cerr << "number of non-zero elements in dimension " << i << " / " << d << ": " << numNonZero << std::endl;
     _A[i].resize( numNonZero );
     _B[i].resize( numNonZero  );
   }
-
-  //  for more information see hik_prepare_alpha_multiplications
 
   for (uint dim = 0; dim < this->ui_d; dim++)
   {
@@ -261,8 +255,6 @@ double *FastMinKernel::hik_prepare_alpha_multiplications_fast(const NICE::VVecto
   // creating the lookup table as pure C, which might be beneficial
   // for fast evaluation
   double *Tlookup = new double [ hmax * this->ui_d ];
-//     std::cerr << "size of LUT: " << hmax * this->ui_d << std::endl;
-//   sizeOfLUT = hmax * this->d;
 
 
   // loop through all dimensions
@@ -867,11 +859,13 @@ double *FastMinKernel::solveLin(const NICE::Vector & _y,
 
     if (sizeOfRandomSubset <= 0)
       sizeOfRandomSubset = _y.size();
+    if (sizeOfRandomSubset > _y.size())
+      sizeOfRandomSubset = _y.size();
 
     for ( iter = 1; iter <= _maxIterations; iter++ )
     {
       NICE::Vector perm;
-      this->randomPermutation( perm, indices, _sizeOfRandomSubset );
+      this->randomPermutation( perm, indices, sizeOfRandomSubset );
 
       if ( _timeAnalysis )
       {
@@ -890,7 +884,6 @@ double *FastMinKernel::solveLin(const NICE::Vector & _y,
 
       for ( uint i = 0; i < sizeOfRandomSubset; i++)
       {
-
         pseudoResidual(perm[i]) = -_y(perm[i]) + (this->d_noise * _alpha(perm[i]));
         for (uint j = 0; j < this->ui_d; j++)
         {
