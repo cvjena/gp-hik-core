@@ -18,19 +18,19 @@
 // NICE-core includes
 #include <core/basics/Exception.h>
 #include <core/basics/Persistent.h>
-// 
+//
 #include <core/vector/VectorT.h>
 #include <core/vector/SparseVectorT.h>
 
 
 namespace NICE {
 
- /** 
+ /**
  * @class SortedVectorSparse
  * @brief A sparse vector that is always sorted and keeps index mapping!
  * @author Alexander Freytag
- */  
-  
+ */
+
 template<class T> class SortedVectorSparse : NICE::Persistent{
 
   public:
@@ -43,7 +43,7 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
   protected:
     T tolerance;
     uint ui_n;
-    
+
     //! b_verbose flag for output after calling the restore-function
     bool b_verbose;
 
@@ -75,7 +75,7 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
       this->tolerance = _v.getTolerance();
       this->ui_n = _v.getN();
       this->nonzero_indices = _v.nonzero_indices;
-      this->b_verbose = _v.getVerbose();      
+      this->b_verbose = _v.getVerbose();
     }
 
     SortedVectorSparse ( const std::vector<T> &_v, const T & _tolerance )
@@ -125,16 +125,16 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
     * @param _specifyFeatureNumber specify whether to use the optinally given index
     * @param _featureNumber the index of the new element (optional)
     */
-    void insert ( const T & _newElement, 
+    void insert ( const T & _newElement,
                   const bool _specifyFeatureNumber = false,
                   const uint & _featureNumber = 0
                 )
     {
-      
+
       uint newIndex ( this->ui_n );
       if ( _specifyFeatureNumber )
         newIndex = _featureNumber;
-      
+
       if ( !checkSparsity ( _newElement ) )
       {
         // element is not sparse
@@ -144,29 +144,29 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
       }
       this->ui_n++;
     }
-  
+
     /**
     * @brief add an element to the vector. If feature number is set, we do not check, wether this feature was already available or not!
     *
     * @param newElement element which will be added
     * @param newElementTransformed transformed feature value
-    * @param _specifyFeatureNumber specify whether to use the optinally given index* 
+    * @param _specifyFeatureNumber specify whether to use the optinally given index*
     * @param featureNumber the index of the new element (optional)
     */
-    void insert ( const T & _newElement, 
-                  const T & _newElementTransformed, 
-                  const bool _specifyFeatureNumber = false,                  
-                  const uint & _featureNumber = 0 
+    void insert ( const T & _newElement,
+                  const T & _newElementTransformed,
+                  const bool _specifyFeatureNumber = false,
+                  const uint & _featureNumber = 0
                 )
     {
       uint newIndex ( this->ui_n );
       if ( _specifyFeatureNumber )
         newIndex = _featureNumber;
-      
+
       if ( !checkSparsity ( _newElement ) )
       {
         // element is not sparse
-        
+
         std::pair<T, dataelement > p ( _newElement, dataelement ( newIndex,_newElementTransformed ) );
         elementpointer it = this->nzData.insert ( p );
         this->nonzero_indices.insert ( std::pair<uint, elementpointer> ( newIndex, it ) );
@@ -175,7 +175,7 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
     }
 
     /**
-    * @brief add a vector of new elements to the vector 
+    * @brief add a vector of new elements to the vector
     *
     * @param v new element which will be added
     */
@@ -196,7 +196,7 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
         this->insert((T)vIt->second);
       }
     }
-    
+
     /**
     * @brief non-efficient access to a specific non-zero element
     *
@@ -255,8 +255,8 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
         return ( T ) 0;
       }
     }
-    
-    inline T getLargestValueUnsafe ( const double & _quantile = 1.0, 
+
+    inline T getLargestValueUnsafe ( const double & _quantile = 1.0,
                                      const bool & _getTransformedValue = false
                                    ) const
     {
@@ -264,19 +264,19 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
       {
         return  0.0;
       }
-      
+
         uint idxDest ( round ( (this->getNonZeros() - 1) * _quantile)  );
-        
+
         if ( _quantile > 0.5 )
         {
           typename std::multimap< T, dataelement >::const_reverse_iterator it = this->nzData.rend();
-          
+
           //
           // take as many backward steps as indicated by _quantile
           for ( uint idx = this->getNonZeros(); idx > idxDest; idx-- )
           {
             it++;
-          }          
+          }
           // alternative usage for random access iterators:
           // it = it + (uint) this->getNonZeros() * ( 1.0 -  _quantile );
 
@@ -288,57 +288,57 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
         else
         {
           typename std::multimap< T, dataelement >::const_iterator it = this->nzData.begin();
-          
+
           // take as many steps forward as indicated by _quantile
           for ( uint idx = 0; idx < idxDest; idx++ )
           {
             it++;
           }
           // alternative usage for random access iterators:
-          // it = it + (uint) this->getNonZeros() * _quantile;  
-          
+          // it = it + (uint) this->getNonZeros() * _quantile;
+
           if ( _getTransformedValue )
             return it->second.second;
           else
             return it->first;
         }
-    }    
-    
+    }
+
     inline T getLargestTransformedValueUnsafe ( const double & _quantile = 1.0 ) const
     {
         uint idxDest ( round ( (this->getNonZeros() - 1) * _quantile )  );
-        
+
         if ( _quantile > 0.5 )
         {
           typename std::multimap< T, dataelement >::const_reverse_iterator it = this->nzData.rend();
-          
+
           //
           // take as many backward steps as indicated by _quantile
           for ( uint idx = this->getNonZeros(); idx > idxDest; idx-- )
           {
             it++;
-          }          
+          }
           // alternative usage for random access iterators:
           // it = it + (uint) this->getNonZeros() * ( 1.0 -  _quantile );
-     
+
           return it->second.second;
         }
         else
         {
           typename std::multimap< T, dataelement >::const_iterator it = this->nzData.begin();
-          
+
           // take as many steps forward as indicated by _quantile
           for ( uint idx = 0; idx < idxDest; idx++ )
           {
             it++;
           }
           // alternative usage for random access iterators:
-          // it = it + (uint) this->getNonZeros() * _quantile;  
-          
+          // it = it + (uint) this->getNonZeros() * _quantile;
+
           return it->second.second;
         }
     }
-      
+
     std::multimap< T, dataelement > & nonzeroElements()
     {
       return this->nzData;
@@ -380,8 +380,8 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
     * @param a proper index
     * @param newElement element value
     */
-    void set ( uint _a, 
-               T _newElement, 
+    void set ( uint _a,
+               T _newElement,
                bool _setTransformedValue = false )
     {
       if ( _a >= this->ui_n || _a < 0 )
@@ -562,14 +562,14 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
     */
     T getMedian() const
     {
-      if ( this->ui_n % 2 == 1 ) 
+      if ( this->ui_n % 2 == 1 )
       {
         // even number of training examples
         uint medianPosition = this->nzData.size() - this->ui_n/2;
         if ( medianPosition < 0 ) //FIXME not possible with uint anymore
           return 0.0;
         else
-          return this->accessNonZero(medianPosition); 
+          return this->accessNonZero(medianPosition);
       } else {
         // odd number of training examples
         uint medianA = this->nzData.size() - this->ui_n/2;
@@ -583,7 +583,7 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
         return (a + b)/2.0;
       }
     }
-    
+
     /**
     * @brief get the maximum of the vector including zero elements
     *
@@ -595,7 +595,7 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
         return this->accessNonZero( this->nzData.size()-1 );
       return (T) 0.0;
     }
-    
+
     /**
     * @brief get the minimum of the vector including zero elements
     *
@@ -607,22 +607,22 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
         return (T) 0.0;
       return this->accessNonZero(0);
     }
-    
-    
+
+
 
     /**
     * @brief get median feature values for each class seperately, we do not apply averaging when the number
     * of examples is even
     *
-    * @param classMedians resulting sparse vector, i.e. classMedians[classno] is the median value 
+    * @param classMedians resulting sparse vector, i.e. classMedians[classno] is the median value
     * of every example of class classno
     * @param labels vector of labels with the same size n as the current vector
     * @param elementCounts this vector contains the number of examples for each class, compute this using the labels
     * for efficiency reasons
     */
-    void getClassMedians ( SparseVector & _classMedians, 
-                           const Vector & _labels, 
-                           const Vector & _elementCounts 
+    void getClassMedians ( SparseVector & _classMedians,
+                           const Vector & _labels,
+                           const Vector & _elementCounts
                          ) const
     {
       if ( _labels.size() != this->ui_n )
@@ -669,7 +669,7 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
             break;
         }
 
-        for ( int i = 0; i < this->getZer_os(); i++ )
+        for ( int i = 0; i < this->getZeros(); i++ )
         {
           _os << ( T ) 0.0 << " " ;
         }
@@ -681,67 +681,67 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
         _os << std::endl;
       }
     }
-    
+
     /** set b_verbose flag used for restore-functionality*/
     void setVerbose( const bool & _verbose) { this->b_verbose = _verbose;};
     bool getVerbose( ) const { return this->b_verbose;};
-    
-    
+
+
     /** Persistent interface */
-    virtual void restore ( std::istream & _is, 
-                           int _format = 0 
+    virtual void restore ( std::istream & _is,
+                           int _format = 0
                          )
     {
       bool b_restoreVerbose ( false );
       if ( _is.good() )
       {
-        if ( b_restoreVerbose ) 
+        if ( b_restoreVerbose )
           std::cerr << " restore SortedVectorSparse" << std::endl;
-        
+
         std::string tmp;
-        _is >> tmp; //class name 
-        
+        _is >> tmp; //class name
+
         if ( ! this->isStartTag( tmp, "SortedVectorSparse" ) )
         {
             std::cerr << " WARNING - attempt to restore SortedVectorSparse, but start flag " << tmp << " does not match! Aborting... " << std::endl;
             throw;
-        }   
-            
+        }
+
         _is.precision ( std::numeric_limits<double>::digits10 + 1);
-        
+
         bool b_endOfBlock ( false ) ;
-        
+
         while ( !b_endOfBlock )
         {
-          _is >> tmp; // start of block 
-          
+          _is >> tmp; // start of block
+
           if ( this->isEndTag( tmp, "SortedVectorSparse" ) )
           {
             b_endOfBlock = true;
             continue;
-          }      
-          
+          }
+
           tmp = this->removeStartTag ( tmp );
-          
+
           if ( b_restoreVerbose )
             std::cerr << " currently restore section " << tmp << " in SortedVectorSparse" << std::endl;
-          
+
           if ( tmp.compare("tolerance") == 0 )
           {
-            _is >> this->tolerance;        
-            _is >> tmp; // end of block 
+            _is >> this->tolerance;
+            _is >> tmp; // end of block
             tmp = this->removeEndTag ( tmp );
           }
           else if ( tmp.compare("ui_n") == 0 )
           {
-            _is >> this->ui_n;        
-            _is >> tmp; // end of block 
+            _is >> this->ui_n;
+            _is >> tmp; // end of block
             tmp = this->removeEndTag ( tmp );
           }
           else if ( tmp.compare("underlying_data_(sorted)") == 0 )
           {
-            _is >> tmp; // start of block 
-            
+            _is >> tmp; // start of block
+
             uint nonZeros;
             if ( ! this->isStartTag( tmp, "nonZeros" ) )
             {
@@ -751,12 +751,12 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
             else
             {
               _is >> nonZeros;
-              _is >> tmp; // end of block 
-              tmp = this->removeEndTag ( tmp );     
+              _is >> tmp; // end of block
+              tmp = this->removeEndTag ( tmp );
             }
-            
-            _is >> tmp; // start of block 
-            
+
+            _is >> tmp; // start of block
+
             if ( ! this->isStartTag( tmp, "data" ) )
             {
               std::cerr << "Attempt to restore SortedVectorSparse, but found no data. Aborting..." << std::endl;
@@ -767,25 +767,25 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
               T origValue;
               uint origIndex;
               T transformedValue;
-              
+
               this->nzData.clear();
               for ( uint i = 0; i < nonZeros; i++)
-              {              
+              {
                 _is >> origValue;
                 _is >> origIndex;
                 _is >> transformedValue;
-                    
+
                 std::pair<T, dataelement > p ( origValue, dataelement ( origIndex, transformedValue ) );
                 elementpointer it = this->nzData.insert ( p);
                 this->nonzero_indices.insert ( std::pair<uint, elementpointer> ( origIndex, it ) );
               }
-              
-              _is >> tmp; // end of block 
-              tmp = this->removeEndTag ( tmp );  
+
+              _is >> tmp; // end of block
+              tmp = this->removeEndTag ( tmp );
             }
-            
-            
-            _is >> tmp; // end of block 
+
+
+            _is >> tmp; // end of block
             tmp = this->removeEndTag ( tmp );
           }
           else
@@ -793,31 +793,31 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
             std::cerr << "WARNING -- unexpected SortedVectorSparse object -- " << tmp << " -- for restoration... aborting" << std::endl;
             throw;
           }
-        }        
+        }
 
       }
       else
       {
         std::cerr << "SortedVectorSparse::restore -- InStream not initialized - restoring not possible!" << std::endl;
         throw;
-      }      
+      }
     };
-    
-    virtual void store ( std::ostream & _os, 
-                         int _format = 0 
+
+    virtual void store ( std::ostream & _os,
+                         int _format = 0
                        ) const
     {
       if ( _os.good() )
       {
         // show starting point
         _os << this->createStartTag( "SortedVectorSparse" ) << std::endl;
-        
+
         _os.precision (std::numeric_limits<double>::digits10 + 1);
-        
+
         _os << this->createStartTag( "tolerance" ) << std::endl;
         _os << tolerance << std::endl;
         _os << this->createEndTag( "tolerance" ) << std::endl;
-        
+
         _os << this->createStartTag( "ui_n" ) << std::endl;
         _os << this->ui_n << std::endl;
         _os << this->createEndTag( "ui_n" ) << std::endl;
@@ -827,8 +827,8 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
         _os << this->createStartTag( "nonZeros" ) << std::endl;
         _os << this->getNonZeros() << std::endl;
         _os << this->createEndTag( "nonZeros" ) << std::endl;
-        
-        _os << this->createStartTag( "data" ) << std::endl;  
+
+        _os << this->createStartTag( "data" ) << std::endl;
         for (const_elementpointer elP = this->nzData.begin();  elP != this->nzData.end(); elP++)
         {
           _os << elP->first << " " << elP->second.first << " " << elP->second.second << " ";
@@ -836,16 +836,16 @@ template<class T> class SortedVectorSparse : NICE::Persistent{
         _os << std::endl;
         _os << this->createEndTag( "data" ) << std::endl;
         _os << this->createEndTag( "underlying_data_(sorted)" ) << std::endl;
-      
+
         // done
         _os << this->createEndTag( "SortedVectorSparse" ) << std::endl;
       }
       else
       {
         std::cerr << "SortedVectorSparse::store -- OutStream not initialized - storing not possible!" << std::endl;
-      }      
-    };    
-    
+      }
+    };
+
     virtual void clear (){};
 };
 

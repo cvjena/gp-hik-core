@@ -59,7 +59,7 @@ FastMinKernel::FastMinKernel ( const sparse_t & _X,
                                const std::map<uint, uint> & _examples,
                                const bool _debug,
                                const uint & _dim
-                             ) : this->X_sorted( _X, _examples, _dim )
+                             ) : X_sorted( _X, _examples, _dim )
 {
   this->ui_d         = this->X_sorted.get_d();
   this->ui_n         = this->X_sorted.get_n();
@@ -230,7 +230,7 @@ void FastMinKernel::hik_prepare_alpha_multiplications(const NICE::Vector & _alph
 double *FastMinKernel::hik_prepare_alpha_multiplications_fast(const NICE::VVector & _A,
                                                               const NICE::VVector & _B,
                                                               const Quantization * _q,
-                                                              const ParameterizedFunction *_pf 
+                                                              const ParameterizedFunction *_pf
                                                              ) const
 {
   //NOTE keep in mind: for doing this, we already have precomputed A and B using hik_prepare_alpha_multiplications!
@@ -242,7 +242,7 @@ double *FastMinKernel::hik_prepare_alpha_multiplications_fast(const NICE::VVecto
   double * prototypes   = new double [ hmax * this->ui_d ];
   double * p_prototypes = prototypes;
 
-  for (uint dim = 0; dim < this->ui_d; dim++)  
+  for (uint dim = 0; dim < this->ui_d; dim++)
   {
     for ( uint i = 0 ; i < hmax ; i++ )
     {
@@ -253,11 +253,11 @@ double *FastMinKernel::hik_prepare_alpha_multiplications_fast(const NICE::VVecto
       {
         *p_prototypes = _q->getPrototype( i, dim );
       }
-      
+
       p_prototypes++;
     }
-  } 
-  
+  }
+
   // creating the lookup table as pure C, which might be beneficial
   // for fast evaluation
   double *Tlookup = new double [ hmax * this->ui_d ];
@@ -281,7 +281,7 @@ double *FastMinKernel::hik_prepare_alpha_multiplications_fast(const NICE::VVecto
     uint index = 0;
     // we use the quantization of the original features! the transformed feature were
     // already used to calculate A and B, this of course assumes monotonic functions!!!
-    uint qBin = _q->quantize ( i->first, dim ); 
+    uint qBin = _q->quantize ( i->first, dim );
 
     // the next loop is linear in max(hmax, n)
     // REMARK: this could be changed to hmax*log(n), when
@@ -331,9 +331,9 @@ double *FastMinKernel::hik_prepare_alpha_multiplications_fast(const NICE::VVecto
   return Tlookup;
 }
 
-double *FastMinKernel::hikPrepareLookupTable(const NICE::Vector & _alpha, 
-                                             const Quantization * _q, 
-                                             const ParameterizedFunction *_pf 
+double *FastMinKernel::hikPrepareLookupTable(const NICE::Vector & _alpha,
+                                             const Quantization * _q,
+                                             const ParameterizedFunction *_pf
                                             ) const
 {
   // number of quantization bins
@@ -343,7 +343,7 @@ double *FastMinKernel::hikPrepareLookupTable(const NICE::Vector & _alpha,
   double * prototypes   = new double [ hmax * this->ui_d ];
   double * p_prototypes = prototypes;
 
-  for (uint dim = 0; dim < this->ui_d; dim++)  
+  for (uint dim = 0; dim < this->ui_d; dim++)
   {
     for ( uint i = 0 ; i < hmax ; i++ )
     {
@@ -354,7 +354,7 @@ double *FastMinKernel::hikPrepareLookupTable(const NICE::Vector & _alpha,
       {
         *p_prototypes = _q->getPrototype( i, dim );
       }
-      
+
       p_prototypes++;
     }
   }
@@ -388,8 +388,8 @@ double *FastMinKernel::hikPrepareLookupTable(const NICE::Vector & _alpha,
     uint index = 0;
 
     // we use the quantization of the original features! Nevetheless, the resulting lookupTable is computed using the transformed ones
-    uint qBin = _q->quantize ( i->first, dim ); 
-    
+    uint qBin = _q->quantize ( i->first, dim );
+
     double alpha_sum(0.0);
     double alpha_times_x_sum(0.0);
     double alpha_sum_prev(0.0);
@@ -447,12 +447,12 @@ double *FastMinKernel::hikPrepareLookupTable(const NICE::Vector & _alpha,
 }
 
 
-void FastMinKernel::hikUpdateLookupTable(double * _T, 
-                                         const double & _alphaNew, 
-                                         const double & _alphaOld, 
-                                         const uint & _idx, 
-                                         const Quantization * _q, 
-                                         const ParameterizedFunction *_pf 
+void FastMinKernel::hikUpdateLookupTable(double * _T,
+                                         const double & _alphaNew,
+                                         const double & _alphaOld,
+                                         const uint & _idx,
+                                         const Quantization * _q,
+                                         const ParameterizedFunction *_pf
                                         ) const
 {
 
@@ -469,7 +469,7 @@ void FastMinKernel::hikUpdateLookupTable(double * _T,
   double * prototypes   = new double [ hmax * this->ui_d ];
   double * p_prototypes = prototypes;
 
-  for (uint dim = 0; dim < this->ui_d; dim++)  
+  for (uint dim = 0; dim < this->ui_d; dim++)
   {
     for ( uint i = 0 ; i < hmax ; i++ )
     {
@@ -480,11 +480,11 @@ void FastMinKernel::hikUpdateLookupTable(double * _T,
       {
         *p_prototypes = _q->getPrototype( i, dim );
       }
-      
+
       p_prototypes++;
     }
   }
-  
+
   double diffOfAlpha(_alphaNew - _alphaOld);
 
   // loop through all dimensions
@@ -501,7 +501,7 @@ void FastMinKernel::hikUpdateLookupTable(double * _T,
     {
         double fval;
         uint q_bin = _q->quantize( x_i, dim );
-        
+
         if ( q_bin > j )
           fval = prototypes[ dim*hmax + j ];
         else
@@ -583,9 +583,9 @@ void FastMinKernel::hik_kernel_multiply(const NICE::VVector & _A,
   }
 }
 
-void FastMinKernel::hik_kernel_multiply_fast(const double *_Tlookup, 
-                                             const Quantization * _q, 
-                                             const NICE::Vector & _alpha, 
+void FastMinKernel::hik_kernel_multiply_fast(const double *_Tlookup,
+                                             const Quantization * _q,
+                                             const NICE::Vector & _alpha,
                                              NICE::Vector & _beta) const
 {
   _beta.resize( this->ui_n );
@@ -760,9 +760,9 @@ void FastMinKernel::hik_kernel_sum(const NICE::VVector & _A,
   }
 }
 
-void FastMinKernel::hik_kernel_sum_fast(const double *_Tlookup, 
-                                        const Quantization * _q, 
-                                        const NICE::Vector & _xstar, 
+void FastMinKernel::hik_kernel_sum_fast(const double *_Tlookup,
+                                        const Quantization * _q,
+                                        const NICE::Vector & _xstar,
                                         double & _beta
                                        ) const
 {
@@ -778,14 +778,14 @@ void FastMinKernel::hik_kernel_sum_fast(const double *_Tlookup,
   {
     double v = _xstar[dim];
     uint qBin = _q->quantize( v, dim );
-    
+
     _beta += _Tlookup[dim*_q->getNumberOfBins() + qBin];
   }
 }
 
-void FastMinKernel::hik_kernel_sum_fast(const double *_Tlookup, 
-                                        const Quantization * _q, 
-                                        const NICE::SparseVector & _xstar, 
+void FastMinKernel::hik_kernel_sum_fast(const double *_Tlookup,
+                                        const Quantization * _q,
+                                        const NICE::SparseVector & _xstar,
                                         double & _beta
                                        ) const
 {
@@ -799,19 +799,19 @@ void FastMinKernel::hik_kernel_sum_fast(const double *_Tlookup,
     uint dim = i->first;
     double v = i->second;
     uint qBin = _q->quantize( v, dim );
-    
+
     _beta += _Tlookup[dim*_q->getNumberOfBins() + qBin];
   }
 }
 
 double *FastMinKernel::solveLin(const NICE::Vector & _y,
                                 NICE::Vector & _alpha,
-                                const Quantization * _q, 
-                                const ParameterizedFunction *_pf, 
-                                const bool & _useRandomSubsets, 
-                                uint _maxIterations, 
-                                const uint & _sizeOfRandomSubset, 
-                                double _minDelta, 
+                                const Quantization * _q,
+                                const ParameterizedFunction *_pf,
+                                const bool & _useRandomSubsets,
+                                uint _maxIterations,
+                                const uint & _sizeOfRandomSubset,
+                                double _minDelta,
                                 bool _timeAnalysis
                                ) const
 {
@@ -826,7 +826,7 @@ double *FastMinKernel::solveLin(const NICE::Vector & _y,
 
   // number of quantization bins
   uint hmax = _q->getNumberOfBins();
-  
+
   NICE::Vector diagonalElements(_y.size(),0.0);
   this->X_sorted.hikDiagonalElements(diagonalElements);
   diagonalElements += this->d_noise;
@@ -1151,8 +1151,8 @@ void FastMinKernel::hikPrepareKVNApproximation(NICE::VVector & _A) const
   }
 }
 
-double * FastMinKernel::hikPrepareKVNApproximationFast(NICE::VVector & _A, 
-                                                       const Quantization * _q, 
+double * FastMinKernel::hikPrepareKVNApproximationFast(NICE::VVector & _A,
+                                                       const Quantization * _q,
                                                        const ParameterizedFunction *_pf ) const
 {
   //NOTE keep in mind: for doing this, we already have precomputed A using hikPrepareSquaredKernelVector!
@@ -1163,8 +1163,8 @@ double * FastMinKernel::hikPrepareKVNApproximationFast(NICE::VVector & _A,
   // store (transformed) prototypes
   double *prototypes = new double [ hmax * this->ui_d ];
   double * p_prototypes = prototypes;
-  
-  for (uint dim = 0; dim < this->ui_d; dim++)  
+
+  for (uint dim = 0; dim < this->ui_d; dim++)
   {
     for ( uint i = 0 ; i < hmax ; i++ )
     {
@@ -1175,7 +1175,7 @@ double * FastMinKernel::hikPrepareKVNApproximationFast(NICE::VVector & _A,
       {
         *p_prototypes = _q->getPrototype( i, dim );
       }
-      
+
       p_prototypes++;
     }
   }
@@ -1201,7 +1201,7 @@ double * FastMinKernel::hikPrepareKVNApproximationFast(NICE::VVector & _A,
     uint index = 0;
     // we use the quantization of the original features! the transformed feature were
     // already used to calculate A and B, this of course assumes monotonic functions!!!
-    uint qBin = _q->quantize ( i->first, dim ); 
+    uint qBin = _q->quantize ( i->first, dim );
 
     // the next loop is linear in max(hmax, n)
     // REMARK: this could be changed to hmax*log(n), when
@@ -1238,7 +1238,7 @@ double * FastMinKernel::hikPrepareKVNApproximationFast(NICE::VVector & _A,
           t = _A[dim][index];
         } else {
           // standard case
-          t =  _A[dim][index-1] + pow( fval, 2 ) * (this->ui_n-nrZeroIndices-(index) );          
+          t =  _A[dim][index-1] + pow( fval, 2 ) * (this->ui_n-nrZeroIndices-(index) );
         }
       }
 
@@ -1252,7 +1252,7 @@ double * FastMinKernel::hikPrepareKVNApproximationFast(NICE::VVector & _A,
 }
 
 double* FastMinKernel::hikPrepareLookupTableForKVNApproximation(const Quantization * _q,
-                                                                const ParameterizedFunction *_pf 
+                                                                const ParameterizedFunction *_pf
                                                                ) const
 {
   // number of quantization bins
@@ -1262,7 +1262,7 @@ double* FastMinKernel::hikPrepareLookupTableForKVNApproximation(const Quantizati
   double *prototypes = new double [ hmax * this->ui_d ];
   double * p_prototypes = prototypes;
 
-  for (uint dim = 0; dim < this->ui_d; dim++)  
+  for (uint dim = 0; dim < this->ui_d; dim++)
   {
     for ( uint i = 0 ; i < hmax ; i++ )
     {
@@ -1273,10 +1273,10 @@ double* FastMinKernel::hikPrepareLookupTableForKVNApproximation(const Quantizati
       {
         *p_prototypes = _q->getPrototype( i, dim );
       }
-      
+
       p_prototypes++;
     }
-  }    
+  }
 
   // creating the lookup table as pure C, which might be beneficial
   // for fast evaluation
@@ -1298,7 +1298,7 @@ double* FastMinKernel::hikPrepareLookupTableForKVNApproximation(const Quantizati
     uint index = 0;
 
     // we use the quantization of the original features! Nevetheless, the resulting lookupTable is computed using the transformed ones
-    uint qBin = _q->quantize ( i->first, dim ); 
+    uint qBin = _q->quantize ( i->first, dim );
 
     double sum(0.0);
 
@@ -1409,9 +1409,9 @@ void FastMinKernel::hikComputeKVNApproximation(const NICE::VVector & _A,
   }
 }
 
-void FastMinKernel::hikComputeKVNApproximationFast(const double *_Tlookup, 
-                                                   const Quantization * _q, 
-                                                   const NICE::SparseVector & _xstar, 
+void FastMinKernel::hikComputeKVNApproximationFast(const double *_Tlookup,
+                                                   const Quantization * _q,
+                                                   const NICE::SparseVector & _xstar,
                                                    double & _norm
                                                   ) const
 {
@@ -1421,12 +1421,12 @@ void FastMinKernel::hikComputeKVNApproximationFast(const double *_Tlookup,
   {
     uint dim = i->first;
     double v = i->second;
-    // we do not need a parameterized function here, since the quantizer works on the original feature values. 
-    // nonetheless, the lookup table was created using the parameterized function    
+    // we do not need a parameterized function here, since the quantizer works on the original feature values.
+    // nonetheless, the lookup table was created using the parameterized function
     uint qBin = _q->quantize( v, dim );
-    
+
     _norm += _Tlookup[dim*_q->getNumberOfBins() + qBin];
-  }  
+  }
 }
 
 void FastMinKernel::hikComputeKernelVector ( const NICE::SparseVector& _xstar,
@@ -1552,9 +1552,9 @@ void FastMinKernel::hikComputeKVNApproximation(const NICE::VVector & _A,
   }
 }
 
-void FastMinKernel::hikComputeKVNApproximationFast(const double *_Tlookup, 
-                                                   const Quantization * _q, 
-                                                   const NICE::Vector & _xstar, 
+void FastMinKernel::hikComputeKVNApproximationFast(const double *_Tlookup,
+                                                   const Quantization * _q,
+                                                   const NICE::Vector & _xstar,
                                                    double & _norm
                                                   ) const
 {
@@ -1564,12 +1564,12 @@ void FastMinKernel::hikComputeKVNApproximationFast(const double *_Tlookup,
   for ( NICE::Vector::const_iterator i = _xstar.begin(); i != _xstar.end(); i++, dim++ )
   {
     double v = *i;
-    // we do not need a parameterized function here, since the quantizer works on the original feature values. 
-    // nonetheless, the lookup table was created using the parameterized function    
+    // we do not need a parameterized function here, since the quantizer works on the original feature values.
+    // nonetheless, the lookup table was created using the parameterized function
     uint qBin = _q->quantize( v, dim );
-    
+
     _norm += _Tlookup[dim*_q->getNumberOfBins() + qBin];
-  }  
+  }
 }
 
 

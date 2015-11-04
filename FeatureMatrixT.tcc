@@ -124,7 +124,7 @@ namespace NICE {
       {
         for ( uint j = _features.jc[i]; j < _features.jc[i+1] && j < _features.ndata; j++ ) //walk over single features, which are sparsely represented
         {
-          this->features[i].insert(((T*)_features.data)[j], _features.ir[ j]);
+          this->features[i].insert(((T*)_features.data)[j], true /* specify feature number */, _features.ir[ j]);
           if ((_features.ir[ j])>nMax)
             nMax = _features.ir[ j];
         }
@@ -156,9 +156,9 @@ namespace NICE {
         for ( uint j = _features.jc[i]; j < _features.jc[i+1] && j < _features.ndata; j++ ) //walk over single features, which are sparsely represented
         {
           uint example_index = _features.ir[ j];
-          std::map<uint, uint>::const_iterator it = examples.find(example_index);
-          if ( it != examples.end() ) {
-            this->features[i].insert(((T*)_features.data)[j], it->second /* new index */);
+          std::map<uint, uint>::const_iterator it = _examples.find(example_index);
+          if ( it != _examples.end() ) {
+            this->features[i].insert(((T*)_features.data)[j], true /* specify feature number */, it->second /* new index */);
             if (it->second > nMax)
               nMax = it->second;
           }
@@ -489,13 +489,13 @@ namespace NICE {
       if ( it->first > this->features[_dim].getTolerance() )
         _position += this->features[_dim].getZeros();
     }
-    
+
     template <typename T>
     T FeatureMatrixT<T>::getLargestValue ( const bool & _getTransformedValue ) const
     {
-      T vmax = (T) 0; 
+      T vmax = (T) 0;
       T vtmp = (T) 0;
-      
+
       uint tmp ( 0 );
       for ( typename std::vector<NICE::SortedVectorSparse<T> >::const_iterator it = this->features.begin();
             it != this->features.end();
@@ -510,26 +510,26 @@ namespace NICE {
       }
       return vmax;
     }
-    
+
     template <typename T>
-    NICE::VectorT<T> FeatureMatrixT<T>::getLargestValuePerDimension ( const double & _quantile, 
+    NICE::VectorT<T> FeatureMatrixT<T>::getLargestValuePerDimension ( const double & _quantile,
                                                                       const bool & _getTransformedValue
-                                                                    ) const     
+                                                                    ) const
     {
       NICE::VectorT<T> vmax ( this->get_d() );
-      
-      uint tmp ( 0 );      
+
+      uint tmp ( 0 );
       typename NICE::VectorT<T>::iterator vmaxIt = vmax.begin();
       for ( typename std::vector<NICE::SortedVectorSparse<T> >::const_iterator it = this->features.begin();
             it != this->features.end();
             it++, vmaxIt++, tmp++
       )
-      {       
+      {
         *vmaxIt = it->getLargestValueUnsafe( _quantile, _getTransformedValue );
-      }    
+      }
       return vmax;
     }
-    
+
     //------------------------------------------------------
     // high level methods
     //------------------------------------------------------
