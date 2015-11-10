@@ -1377,10 +1377,8 @@ void FastMinKernel::hikComputeKVNApproximation(const NICE::VVector & _A,
       position--;
     }
 
-    //NOTE again - pay attention! This is only valid if all entries are NOT negative! - if not, ask wether the current feature is greater than zero. If so, subtract the nrZeroIndices, if not do not
     double firstPart(0.0);
-    //TODO in the "overnext" line there occurs the following error
-    // Invalid read of size 8
+
     if ( !posIsZero && ((position-nrZeroIndices) < this->ui_n) )
       firstPart = (_A[dim][position-nrZeroIndices]);
 
@@ -1390,15 +1388,16 @@ void FastMinKernel::hikComputeKVNApproximation(const NICE::VVector & _A,
 
     fval = fval * fval;
 
-    double secondPart( 0.0);
+    //default value: x_d^* is smaller than every non-zero training example
+    double secondPart( this->ui_n-nrZeroIndices-1 );
 
-    if ( !posIsZero )
-      secondPart = fval * (this->ui_n-nrZeroIndices-(position+1));
-    else //if x_d^* is smaller than every non-zero training example
-      secondPart = fval * (this->ui_n-nrZeroIndices);
+    if ( !posIsZero && (position >= nrZeroIndices) )
+    {
+      secondPart = (position-nrZeroIndices);
+    }
 
     // but apply using the transformed one
-    _norm += firstPart + secondPart;
+    _norm += firstPart + secondPart* fval;
   }
 }
 
