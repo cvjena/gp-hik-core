@@ -25,12 +25,12 @@
 namespace NICE {
 
  /**
- * @class GPHIKClassifier
+ * @class GPHIKRawClassifier
  * @brief ...
- * @author Erik Rodner
+ * @author Erik Rodner, Alexander Freytag
  */
 
-class GPHIKRawClassifier //: public NICE::Persistent
+class GPHIKRawClassifier
 {
 
   protected:
@@ -90,6 +90,7 @@ class GPHIKRawClassifier //: public NICE::Persistent
 
     uint *nnz_per_dimension;
     uint num_examples;
+    uint num_dimension;
 
     double f_tolerance;
 
@@ -102,6 +103,15 @@ class GPHIKRawClassifier //: public NICE::Persistent
     /////////////////////////
     /////////////////////////
 
+    void clearSetsOfTablesAandB();
+    void clearSetsOfTablesT();
+
+
+    /////////////////////////
+    /////////////////////////
+    //    PUBLIC METHODS   //
+    /////////////////////////
+    /////////////////////////
 
   public:
 
@@ -157,6 +167,30 @@ class GPHIKRawClassifier //: public NICE::Persistent
     void classify ( const NICE::SparseVector * _example,
                     uint & _result,
                     NICE::SparseVector & _scores
+                  ) const;
+
+    /**
+     * @brief classify a given example with the previously learned model
+     * @author Alexander Freytag, Erik Rodner
+     * @param example (SparseVector) to be classified given in a sparse representation
+     * @param result (int) class number of most likely class
+     * @param scores (Vector) classification scores for known classes
+     */
+    void classify ( const NICE::SparseVector * _example,
+                    uint & _result,
+                    NICE::Vector & _scores
+                  ) const;
+
+    /**
+     * @brief classify a given set of examples with the previously learned model
+     * @author Alexander Freytag, Erik Rodner
+     * @param examples ((std::vector< NICE::SparseVector *>)) to be classified given in a sparse representation
+     * @param results (Vector) class number of most likely class per example
+     * @param scores (NICE::Matrix) classification scores for known classes and test examples
+     */
+    void classify ( const std::vector< const NICE::SparseVector *> _examples,
+                    NICE::Vector & _results,
+                    NICE::Matrix & _scores
                   ) const;
 
     /**

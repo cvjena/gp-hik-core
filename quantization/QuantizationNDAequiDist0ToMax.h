@@ -78,7 +78,7 @@ class QuantizationNDAequiDist0ToMax  : public NICE::Quantization
                         ) const;
                         
                         
-  virtual void computeParametersFromData ( const NICE::FeatureMatrix *  _fm ) ;
+  virtual void computeParametersFromData ( const NICE::Vector & _maxValuesPerDimension );
                           
   ///////////////////// INTERFACE PERSISTENT /////////////////////
   // interface specific methods for store and restore

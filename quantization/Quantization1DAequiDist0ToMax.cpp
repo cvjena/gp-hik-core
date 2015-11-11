@@ -58,12 +58,12 @@ uint Quantization1DAequiDist0ToMax::quantize ( double _value,
 
 
 
-void Quantization1DAequiDist0ToMax::computeParametersFromData ( const NICE::FeatureMatrix *  _fm )
+void Quantization1DAequiDist0ToMax::computeParametersFromData ( const NICE::Vector & _maxValuesPerDimension )
 {
-      double vmax = ( _fm->getLargestValue( ) );       
       this->v_upperBounds.resize ( 1 );
-      this->v_upperBounds ( 0 ) = vmax;
+      this->v_upperBounds ( 0 ) = _maxValuesPerDimension.Max();
 }
+
 // ---------------------- STORE AND RESTORE FUNCTIONS ----------------------
 
 void Quantization1DAequiDist0ToMax::restore ( std::istream & _is, 

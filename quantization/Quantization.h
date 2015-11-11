@@ -13,9 +13,6 @@
 // 
 #include <core/vector/VectorT.h>
 
-// gp-hik-core includes
-#include "gp-hik-core/FeatureMatrixT.h"
-
 namespace NICE {
   
  /** 
@@ -97,7 +94,9 @@ class Quantization  : public NICE::Persistent
                         
                         
   //FIXME should the argument _fm be templated?
-  virtual void computeParametersFromData ( const NICE::FeatureMatrix *  _fm ) = 0;                        
+  virtual void computeParametersFromData ( const NICE::Vector & _maxValuesPerDimension ) = 0;
+//  FeatureMatrix *  _fm
+//  virtual void computeParametersFromData ( const NICE::GMHIKernelRaw *  _gm ) = 0;
   
   ///////////////////// INTERFACE PERSISTENT /////////////////////
   // interface specific methods for store and restore

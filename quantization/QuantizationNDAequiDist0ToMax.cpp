@@ -53,12 +53,11 @@ uint QuantizationNDAequiDist0ToMax::quantize ( double _value,
 }
 
 
-void QuantizationNDAequiDist0ToMax::computeParametersFromData ( const NICE::FeatureMatrix *  _fm )
-{     
-  // 100% quantile...
-  double d_quantile ( 1.00 ); 
-  this->v_upperBounds = _fm->getLargestValuePerDimension( d_quantile );  
+void QuantizationNDAequiDist0ToMax::computeParametersFromData ( const NICE::Vector & _maxValuesPerDimension )
+{
+  this->v_upperBounds = _maxValuesPerDimension;
 }
+
 
 // ---------------------- STORE AND RESTORE FUNCTIONS ----------------------
 

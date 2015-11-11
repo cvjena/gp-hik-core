@@ -674,7 +674,8 @@ void FMKGPHyperparameterOptimization::setFastMinKernel ( FastMinKernel * _fmk )
   //
   if ( this->q != NULL )
   {  
-    this->q->computeParametersFromData ( &(this->fmk->featureMatrix()) );
+    NICE::Vector _maxValuesPerDimension = this->fmk->featureMatrix().getLargestValuePerDimension();
+    this->q->computeParametersFromData ( _maxValuesPerDimension );
   }
 }
 
@@ -850,8 +851,18 @@ void FMKGPHyperparameterOptimization::computeMatricesAndLUTs ( const GPLikelihoo
         delete precomputedT[ i->first ];
       
       precomputedT[ i->first ] = T;
+
+
+//      //debug
+//      double * p_t = T;
+//      for ( uint i=0; i < this->q->getNumberOfBins(); i++ , p_t++)
+//      {
+//          std::cerr << " " << *p_t;
+//      }
+//      std::cerr << std::endl;
     }
   }
+
   
   if ( this->precomputedTForVarEst != NULL )
   {
@@ -2063,7 +2074,7 @@ void FMKGPHyperparameterOptimization::restore ( std::istream & _is,
         //TODO eig
         // currently hard coded, since EV does not offer Persistent functionalities and 
         // in addition, we currently have no other choice for EV then EVArnoldi
-        this->eig = new EVArnoldi ( false /*eig_verbose */, 10 );        
+        this->eig = new EVArnoldi ( false /*eig_verbose */, 10 /*_maxiterations*/ );
         _is >> tmp; // end of block 
         tmp = this->removeEndTag ( tmp );
       }     

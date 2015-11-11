@@ -17,8 +17,13 @@
 #include <core/algebra/EigValues.h>
 
 // gp-hik-core includes
-#include "GPHIKRawClassifier.h"
-#include "GMHIKernelRaw.h"
+#include "gp-hik-core/GPHIKRawClassifier.h"
+#include "gp-hik-core/GMHIKernelRaw.h"
+
+//
+#include "gp-hik-core/quantization/Quantization1DAequiDist0To1.h"
+#include "gp-hik-core/quantization/Quantization1DAequiDist0ToMax.h"
+#include "gp-hik-core/quantization/QuantizationNDAequiDist0ToMax.h"
 
 using namespace std;
 using namespace NICE;
@@ -30,6 +35,53 @@ using namespace NICE;
 /////////////////////////////////////////////////////
 
 
+void GPHIKRawClassifier::clearSetsOfTablesAandB( )
+{
+
+    // delete all LUTs A which are needed when no quantization is activated
+    for ( std::map< uint,PrecomputedType >::iterator itA = this->precomputedA.begin();
+          itA != this->precomputedA.end();
+          itA++
+        )
+    {
+        for ( uint idxDim = 0 ; idxDim < this->num_dimension; idxDim++ )
+        {
+            if ( (itA->second)[idxDim] != NULL )
+                delete [] (itA->second)[idxDim];
+        }
+        delete [] itA->second;
+    }
+    this->precomputedA.clear();
+
+
+    // delete all LUTs B which are needed when no quantization is activated
+    for ( std::map< uint,PrecomputedType >::iterator itB = this->precomputedB.begin();
+          itB != this->precomputedB.end();
+          itB++
+        )
+    {
+        for ( uint idxDim = 0 ; idxDim < this->num_dimension; idxDim++ )
+        {
+            if ( (itB->second)[idxDim] != NULL )
+                delete [] (itB->second)[idxDim];
+        }
+        delete [] itB->second;
+    }
+    this->precomputedB.clear();
+}
+
+void GPHIKRawClassifier::clearSetsOfTablesT( )
+{
+    // delete all LUTs used for quantization
+    for ( std::map< uint, double * >::iterator itT = this->precomputedT.begin();
+          itT != this->precomputedT.end();
+          itT++
+         )
+    {
+        delete [] itT->second;
+    }
+    this->precomputedT.clear();
+}
 
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
@@ -38,11 +90,18 @@ using namespace NICE;
 /////////////////////////////////////////////////////
 GPHIKRawClassifier::GPHIKRawClassifier( )
 {
-  this->b_isTrained = false;
-  this->confSection = "";
+  this->b_isTrained       = false;
+  this->confSection       = "";
+
   this->nnz_per_dimension = NULL;
-  this->q = NULL;
-  this->gm = NULL;
+  this->num_examples      = 0;
+  this->num_dimension     = 0;
+
+  this->solver            = NULL;    
+  this->q                 = NULL;
+  this->gm                = NULL;
+
+
 
   // in order to be sure about all necessary variables be setup with default values, we
   // run initFromConfig with an empty config
@@ -59,11 +118,16 @@ GPHIKRawClassifier::GPHIKRawClassifier( const Config *_conf,
   // same code as in empty constructor - duplication can be avoided with C++11 allowing for constructor delegation
   ///////////
 
-  this->b_isTrained = false;
-  this->confSection = "";
+  this->b_isTrained       = false;
+  this->confSection       = "";
+
   this->nnz_per_dimension = NULL;
-  this->q = NULL;
-  this->gm = NULL;
+  this->num_examples      = 0;
+  this->num_dimension     = 0;
+
+  this->solver            = NULL;    
+  this->q                 = NULL;
+  this->gm                = NULL;
 
   ///////////
   // here comes the new code part different from the empty constructor
@@ -88,11 +152,26 @@ GPHIKRawClassifier::GPHIKRawClassifier( const Config *_conf,
 
 GPHIKRawClassifier::~GPHIKRawClassifier()
 {
-  delete this->solver;
-  this->solver = NULL;
+  if ( this->solver != NULL )
+  {
+    delete this->solver;
+    this->solver = NULL;
+  }
 
-  if (gm != NULL)
-    delete gm;
+  if ( this->gm != NULL)
+  {
+    delete this->gm;
+    this->gm = NULL;
+  }
+
+  this->clearSetsOfTablesAandB();
+  this->clearSetsOfTablesT();
+
+  if ( this->q != NULL )
+  {
+      delete this->q;
+      this->q = NULL;
+  }
 }
 
 void GPHIKRawClassifier::initFromConfig(const Config *_conf,
@@ -137,6 +216,46 @@ void GPHIKRawClassifier::initFromConfig(const Config *_conf,
       std::cerr << "   b_eig_verbose " << b_eig_verbose << std::endl;
       std::cerr << "   i_eig_value_max_iterations " << i_eig_value_max_iterations << std::endl;
   }
+
+  //quantization during classification?
+  bool useQuantization = _conf->gB ( _confSection, "use_quantization", false );
+
+  if ( this->b_verbose )
+  {
+    std::cerr << "_confSection: " << _confSection << std::endl;
+    std::cerr << "use_quantization: " << useQuantization << std::endl;
+  }
+
+  if ( _conf->gB ( _confSection, "use_quantization", false ) )
+  {
+    int numBins = _conf->gI ( _confSection, "num_bins", 100 );
+    if ( this->b_verbose )
+      std::cerr << "GPHIKRawClassifier: quantization initialized with " << numBins << " bins." << std::endl;
+
+
+    std::string s_quantType = _conf->gS( _confSection, "s_quantType", "1d-aequi-0-1" );
+
+    if ( s_quantType == "1d-aequi-0-1" )
+    {
+      this->q = new NICE::Quantization1DAequiDist0To1 ( numBins );
+    }
+    else if ( s_quantType == "1d-aequi-0-max" )
+    {
+      this->q = new NICE::Quantization1DAequiDist0ToMax ( numBins );
+    }
+    else if ( s_quantType == "nd-aequi-0-max" )
+    {
+      this->q = new NICE::QuantizationNDAequiDist0ToMax ( numBins );
+    }
+    else
+    {
+      fthrow(Exception, "Quantization type is unknown " << s_quantType);
+    }
+  }
+  else
+  {
+    this->q = NULL;
+  }
 }
 
 ///////////////////// ///////////////////// /////////////////////
@@ -167,81 +286,124 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
      fthrow(Exception, "Classifier not trained yet -- aborting!" );
   _scores.clear();
 
-  GMHIKernelRaw::sparseVectorElement **dataMatrix = gm->getDataMatrix();
 
-  uint maxClassNo = 0;
-  for ( std::map<uint, PrecomputedType>::const_iterator i = this->precomputedA.begin() ; i != this->precomputedA.end(); i++ )
-  {
-    uint classno = i->first;
-    maxClassNo = std::max ( maxClassNo, classno );
-    double beta = 0;
+    // classification with quantization of test inputs
+    if ( this->q != NULL )
+    {
+        uint maxClassNo = 0;
+        for ( std::map< uint, double * >::const_iterator itT = this->precomputedT.begin() ;
+              itT != this->precomputedT.end();
+              itT++
+            )
+        {
+          uint classno = itT->first;
+          maxClassNo   = std::max ( maxClassNo, classno );
+          double beta  = 0;
+          double *T    = itT->second;
 
-    if ( this->q != NULL ) {
-      std::map<uint, double *>::const_iterator j = this->precomputedT.find ( classno );
-      double *T = j->second;
-      for (SparseVector::const_iterator i = _xstar->begin(); i != _xstar->end(); i++ )
-      {
-        uint dim = i->first;
-        double v = i->second;
-        uint qBin = q->quantize( v, dim );
+          for (SparseVector::const_iterator i = _xstar->begin(); i != _xstar->end(); i++ )
+          {
+            uint dim  = i->first;
+            double v  = i->second;
+            uint qBin = this->q->quantize( v, dim );
 
-        beta += T[dim * q->getNumberOfBins() + qBin];
-      }
-    } else {
-      const PrecomputedType & A = i->second;
-      std::map<uint, PrecomputedType>::const_iterator j = this->precomputedB.find ( classno );
-      const PrecomputedType & B = j->second;
+            beta += T[dim * this->q->getNumberOfBins() + qBin];
+          }//for-loop over dimensions of test input
 
-      for (SparseVector::const_iterator i = _xstar->begin(); i != _xstar->end(); i++)
-      {
-        uint dim = i->first;
-        double fval = i->second;
+          _scores[ classno ] = beta;
 
-        uint nnz = this->nnz_per_dimension[dim];
-        uint nz = this->num_examples - nnz;
-
-        if ( nnz == 0 ) continue;
-        // useful
-        //if ( fval < this->f_tolerance ) continue;
-
-        uint position = 0;
-
-        //this->X_sorted.findFirstLargerInDimension(dim, fval, position);
-        GMHIKernelRaw::sparseVectorElement fval_element;
-        fval_element.value = fval;
-
-        //std::cerr << "value to search for " << fval << endl;
-        //std::cerr << "data matrix in dimension " << dim << endl;
-        //for (int j = 0; j < nnz; j++)
-        //    std::cerr << dataMatrix[dim][j].value << std::endl;
-
-        GMHIKernelRaw::sparseVectorElement *it = upper_bound ( dataMatrix[dim], dataMatrix[dim] + nnz, fval_element );
-        position = distance ( dataMatrix[dim], it );
-        // add zero elements
-        if ( fval_element.value > 0.0 )
-            position += nz;
-
-
-        bool posIsZero ( position == 0 );
-        if ( !posIsZero )
-            position--;
-
-
-        double firstPart = 0.0;
-        if ( !posIsZero && ((position-nz) < this->num_examples) )
-          firstPart = (A[dim][position-nz]);
-
-        double secondPart( B[dim][this->num_examples-1-nz]);
-        if ( !posIsZero && (position >= nz) )
-            secondPart -= B[dim][position-nz];
-
-        // but apply using the transformed one
-        beta += firstPart + secondPart* fval;
-      }
+        }//for-loop over 1-vs-all models
     }
+    // classification with exact test inputs, i.e., no quantization involved
+    else
+    {
+        uint maxClassNo = 0;
+        for ( std::map<uint, PrecomputedType>::const_iterator i = this->precomputedA.begin() ; i != this->precomputedA.end(); i++ )
+        {
+          uint classno = i->first;
+          maxClassNo   = std::max ( maxClassNo, classno );
+          double beta  = 0;
+          GMHIKernelRaw::sparseVectorElement **dataMatrix = this->gm->getDataMatrix();
 
-    _scores[ classno ] = beta;
-  }
+          const PrecomputedType & A = i->second;
+          std::map<uint, PrecomputedType>::const_iterator j = this->precomputedB.find ( classno );
+          const PrecomputedType & B = j->second;
+
+          for (SparseVector::const_iterator i = _xstar->begin(); i != _xstar->end(); i++)
+          {
+            uint dim    = i->first;
+            double fval = i->second;
+
+            uint nnz = this->nnz_per_dimension[dim];
+            uint nz  = this->num_examples - nnz;
+
+            if ( nnz == 0 ) continue;
+            // useful
+            //if ( fval < this->f_tolerance ) continue;
+
+            uint position = 0;
+
+            //this->X_sorted.findFirstLargerInDimension(dim, fval, position);
+            GMHIKernelRaw::sparseVectorElement fval_element;
+            fval_element.value = fval;
+
+            //std::cerr << "value to search for " << fval << endl;
+            //std::cerr << "data matrix in dimension " << dim << endl;
+            //for (int j = 0; j < nnz; j++)
+            //    std::cerr << dataMatrix[dim][j].value << std::endl;
+
+            GMHIKernelRaw::sparseVectorElement *it = upper_bound ( dataMatrix[dim], dataMatrix[dim] + nnz, fval_element );
+            position = distance ( dataMatrix[dim], it );
+            
+//             /*// add zero elements
+//             if ( fval_element.value > 0.0 )
+//                 position += nz;*/
+
+
+            bool posIsZero ( position == 0 );
+            
+            // special case 1:
+            // new example is smaller than all known examples
+            // -> resulting value = fval * sum_l=1^n alpha_l               
+            if ( position == 0 )
+            {
+              beta += fval * B[ dim ][ nnz - 1 ];  
+            }
+            // special case 2:
+            // new example is equal to or larger than the largest training example in this dimension
+            // -> the term B[ dim ][ nnz-1 ] - B[ dim ][ indexElem ] is equal to zero and vanishes, which is logical, since all elements are smaller than the remaining prototypes!            
+            else if ( position == nnz )
+            {
+              beta += A[ dim ][ nnz - 1 ];
+            }
+            // standard case: new example is larger then the smallest element, but smaller then the largest one in the corrent dimension        
+            else
+            {
+                beta += A[ dim ][ position - 1 ] + fval * ( B[ dim ][ nnz - 1 ] - B[ dim ][ position - 1 ] );
+            }
+            
+//             // correct upper bound to correct position, only possible if new example is not the smallest value in this dimension
+//             if ( !posIsZero )
+//                 position--;
+// 
+// 
+//             double firstPart = 0.0;
+//             if ( !posIsZero  )
+//               firstPart = ( A[ dim ][ position ] );
+// 
+//             double secondPart( B[ dim ][ this->num_examples-1-nz ]);
+//             if ( !posIsZero && (position >= nz) )
+//                 secondPart -= B[dim][ position ];
+// 
+//             // but apply using the transformed one
+//             beta += firstPart + secondPart* fval;
+          }//for-loop over dimensions of test input
+
+          _scores[ classno ] = beta;
+
+        }//for-loop over 1-vs-all models
+
+    } // if-condition wrt quantization
   _scores.setDim ( *this->knownClasses.rbegin() + 1 );
 
 
@@ -253,8 +415,11 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
   {
     uint class1 = *(this->knownClasses.begin());
     uint class2 = *(this->knownClasses.rbegin());
-    uint class_for_which_we_have_a_score = _scores.begin()->first;
-    uint class_for_which_we_dont_have_a_score = (class1 == class_for_which_we_have_a_score ? class2 : class1);
+
+    // since we erased the binary label vector corresponding to the smaller class number,
+    // we only have scores for the larger class number
+    uint class_for_which_we_have_a_score          = class2;
+    uint class_for_which_we_dont_have_a_score     = class1;
 
     _scores[class_for_which_we_dont_have_a_score] = - _scores[class_for_which_we_have_a_score];
 
@@ -262,6 +427,169 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
   }
 
 }
+
+
+void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
+                                 uint & _result,
+                                 Vector & _scores
+                               ) const
+{
+  if ( ! this->b_isTrained )
+     fthrow(Exception, "Classifier not trained yet -- aborting!" );
+
+    // classification with quantization of test inputs
+    if ( this->q != NULL )
+    {
+        uint maxClassNo = 0;
+        for ( std::map< uint, double * >::const_iterator itT = this->precomputedT.begin() ;
+              itT != this->precomputedT.end();
+              itT++
+            )
+        {
+          uint classno = itT->first;
+          maxClassNo   = std::max ( maxClassNo, classno );
+          double beta  = 0;
+          double *T    = itT->second;
+
+          for (SparseVector::const_iterator i = _xstar->begin(); i != _xstar->end(); i++ )
+          {
+            uint dim  = i->first;
+            double v  = i->second;
+            uint qBin = this->q->quantize( v, dim );
+
+            beta += T[dim * this->q->getNumberOfBins() + qBin];
+          }//for-loop over dimensions of test input
+
+          _scores[ classno ] = beta;
+
+        }//for-loop over 1-vs-all models
+    }
+    // classification with exact test inputs, i.e., no quantization involved
+    else
+    {
+        uint maxClassNo = 0;
+        for ( std::map<uint, PrecomputedType>::const_iterator i = this->precomputedA.begin() ; i != this->precomputedA.end(); i++ )
+        {
+          uint classno = i->first;
+          maxClassNo   = std::max ( maxClassNo, classno );
+          double beta  = 0;
+          GMHIKernelRaw::sparseVectorElement **dataMatrix = this->gm->getDataMatrix();
+
+          const PrecomputedType & A = i->second;
+          std::map<uint, PrecomputedType>::const_iterator j = this->precomputedB.find ( classno );
+          const PrecomputedType & B = j->second;
+
+          for (SparseVector::const_iterator i = _xstar->begin(); i != _xstar->end(); i++)
+          {
+            uint dim    = i->first;
+            double fval = i->second;
+
+            uint nnz = this->nnz_per_dimension[dim];
+            uint nz  = this->num_examples - nnz;
+
+            if ( nnz == 0 ) continue;
+            // useful
+            //if ( fval < this->f_tolerance ) continue;
+
+            uint position = 0;
+
+            //this->X_sorted.findFirstLargerInDimension(dim, fval, position);
+            GMHIKernelRaw::sparseVectorElement fval_element;
+            fval_element.value = fval;
+
+            //std::cerr << "value to search for " << fval << endl;
+            //std::cerr << "data matrix in dimension " << dim << endl;
+            //for (int j = 0; j < nnz; j++)
+            //    std::cerr << dataMatrix[dim][j].value << std::endl;
+
+            GMHIKernelRaw::sparseVectorElement *it = upper_bound ( dataMatrix[dim], dataMatrix[dim] + nnz, fval_element );
+            position = distance ( dataMatrix[dim], it );
+
+            bool posIsZero ( position == 0 );
+
+            // special case 1:
+            // new example is smaller than all known examples
+            // -> resulting value = fval * sum_l=1^n alpha_l
+            if ( position == 0 )
+            {
+              beta += fval * B[ dim ][ nnz - 1 ];
+            }
+            // special case 2:
+            // new example is equal to or larger than the largest training example in this dimension
+            // -> the term B[ dim ][ nnz-1 ] - B[ dim ][ indexElem ] is equal to zero and vanishes, which is logical, since all elements are smaller than the remaining prototypes!
+            else if ( position == nnz )
+            {
+              beta += A[ dim ][ nnz - 1 ];
+            }
+            // standard case: new example is larger then the smallest element, but smaller then the largest one in the corrent dimension
+            else
+            {
+                beta += A[ dim ][ position - 1 ] + fval * ( B[ dim ][ nnz - 1 ] - B[ dim ][ position - 1 ] );
+            }
+
+          }//for-loop over dimensions of test input
+
+          _scores[ classno ] = beta;
+
+        }//for-loop over 1-vs-all models
+
+    } // if-condition wrt quantization
+
+  if ( this->knownClasses.size() > 2 )
+  { // multi-class classification
+    _result = _scores.MaxIndex();
+  }
+  else if ( this->knownClasses.size() == 2 ) // binary setting
+  {
+    uint class1 = *(this->knownClasses.begin());
+    uint class2 = *(this->knownClasses.rbegin());
+
+    // since we erased the binary label vector corresponding to the smaller class number,
+    // we only have scores for the larger class number
+    uint class_for_which_we_have_a_score          = class2;
+    uint class_for_which_we_dont_have_a_score     = class1;
+    
+    _scores[class_for_which_we_dont_have_a_score] = - _scores[class_for_which_we_have_a_score];
+
+    _result = _scores[class_for_which_we_have_a_score] > 0.0 ? class_for_which_we_have_a_score : class_for_which_we_dont_have_a_score;
+  }
+
+}
+
+void GPHIKRawClassifier::classify ( const std::vector< const NICE::SparseVector *> _examples,
+                                    NICE::Vector & _results,
+                                    NICE::Matrix & _scores
+                                  ) const
+{
+    _scores.resize( _examples.size(), this->knownClasses.size() );
+    _scores.set( 0.0 );
+
+    _results.resize( _examples.size() );
+    _results.set( 0.0 );
+
+
+    NICE::Vector::iterator resultsIt = _results.begin();
+    NICE::Vector scoresSingle( this->knownClasses.size(), 0.0);
+
+
+    uint exCnt ( 0 );
+    for ( std::vector< const NICE::SparseVector *>::const_iterator exIt = _examples.begin();
+          exIt != _examples.end();
+          exIt++, resultsIt++, exCnt++
+        )
+    {
+      uint resUI;
+        this->classify ( *exIt,
+                        resUI,
+                        scoresSingle
+                       );
+
+        *resultsIt = resUI;
+        _scores.setRow( exCnt, scoresSingle );
+        scoresSingle.set( 0.0 );
+    }
+}
+
 
 
 /** training process */
@@ -286,25 +614,36 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
     uint current_class = *j;
     Vector labels_binary ( _labels.size() );
     for ( uint i = 0; i < _labels.size(); i++ )
+    {
         labels_binary[i] = ( _labels[i] == current_class ) ? 1.0 : -1.0;
+    }
 
-    binLabels.insert ( pair<uint, NICE::Vector>( current_class, labels_binary) );
+    binLabels.insert ( std::pair<uint, NICE::Vector>( current_class, labels_binary) );
   }
 
   // handle special binary case
   if ( knownClasses.size() == 2 )
   {
-    std::map<uint, NICE::Vector>::iterator it = binLabels.begin();
-    it++;
-    binLabels.erase( binLabels.begin(), it );
+      // we erase the binary label vector which corresponds to the smaller class number as positive class
+      uint clNoSmall = *(this->knownClasses.begin());
+      std::map<uint, NICE::Vector>::iterator it = binLabels.begin();
+      it++;
+      if ( binLabels.begin()->first == clNoSmall )
+      {
+        binLabels.erase( binLabels.begin(), it );
+      }
+      else
+      {
+        binLabels.erase( it, binLabels.end() );
+      }
   }
 
   this->train ( _examples, binLabels );
 }
 
 void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> & _examples,
-                              std::map<uint, NICE::Vector> & _binLabels
-                            )
+                                 std::map<uint, NICE::Vector> & _binLabels
+                               )
 {
   // security-check: examples and labels have to be of same size
   for ( std::map< uint, NICE::Vector >::const_iterator binLabIt = _binLabels.begin();
@@ -324,17 +663,19 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
   Timer t;
   t.start();
 
-  precomputedA.clear();
-  precomputedB.clear();
-  precomputedT.clear();
+  this->clearSetsOfTablesAandB();
+  this->clearSetsOfTablesT();
+
 
   // sort examples in each dimension and "transpose" the feature matrix
   // set up the GenericMatrix interface
-  if (gm != NULL)
-    delete gm;
+  if ( this->gm != NULL )
+    delete this->gm;
 
-  gm = new GMHIKernelRaw ( _examples, this->d_noise );
-  nnz_per_dimension = gm->getNNZPerDimension();
+  this->gm = new GMHIKernelRaw ( _examples, this->d_noise, this->q );
+  this->nnz_per_dimension = this->gm->getNNZPerDimension();
+  this->num_dimension     = this->gm->getNumberOfDimensions();
+
 
   // compute largest eigenvalue of our kernel matrix
   // note: this guy is shared among all categories,
@@ -342,6 +683,7 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
   NICE::Vector eigenMax;
   NICE::Matrix eigenMaxV;
   // for reproducibility during debuggin
+  //FIXME
   srand ( 0 );
   srand48 ( 0 );
 
@@ -349,14 +691,13 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
                                           this->i_eig_value_max_iterations
                                         );
 
-
   eig->getEigenvalues( *gm, eigenMax, eigenMaxV, 1 /*rank*/ );
   delete eig;
 
   // set simple jacobi pre-conditioning
   NICE::Vector diagonalElements;
-  gm->getDiagonalElements ( diagonalElements );
-  solver->setJacobiPreconditioner ( diagonalElements );
+  this->gm->getDiagonalElements ( diagonalElements );
+  this->solver->setJacobiPreconditioner ( diagonalElements );
 
   // solve linear equations for each class
   // be careful when parallising this!
@@ -385,22 +726,39 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
     */
     alpha = (y * (1.0 / eigenMax[0]) );
 
-    solver->solveLin( *gm, y, alpha );
+    this->solver->solveLin( *gm, y, alpha );
 
-    // TODO: get lookup tables, A, B, etc. and store them
-    gm->updateTables(alpha);
-    double **A = gm->getTableA();
-    double **B = gm->getTableB();
+//    //debug
+//      std::cerr << "alpha: " << alpha << std::endl;
 
-    precomputedA.insert ( pair<uint, PrecomputedType> ( classno, A ) );
-    precomputedB.insert ( pair<uint, PrecomputedType> ( classno, B ) );
+    // get lookup tables, A, B, etc. and store them
+    this->gm->updateTablesAandB( alpha );
+    double **A = this->gm->getTableA();
+    double **B = this->gm->getTableB();
+
+    this->precomputedA.insert ( std::pair<uint, PrecomputedType> ( classno, A ) );
+    this->precomputedB.insert ( std::pair<uint, PrecomputedType> ( classno, B ) );
+
+    // Quantization for classification?
+    if ( this->q != NULL )
+    {
+      this->gm->updateTableT( alpha );
+      double *T = this->gm->getTableT ( );
+      this->precomputedT.insert( std::pair<uint, double * > ( classno, T ) );
+
+    }
+  }
+
+  // NOTE if quantization is turned on, we do not need LUTs A and B anymore
+  if ( this->q != NULL )
+  {
+    this->clearSetsOfTablesAandB();
   }
 
 
   t.stop();
   if ( this->b_verbose )
     std::cerr << "Time used for setting up the fmk object: " << t.getLast() << std::endl;
-
 
   //indicate that we finished training successfully
   this->b_isTrained = true;
@@ -411,5 +769,3 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
 
 
 }
-
-

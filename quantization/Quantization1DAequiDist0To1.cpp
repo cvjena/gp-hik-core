@@ -52,10 +52,11 @@ uint Quantization1DAequiDist0To1::quantize ( double _value,
     return static_cast<uint> ( _value * (this->ui_numBins-1) + 0.5 );
 }
 
-void Quantization1DAequiDist0To1::computeParametersFromData ( const NICE::FeatureMatrix *  _fm )
+void Quantization1DAequiDist0To1::computeParametersFromData ( const NICE::Vector & _maxValuesPerDimension )
 {
   // nothing to do here...
 }
+
 // ---------------------- STORE AND RESTORE FUNCTIONS ----------------------
 
 void Quantization1DAequiDist0To1::restore ( std::istream & _is, 
