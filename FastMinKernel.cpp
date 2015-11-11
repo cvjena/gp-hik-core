@@ -713,11 +713,8 @@ void FastMinKernel::hik_kernel_sum(const NICE::VVector & _A,
     }
 
 
-    //NOTE again - pay attention! This is only valid if all entries are NOT negative! - if not, ask wether the current feature is greater than zero. If so, subtract the nrZeroIndices, if not do not
     //sum_{l \in L_k} \alpha_l x^l_k
     double firstPart(0.0);
-    //TODO in the "overnext" line there occurs the following error
-    // Invalid read of size 8
 
 
     if ( !posIsZero && ((position-nrZeroIndices) < this->ui_n)  )
@@ -726,14 +723,7 @@ void FastMinKernel::hik_kernel_sum(const NICE::VVector & _A,
     }
 
     // sum_{u \in U_k} alpha_u
-
-    // sum_{u \in U_k} alpha_u
-    // => double secondPart( B(dim, n-1) - B(dim, position));
-    //TODO in the next line there occurs the following error
-    // Invalid read of size 8
     double secondPart( _B[dim][this->ui_n-1-nrZeroIndices] );
-    //TODO in the "overnext" line there occurs the following error
-    // Invalid read of size 8
 
     if ( !posIsZero && (position >= nrZeroIndices) )
     {
@@ -1353,7 +1343,7 @@ void FastMinKernel::hikComputeKVNApproximation(const NICE::VVector & _A,
   for (SparseVector::const_iterator i = _xstar.begin(); i != _xstar.end(); i++)
   {
 
-    uint dim = i->first;
+    uint dim    = i->first;
     double fval = i->second;
 
     uint nrZeroIndices = this->X_sorted.getNumberOfZeroElementsPerDimension(dim);
@@ -1379,25 +1369,24 @@ void FastMinKernel::hikComputeKVNApproximation(const NICE::VVector & _A,
 
     double firstPart(0.0);
 
-    if ( !posIsZero && ((position-nrZeroIndices) < this->ui_n) )
+    if ( !posIsZero && ((position-nrZeroIndices) < this->ui_n)  )
+    {
       firstPart = (_A[dim][position-nrZeroIndices]);
+    }
 
+    //default value: x_d^* is smaller than every non-zero training example
+    double secondPart( this->ui_n-nrZeroIndices );
+
+    if ( !posIsZero && (position >= nrZeroIndices) )
+    {
+      secondPart -= (position-nrZeroIndices);
+    }
 
     if ( _pf != NULL )
       fval = _pf->f ( dim, fval );
 
-    fval = fval * fval;
-
-    //default value: x_d^* is smaller than every non-zero training example
-    double secondPart( this->ui_n-nrZeroIndices-1 );
-
-    if ( !posIsZero && (position >= nrZeroIndices) )
-    {
-      secondPart = (position-nrZeroIndices);
-    }
-
     // but apply using the transformed one
-    _norm += firstPart + secondPart* fval;
+    _norm += firstPart + secondPart* pow( fval, 2 );
   }
 }
 

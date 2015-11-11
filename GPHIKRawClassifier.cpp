@@ -118,6 +118,12 @@ void GPHIKRawClassifier::initFromConfig(const Config *_conf,
                                                        ils_min_delta,
                                                        ils_min_residual
                                                      );
+
+  // variables for the eigen value decomposition technique
+  this->b_eig_verbose              = _conf->gB ( _confSection, "eig_verbose", false );
+  this->i_eig_value_max_iterations = _conf->gI ( _confSection, "eig_value_max_iterations", 10 );
+
+
   if ( this->b_verbose )
   {
       std::cerr << "GPHIKRawClassifier::initFromConfig " <<std::endl;
@@ -128,6 +134,8 @@ void GPHIKRawClassifier::initFromConfig(const Config *_conf,
       std::cerr << "   ils_min_delta " << ils_min_delta << std::endl;
       std::cerr << "   ils_min_residual " << ils_min_residual << std::endl;
       std::cerr << "   ils_verbose " << ils_verbose << std::endl;
+      std::cerr << "   b_eig_verbose " << b_eig_verbose << std::endl;
+      std::cerr << "   i_eig_value_max_iterations " << i_eig_value_max_iterations << std::endl;
   }
 }
 
@@ -336,9 +344,12 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
   // for reproducibility during debuggin
   srand ( 0 );
   srand48 ( 0 );
-  NICE::EigValues * eig = new EVArnoldi ( false /* verbose flag */,
-                                        10 /*_maxiterations*/
-                                      );
+
+  NICE::EigValues * eig = new EVArnoldi ( this->b_eig_verbose ,
+                                          this->i_eig_value_max_iterations
+                                        );
+
+
   eig->getEigenvalues( *gm, eigenMax, eigenMaxV, 1 /*rank*/ );
   delete eig;
 

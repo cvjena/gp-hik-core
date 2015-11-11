@@ -425,50 +425,28 @@ namespace NICE {
                                                        uint & _position
                                                       ) const
     {
-      _position = 0;
-      if ( _dim > this->ui_d )
-        return;
 
-      //no non-zero elements?
-      if (this->features[_dim].getNonZeros() <= 0)
-      {
-        // if element is greater than zero, than is should be added at the last position
-        if (_elem > this->features[_dim].getTolerance() )
-          _position = this->ui_n;
+        // number of zero elements
+        uint nz = this->ui_n - this->features[_dim].getNonZeros();
+        // number of non-zero elements
+        uint nnz = this->features[_dim].getNonZeros();
 
-        //if not, position is 0
-        return;
-      }
+        _position = 0; // this is the index of the first non-zero element.
 
-      if (this->features[_dim].getNonZeros() == 1)
-      {
-        // if element is greater than the only nonzero element, then it is larger than everything else
-        if (this->features[_dim].nonzeroElements().begin()->first <= _elem)
-          _position = this->ui_n;
-
-        //if not, but the element is still greater than zero, than
-        else if (_elem > this->features[_dim].getTolerance() )
-          _position = this->ui_n -1;
-
-        return;
-      }
-
-
-      // standard case - not everything is zero and not only a single element is zero
+      // standard case
 
       // find pointer to last non-zero element
-      // FIXME no idea why this should be necessary...
-      typename SortedVectorSparse<T>::const_elementpointer it =  this->features[_dim].nonzeroElements().end(); //this is needed !!!
+      typename SortedVectorSparse<T>::const_elementpointer it =  this->features[_dim].nonzeroElements().end();
       // find pointer to first element largern than the given value
-      it = this->features[_dim].nonzeroElements().upper_bound ( _elem ); //if all values are smaller, this does not do anything at all
+      it = this->features[_dim].nonzeroElements().upper_bound ( _elem );
 
       _position = distance( this->features[_dim].nonzeroElements().begin(), it );
 
 
-      if ( _elem > this->features[_dim].getTolerance() )
+      // special case 1: element is (almost) zero -> every other value is considered to be larger
+      if ( _elem >= this->features[_dim].getTolerance() )
       {
-        //position += features[dim].getZeros();
-        _position += this->ui_n - this->features[_dim].getNonZeros();
+          _position += nz;
       }
     }
 

@@ -602,7 +602,10 @@ void FMKGPHyperparameterOptimization::initFromConfig ( const Config *_conf,
   // this->eig = new EigValuesTRLAN();
   // My time measurements show that both methods use equal time, a comparision
   // of their numerical performance has not been done yet  
-  this->eig = new EVArnoldi ( _conf->gB ( _confSection, "eig_verbose", false ) /* verbose flag */, 10 );
+  int eigValueMaxIterations = _conf->gI ( _confSection, "eig_value_max_iterations", 10 );
+  this->eig = new EVArnoldi ( _conf->gB ( _confSection, "eig_verbose", false ) /* verbose flag */,
+                               eigValueMaxIterations /*eigValueMaxIterations*/
+                            );
 
   this->nrOfEigenvaluesToConsider = std::max ( 1, _conf->gI ( _confSection, "nrOfEigenvaluesToConsider", 1 ) );
   
@@ -1352,31 +1355,28 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateFine (
 /*  t.stop();
   std::cerr << "ApproxFine -- time for kernel vector: "  << t.getLast()  << std::endl;*/
     
-//     NICE::Vector multiplicationResults; // will contain nrOfEigenvaluesToConsiderForVarApprox many entries
-//     multiplicationResults.multiply ( *eigenMaxVectorIt, kStar, true/* transpose */ );
+
     NICE::Vector multiplicationResults( this->nrOfEigenvaluesToConsiderForVarApprox-1, 0.0 );
-    //ok, there seems to be a nasty thing in computing multiplicationResults.multiply ( *eigenMaxVectorIt, kStar, true/* transpose */ );
-    //wherefor it takes aeons...
-    //so we compute it by ourselves
-    
-  if ( this->b_debug )
-  {
-    std::cerr << "FMKGPHyp::VarApproxFine  -- nrOfEigenvaluesToConsiderForVarApprox: " << this->nrOfEigenvaluesToConsiderForVarApprox << std::endl;
-    std::cerr << "FMKGPHyp::VarApproxFine  -- initial multiplicationResults: " << multiplicationResults << std::endl;    
-  }    
-    
-    
-    
-//     for ( uint tmpI = 0; tmpI < kStar.size(); tmpI++)
-    NICE::Matrix::const_iterator eigenVecIt = this->eigenMaxVectors.begin();
-//       double kStarI ( kStar[tmpI] );
-    for ( int tmpJ = 0; tmpJ < this->nrOfEigenvaluesToConsiderForVarApprox-1; tmpJ++)
+
+    if ( this->b_debug )
     {
-      for ( NICE::Vector::const_iterator kStarIt = kStar.begin(); kStarIt != kStar.end(); kStarIt++,eigenVecIt++)
-      {        
-        multiplicationResults[tmpJ] += (*kStarIt) * (*eigenVecIt);//eigenMaxVectors(tmpI,tmpJ);
+        std::cerr << "FMKGPHyp::VarApproxFine  -- nrOfEigenvaluesToConsiderForVarApprox: " << this->nrOfEigenvaluesToConsiderForVarApprox << std::endl;
+        std::cerr << "FMKGPHyp::VarApproxFine  -- initial multiplicationResults: " << multiplicationResults << std::endl;
+    }
+    
+    
+    
+    NICE::Matrix::const_iterator eigenVecIt = this->eigenMaxVectors.begin();
+    {
+    NICE::Vector::iterator multResIt = multiplicationResults.begin();
+    for ( int tmpJ = 0; tmpJ < this->nrOfEigenvaluesToConsiderForVarApprox-1; tmpJ++, multResIt++)
+    {
+      for ( NICE::Vector::const_iterator kStarIt = kStar.begin(); kStarIt != kStar.end(); kStarIt++ ,eigenVecIt++)
+      {
+        (*multResIt) += (*kStarIt) * (*eigenVecIt);
       }
     }
+   }
     
   if ( this->b_debug )
   {
@@ -1391,8 +1391,8 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateFine (
 
     while ( cnt < ( this->nrOfEigenvaluesToConsiderForVarApprox - 1 ) )
     {
-      projectionLength = ( *it );
-      currentSecondTerm += ( 1.0 / this->eigenMax[cnt] ) * pow ( projectionLength, 2 );
+      projectionLength        = ( *it );
+      currentSecondTerm      += ( 1.0 / this->eigenMax[cnt] ) * pow ( projectionLength, 2 );
       sumOfProjectionLengths += pow ( projectionLength, 2 );
       
       it++;
@@ -1406,7 +1406,7 @@ void FMKGPHyperparameterOptimization::computePredictiveVarianceApproximateFine (
     
     if ( ( normKStar - sumOfProjectionLengths ) < 0 )
     {
-      std::cerr << "Attention: normKStar - sumOfProjectionLengths is smaller than zero -- strange!" << std::endl;
+        std::cerr << "Attention: normKStar: " << normKStar << " - sumOfProjectionLengths: " <<  sumOfProjectionLengths << " is smaller than zero -- strange!" << std::endl;
     }
     _predVariance = kSelf - currentSecondTerm; 
 }

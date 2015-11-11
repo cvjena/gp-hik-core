@@ -116,7 +116,8 @@ NICE::Config parseParametersGPHIKClassifier(const mxArray *prhs[], int nrhs)
     // READ STRICT POSITIVE INT VARIABLES
     /////////////////////////////////////////
     if ( (variable == "num_bins") || 
-         (variable == "ils_max_iterations")
+         (variable == "ils_max_iterations") ||
+         (variable == "eig_value_max_iterations")
        )
     {
       if ( mxIsDouble( prhs[i+1] ) )

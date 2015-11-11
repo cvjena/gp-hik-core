@@ -58,6 +58,13 @@ class GPHIKRawClassifier //: public NICE::Persistent
     std::string confSection;
 
     //////////////////////////////////////
+    //     EigenValue Decomposition     //
+    //////////////////////////////////////
+
+    bool b_eig_verbose;
+    int i_eig_value_max_iterations;
+
+    //////////////////////////////////////
     // classification related variables //
     //////////////////////////////////////
     /** memorize whether the classifier was already trained*/

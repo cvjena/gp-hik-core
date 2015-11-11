@@ -92,7 +92,9 @@ NICE::Config parseParametersGPHIKRawClassifier(const mxArray *prhs[], int nrhs)
     /////////////////////////////////////////
     // READ STRICT POSITIVE INT VARIABLES
     /////////////////////////////////////////
-    if ( variable == "ils_max_iterations" )
+    if ( ( variable == "ils_max_iterations" )||
+         ( variable == "eig_value_max_iterations" )
+       )
     {
       if ( mxIsDouble( prhs[i+1] ) )
       {
