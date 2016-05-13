@@ -9,6 +9,8 @@
 // STL includes
 #include <iostream>
 
+#include <unistd.h>
+
 // NICE-core includes
 #include <core/basics/numerictools.h>
 #include <core/basics/Timer.h>
@@ -430,9 +432,9 @@ void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
 
 
 void GPHIKRawClassifier::classify ( const NICE::SparseVector * _xstar,
-                                 uint & _result,
-                                 Vector & _scores
-                               ) const
+                                    uint & _result,
+                                    Vector & _scores
+                                  ) const
 {
   if ( ! this->b_isTrained )
      fthrow(Exception, "Classifier not trained yet -- aborting!" );
@@ -561,7 +563,7 @@ void GPHIKRawClassifier::classify ( const std::vector< const NICE::SparseVector 
                                     NICE::Matrix & _scores
                                   ) const
 {
-    _scores.resize( _examples.size(), this->knownClasses.size() );
+    _scores.resize( _examples.size(), * (this->knownClasses.rbegin()) +1 );
     _scores.set( 0.0 );
 
     _results.resize( _examples.size() );
@@ -569,24 +571,24 @@ void GPHIKRawClassifier::classify ( const std::vector< const NICE::SparseVector 
 
 
     NICE::Vector::iterator resultsIt = _results.begin();
-    NICE::Vector scoresSingle( this->knownClasses.size(), 0.0);
 
 
     uint exCnt ( 0 );
+    uint resUI ( 0 );    
+    NICE::Vector scoresSingle( *(this->knownClasses.rbegin())+1, -std::numeric_limits<double>::max() );
+        
     for ( std::vector< const NICE::SparseVector *>::const_iterator exIt = _examples.begin();
           exIt != _examples.end();
           exIt++, resultsIt++, exCnt++
         )
     {
-      uint resUI;
         this->classify ( *exIt,
-                        resUI,
-                        scoresSingle
+                         resUI,
+                         scoresSingle
                        );
-
         *resultsIt = resUI;
         _scores.setRow( exCnt, scoresSingle );
-        scoresSingle.set( 0.0 );
+       scoresSingle.set( -std::numeric_limits<double>::max() );
     }
 }
 
@@ -758,7 +760,7 @@ void GPHIKRawClassifier::train ( const std::vector< const NICE::SparseVector *> 
 
   t.stop();
   if ( this->b_verbose )
-    std::cerr << "Time used for setting up the fmk object: " << t.getLast() << std::endl;
+    std::cerr << "Time used for GPHIKRawClassifier::train: " << t.getLast() << std::endl;
 
   //indicate that we finished training successfully
   this->b_isTrained = true;
