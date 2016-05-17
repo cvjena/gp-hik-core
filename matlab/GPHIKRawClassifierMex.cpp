@@ -274,18 +274,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         yMultiTrain = MatlabConversion::convertDoubleVectorToNice(prhs[3]);
 
         //----------------- train our classifier -------------
-        NICE::Timer t;
-        t.start();	
-	
         classifier->train ( examplesTrain , yMultiTrain );
-	
-        t.stop();
-	
-	
-      FILE * pFile;
-      pFile = fopen ("/home/freytag/experiments/gphik/2015-08-28-gphik-classif/training_times_gphik_raw.txt","a");
-      fprintf (pFile, "GPHIKRaw-Mex -- Time for training without data conversion: %f \n",t.getLast());
-      fclose (pFile);	
 
         //----------------- clean up -------------
         for(int i=0;i<examplesTrain.size();i++)
@@ -316,20 +305,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             NICE::Vector results;
             NICE::Matrix scores;
 
-
-            NICE::Timer t;
-            t.start();
-
             classifier->classify ( examplesTest,  results, scores );
 
-            t.stop();
-
-
-          FILE * pFile;
-          pFile = fopen ("/home/freytag/experiments/gphik/2015-08-28-gphik-classif/test_times_gphik_raw_quant.txt","a");
-          fprintf (pFile, "GPHIKRaw-Mex-Quant test time %f \n",t.getLast());
-          fclose (pFile);
-            
             //----------------- clean up -------------
             for ( std::vector< const NICE::SparseVector *>::iterator exIt = examplesTest.begin();
                  exIt != examplesTest.end();
@@ -358,20 +335,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             uint result;
             NICE::SparseVector scores;
 
-
-            NICE::Timer t;
-            t.start();
-
-
             classifier->classify ( example,  result, scores );
 
-            t.stop();
-
-
-          FILE * pFile;
-          pFile = fopen ("/home/freytag/experiments/gphik/2015-08-28-gphik-classif/test_times_gphik_raw_quant.txt","a");
-          fprintf (pFile, "GPHIKRaw-Mex-Quant test time %f \n",t.getLast());
-          fclose (pFile);
 
             //----------------- clean up -------------
             delete example;
