@@ -197,6 +197,38 @@ class GPHIKClassifier : public NICE::Persistent, public NICE::OnlineLearnable
                     double & _uncertainty 
                   ) const;    
 
+
+    /**
+     * @brief classify a given example with the previously learnt model
+     * NOTE: whenever possible, you should the sparse version to obtain significantly smaller computation times
+     * @date 18-06-2013 (dd-mm-yyyy)
+     * @author Alexander Freytag
+     * @param example (sparse Vector) to be classified given in a non-sparse representation
+     * @param result (uint) class number of most likely class
+     * @param scores (non-sparse vector) classification scores for known classes
+     * @param uncertainty (double) predictive variance of the classification result, if computed
+     */
+    void classify ( const NICE::SparseVector * _example,
+                    uint & _result,
+                    NICE::Vector & _scores,
+                    double & _uncertainty
+                  ) const;
+
+
+    /**
+     * @brief classify a given set of examples with the previously learned model
+     * @author Alexander Freytag, Erik Rodner
+     * @param examples ((std::vector< NICE::SparseVector *>)) to be classified given in a sparse representation
+     * @param results (Vector) class number of most likely class per example
+     * @param scores (NICE::Matrix) classification scores for known classes and test examples
+     * @param _uncertainties (NICE::Vector) predictive variance for each test input, if computed
+     */
+    void classify ( const std::vector< const NICE::SparseVector *> _examples,
+                    NICE::Vector & _results,
+                    NICE::Matrix & _scores,
+                    NICE::Vector & _uncertainties
+                  ) const;
+
     /**
      * @brief train this classifier using a given set of examples and a given set of binary label vectors 
      * @date 18-10-2012 (dd-mm-yyyy)

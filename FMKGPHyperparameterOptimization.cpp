@@ -1212,6 +1212,65 @@ uint FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & _xst
   }
 }
 
+uint FMKGPHyperparameterOptimization::classify ( const NICE::SparseVector & _xstar,
+                                                 NICE::Vector & _scores
+                                               )  const
+{
+    if ( _scores.size() != (*(this->knownClasses.rbegin() ) + 1) )
+    {
+        _scores.resize ( *(this->knownClasses.rbegin() ) + 1 );
+        _scores.set ( -std::numeric_limits<double>::max() );
+    }
+
+
+  // loop through all classes
+  if ( this->precomputedA.size() == 0 )
+  {
+    fthrow ( Exception, "The precomputation vector is zero...have you trained this classifier?" );
+  }
+
+  for ( std::map<uint, PrecomputedType>::const_iterator i = this->precomputedA.begin() ; i != this->precomputedA.end(); i++ )
+  {
+    uint classno = i->first;
+    double beta;
+
+    if ( this->q != NULL ) {
+      std::map<uint, double *>::const_iterator j = this->precomputedT.find ( classno );
+      double *T = j->second;
+      this->fmk->hik_kernel_sum_fast ( T, this->q, _xstar, beta );
+    } else {
+      const PrecomputedType & A = i->second;
+      std::map<uint, PrecomputedType>::const_iterator j = this->precomputedB.find ( classno );
+      const PrecomputedType & B = j->second;
+
+      // fmk->hik_kernel_sum ( A, B, _xstar, beta ); if A, B are of type Matrix
+      // Giving the transformation pf as an additional
+      // argument is necessary due to the following reason:
+      // FeatureMatrixT is sorted according to the original values, therefore,
+      // searching for upper and lower bounds ( findFirst... functions ) require original feature
+      // values as inputs. However, for calculation we need the transformed features values.
+
+      this->fmk->hik_kernel_sum ( A, B, _xstar, beta, pf );
+    }
+
+    _scores[ classno ] = beta;
+  }
+
+  if ( this->precomputedA.size() > 1 )
+  { // multi-class classification
+    return _scores.MaxIndex();
+  }
+  else if ( this->knownClasses.size() == 2 ) // binary setting
+  {
+    _scores[ this->i_binaryLabelNegative ] = -_scores[ this->i_binaryLabelPositive ];
+    return _scores[ this->i_binaryLabelPositive ] <= 0.0 ? this->i_binaryLabelNegative : this->i_binaryLabelPositive;
+  }
+  else //OCC or regression setting
+  {
+    return 1;
+  }
+}
+
 uint FMKGPHyperparameterOptimization::classify ( const NICE::Vector & _xstar, 
                                                  NICE::SparseVector & _scores 
                                                ) const

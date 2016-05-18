@@ -117,7 +117,8 @@ NICE::Config parseParametersGPHIKClassifier(const mxArray *prhs[], int nrhs)
     /////////////////////////////////////////
     if ( (variable == "num_bins") || 
          (variable == "ils_max_iterations") ||
-         (variable == "eig_value_max_iterations")
+         (variable == "eig_value_max_iterations") ||
+         (variable == "downhillsimplex_max_iterations")
        )
     {
       if ( mxIsDouble( prhs[i+1] ) )
@@ -212,6 +213,7 @@ NICE::Config parseParametersGPHIKClassifier(const mxArray *prhs[], int nrhs)
         mexErrMsgIdAndTxt("mexnice:error","Unexpected parameter value for \'optimization_method\'. \'greedy\', \'downhillsimplex\' or \'none\' expected.");
         conf.sS("GPHIKClassifier", variable, value);
     }
+
 
     if(variable == "s_quantType")
     {
@@ -356,46 +358,105 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         {
             mexErrMsgTxt("Test: Unexpected arguments.");
         }
-        
-        //------------- read the data --------------
-
-        uint result;
-        NICE::SparseVector scores;
-        double uncertainty;        
 
         if ( mxIsSparse( prhs[2] ) )
         {
-            NICE::SparseVector * example;
-            example = new NICE::SparseVector ( MatlabConversion::convertSparseVectorToNice( prhs[2] ) );
-            classifier->classify ( example,  result, scores, uncertainty );
-            
-            //----------------- clean up -------------
-            delete example;
+            if ( MatlabConversion::isSparseDataAMatrix( prhs[2] ) )
+            {
+              //----------------- conversion -------------
+              std::vector< const NICE::SparseVector *> examplesTest;
+              examplesTest = MatlabConversion::convertSparseMatrixToNice( prhs[2] );
+
+              //----------------- classification -------------
+              NICE::Vector results;
+              NICE::Matrix scores;
+              NICE::Vector uncertainties;
+
+              classifier->classify ( examplesTest,  results, scores, uncertainties );
+
+              //----------------- clean up -------------
+              for ( std::vector< const NICE::SparseVector *>::iterator exIt = examplesTest.begin();
+                   exIt != examplesTest.end();
+                   exIt++
+              )
+              {
+                delete *exIt;
+              }
+
+              //----------------- output -------------
+              plhs[0] = MatlabConversion::convertVectorFromNice( results );
+
+              if(nlhs >= 2)
+              {
+                plhs[1] = MatlabConversion::convertMatrixFromNice( scores );
+              }
+              if(nlhs >= 3)
+              {
+                plhs[2] = MatlabConversion::convertVectorFromNice( uncertainties );
+              }
+              return;
+            }
+            else
+            {
+                //----------------- conversion -------------
+                NICE::SparseVector * example;
+                example = new NICE::SparseVector ( MatlabConversion::convertSparseVectorToNice( prhs[2] ) );
+
+                //----------------- classification -------------
+                uint result;
+                NICE::SparseVector scores;
+                double uncertainty;
+
+                classifier->classify ( example,  result, scores, uncertainty );
+
+
+                //----------------- clean up -------------
+                delete example;
+
+                //----------------- output -------------
+                plhs[0] = mxCreateDoubleScalar( result );
+
+                if(nlhs >= 2)
+                {
+                  plhs[1] = MatlabConversion::convertSparseVectorFromNice( scores, true  /*b_adaptIndex*/);
+                }
+                if(nlhs >= 3)
+                {
+                  plhs[2] = mxCreateDoubleScalar( uncertainty );
+                }
+                return;
+            }
         }
         else
         {
+            //----------------- conversion -------------
             NICE::Vector * example;
             example = new NICE::Vector ( MatlabConversion::convertDoubleVectorToNice(prhs[2]) );
-            classifier->classify ( example,  result, scores, uncertainty );
-            
-            //----------------- clean up -------------
-            delete example;            
-        }
-          
-          
 
-          // output
-          plhs[0] = mxCreateDoubleScalar( result ); 
-                    
-          if(nlhs >= 2)
-          {
-            plhs[1] = MatlabConversion::convertSparseVectorFromNice( scores, true  /*b_adaptIndex*/);
-          }
-          if(nlhs >= 3)
-          {
-            plhs[2] = mxCreateDoubleScalar( uncertainty );          
-          }
-          return;
+            //----------------- classification -------------
+            uint result;
+            NICE::SparseVector scores;
+            double uncertainty;
+            classifier->classify ( example,  result, scores, uncertainty );
+
+            //----------------- clean up -------------
+            delete example;
+
+
+            //----------------- output -------------
+            plhs[0] = mxCreateDoubleScalar( result );
+
+            if(nlhs >= 2)
+            {
+              plhs[1] = MatlabConversion::convertSparseVectorFromNice( scores, true  /*b_adaptIndex*/);
+            }
+            if(nlhs >= 3)
+            {
+              plhs[2] = mxCreateDoubleScalar( uncertainty );
+            }
+            return;
+        }
+
     }
     
     // Uncertainty prediction    
@@ -558,8 +619,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             }
               
         }
-        
-        std::cerr << "Time for testing: " << testTime << std::endl;          
+
         
         // clean up
         if ( dataIsSparse )

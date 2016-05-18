@@ -439,6 +439,18 @@ class FMKGPHyperparameterOptimization : public NICE::Persistent, public NICE::On
     uint classify ( const NICE::SparseVector & _x, 
                    SparseVector & _scores 
                  ) const;
+
+    /**
+    * @brief classify an example
+    *
+    * @param x input example (sparse vector)
+    * @param scores scores for each class number (non-sparse)
+    *
+    * @return class number achieving the best score
+    */
+    uint classify ( const NICE::SparseVector & _x,
+                   NICE::Vector & _scores
+                 ) const;
     
     /**
     * @brief classify an example that is given as non-sparse vector

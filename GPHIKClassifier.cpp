@@ -279,6 +279,97 @@ void GPHIKClassifier::classify ( const NICE::Vector * _example,
   }
 }
 
+
+
+void GPHIKClassifier::classify ( const NICE::SparseVector * _example,
+                                 uint & _result,
+                                 NICE::Vector & _scores,
+                                 double & _uncertainty
+                               ) const
+{
+    if ( ! this->b_isTrained )
+       fthrow(Exception, "Classifier not trained yet -- aborting!" );
+
+
+    _result = gphyper->classify ( *_example, _scores );
+
+
+    if ( _scores.size() == 0 ) {
+      fthrow(Exception, "Zero scores, something is likely to be wrong here: svec.size() = " << _example->size() );
+    }
+
+    if ( this->uncertaintyPredictionForClassification )
+    {
+
+      if ( this->varianceApproximation != NONE)
+      {
+        this->predictUncertainty( _example, _uncertainty );
+      }
+      else
+      {
+  //       //do nothing
+        _uncertainty = std::numeric_limits<double>::max();
+      }
+    }
+    else
+    {
+
+      //do nothing
+      _uncertainty = std::numeric_limits<double>::max();
+    }
+}
+
+
+
+void GPHIKClassifier::classify ( const std::vector< const NICE::SparseVector *> _examples,
+                                 NICE::Vector & _results,
+                                 NICE::Matrix & _scores,
+                                 NICE::Vector & _uncertainties
+                               ) const
+{
+    if ( ! this->b_isTrained )
+       fthrow(Exception, "Classifier not trained yet -- aborting!" );
+
+    std::set<unsigned int> knownClasses = (this->getKnownClassNumbers());
+
+
+    _scores.resize( _examples.size(), * (knownClasses.rbegin()) +1 );
+    _scores.set( 0.0 );
+
+    _results.resize( _examples.size() );
+    _results.set( 0.0 );
+
+    _uncertainties.resize( _examples.size() );
+    _uncertainties.set( 0.0 );
+
+
+    NICE::Vector::iterator resultsIt = _results.begin();
+    NICE::Vector::iterator uncIt     = _uncertainties.begin();
+
+
+    uint exCnt ( 0 );
+    uint resUI ( 0 );
+    NICE::Vector scoresSingle( * (knownClasses.rbegin()) +1, -std::numeric_limits<double>::max() );
+    double uncSingle ( 0.0 );
+
+    for ( std::vector< const NICE::SparseVector *>::const_iterator exIt = _examples.begin();
+          exIt != _examples.end();
+          exIt++, resultsIt++, exCnt++, uncIt++
+        )
+    {
+        this->classify ( *exIt,
+                         resUI,
+                         scoresSingle,
+                         uncSingle
+                       );
+        *resultsIt = resUI;
+        *uncIt     = uncSingle;
+        _scores.setRow( exCnt, scoresSingle );
+       scoresSingle.set( -std::numeric_limits<double>::max() );
+    }
+}
+
+
 /** training process */
 void GPHIKClassifier::train ( const std::vector< const NICE::SparseVector *> & _examples, 
                               const NICE::Vector & _labels 
